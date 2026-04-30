@@ -1,0 +1,22 @@
+{
+  "name": "rotomi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "elm-live src/Main.elm --open -- --output=app.js",
+    "build": "elm make src/Main.elm --optimize --output=dist/app.js && cp index.html dist/index.html",
+    "test": "elm-test",
+    "test:watch": "elm-test --watch",
+    "format": "elm-format src/ tests/ --yes"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "elm-format": "^0.8.8",
+    "elm-live": "^4.0.2",
+    "elm-test": "^0.19.1-revision17"
+  }
+}
