@@ -4388,19 +4388,19 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.ax.a(response)));
+			callback(toTask(request.ap.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.ax.b, xhr)); });
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.ap.b, xhr)); });
 		$elm$core$Maybe$isJust(request.bz) && _Http_track(router, xhr, request.bz.a);
 
 		try {
-			xhr.open(request.b5, request.B, true);
+			xhr.open(request.b5, request.A, true);
 		} catch (e) {
-			return done($elm$http$Http$BadUrl_(request.B));
+			return done($elm$http$Http$BadUrl_(request.A));
 		}
 
 		_Http_configureRequest(xhr, request);
@@ -4422,7 +4422,7 @@ function _Http_configureRequest(xhr, request)
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
 	xhr.timeout = request.cB.a || 0;
-	xhr.responseType = request.ax.d;
+	xhr.responseType = request.ap.d;
 	xhr.withCredentials = request.bI;
 }
 
@@ -4444,7 +4444,7 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		B: xhr.responseURL,
+		A: xhr.responseURL,
 		cw: xhr.status,
 		cx: xhr.statusText,
 		aZ: _Http_parseHeaders(xhr.getAllResponseHeaders())
@@ -6113,12 +6113,12 @@ var $elm$http$Http$cmdMap = F2(
 				{
 					bI: r.bI,
 					bN: r.bN,
-					ax: A2(_Http_mapExpect, func, r.ax),
+					ap: A2(_Http_mapExpect, func, r.ap),
 					aZ: r.aZ,
 					b5: r.b5,
 					cB: r.cB,
 					bz: r.bz,
-					B: r.B
+					A: r.A
 				});
 		}
 	});
@@ -6141,11 +6141,11 @@ var $elm$http$Http$subscription = _Platform_leaf('Http');
 var $elm$http$Http$request = function (r) {
 	return $elm$http$Http$command(
 		$elm$http$Http$Request(
-			{bI: false, bN: r.bN, ax: r.ax, aZ: r.aZ, b5: r.b5, cB: r.cB, bz: r.bz, B: r.B}));
+			{bI: false, bN: r.bN, ap: r.ap, aZ: r.aZ, b5: r.b5, cB: r.cB, bz: r.bz, A: r.A}));
 };
 var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
-		{bN: $elm$http$Http$emptyBody, ax: r.ax, aZ: _List_Nil, b5: 'GET', cB: $elm$core$Maybe$Nothing, bz: $elm$core$Maybe$Nothing, B: r.B});
+		{bN: $elm$http$Http$emptyBody, ap: r.ap, aZ: _List_Nil, b5: 'GET', cB: $elm$core$Maybe$Nothing, bz: $elm$core$Maybe$Nothing, A: r.A});
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
@@ -6158,20 +6158,30 @@ var $author$project$Main$init = function (flags) {
 		A2($author$project$Main$Loading, url, flags.bp),
 		$elm$http$Http$get(
 			{
-				ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
-				B: url
+				ap: $elm$http$Http$expectString($author$project$Main$GotReplay),
+				A: url
 			}));
 };
 var $elm$json$Json$Decode$int = _Json_decodeInt;
 var $elm$json$Json$Decode$string = _Json_decodeString;
 var $author$project$Main$onSwipe = _Platform_incomingPort('onSwipe', $elm$json$Json$Decode$string);
+var $author$project$Main$CardNotFound = function (a) {
+	return {$: 2, a: a};
+};
 var $author$project$Main$Failed = F2(
 	function (a, b) {
 		return {$: 4, a: a, b: b};
 	});
-var $author$project$Main$Loaded = F3(
-	function (a, b, c) {
-		return {$: 3, a: a, b: b, c: c};
+var $author$project$Main$FetchingCard = function (a) {
+	return {$: 0, a: a};
+};
+var $author$project$Main$GotCardImage = F2(
+	function (a, b) {
+		return {$: 9, a: a, b: b};
+	});
+var $author$project$Main$Loaded = F4(
+	function (a, b, c, d) {
+		return {$: 3, a: a, b: b, c: c, d: d};
 	});
 var $author$project$Main$NextSection = {$: 5};
 var $author$project$Main$PrevSection = {$: 4};
@@ -6179,6 +6189,77 @@ var $author$project$Main$Retrying = F2(
 	function (a, b) {
 		return {$: 2, a: a, b: b};
 	});
+var $author$project$Main$ShowingCard = F2(
+	function (a, b) {
+		return {$: 1, a: a, b: b};
+	});
+var $author$project$Main$dotifyFractional = function (s) {
+	var _v0 = A2($elm$core$String$split, '-5', s);
+	if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
+		var prefix = _v0.a;
+		var _v1 = _v0.b;
+		var suffix = _v1.a;
+		return prefix + ('.5' + suffix);
+	} else {
+		return s;
+	}
+};
+var $elm$core$Basics$not = _Basics_not;
+var $elm$core$String$foldr = _String_foldr;
+var $elm$core$String$toList = function (string) {
+	return A3($elm$core$String$foldr, $elm$core$List$cons, _List_Nil, string);
+};
+var $author$project$Main$zeroPadAfterPrefix = F2(
+	function (prefix, s) {
+		var rest = A2(
+			$elm$core$String$dropLeft,
+			$elm$core$String$length(prefix),
+			s);
+		var _v0 = $elm$core$String$toList(rest);
+		if (!_v0.b) {
+			return s;
+		} else {
+			if (!_v0.b.b) {
+				var d = _v0.a;
+				return $elm$core$Char$isDigit(d) ? (prefix + ('0' + rest)) : s;
+			} else {
+				var d = _v0.a;
+				var _v1 = _v0.b;
+				var next = _v1.a;
+				return ($elm$core$Char$isDigit(d) && (!$elm$core$Char$isDigit(next))) ? (prefix + ('0' + rest)) : s;
+			}
+		}
+	});
+var $author$project$Main$zeroPadSetPrefix = function (s) {
+	return A2($elm$core$String$startsWith, 'sv', s) ? A2($author$project$Main$zeroPadAfterPrefix, 'sv', s) : (A2($elm$core$String$startsWith, 'me', s) ? A2($author$project$Main$zeroPadAfterPrefix, 'me', s) : s);
+};
+var $author$project$Main$replaySetIdToTcgDex = function (code) {
+	switch (code) {
+		case 'mebsp':
+			return 'mep';
+		case 'svbsp':
+			return 'svp';
+		case 'zsv10-5':
+			return 'sv10.5b';
+		case 'rsv10-5':
+			return 'sv10.5w';
+		default:
+			return $author$project$Main$zeroPadSetPrefix(
+				$author$project$Main$dotifyFractional(code));
+	}
+};
+var $author$project$Main$cardApiUrl = function (id) {
+	var _v0 = A2($elm$core$String$split, '_', id);
+	if (_v0.b && _v0.b.b) {
+		var setCode = _v0.a;
+		var _v1 = _v0.b;
+		var localId = _v1.a;
+		return $elm$core$Maybe$Just(
+			'https://api.tcgdex.net/v2/en/sets/' + ($author$project$Main$replaySetIdToTcgDex(setCode) + ('/' + localId)));
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$currentUrl = function (model) {
 	switch (model.$) {
 		case 0:
@@ -6198,6 +6279,7 @@ var $author$project$Main$currentUrl = function (model) {
 			return url;
 	}
 };
+var $elm$json$Json$Decode$decodeString = _Json_runOnString;
 var $author$project$Main$httpErrorToString = function (err) {
 	switch (err.$) {
 		case 0:
@@ -6466,7 +6548,6 @@ var $elm$core$Maybe$map = F2(
 			return $elm$core$Maybe$Nothing;
 		}
 	});
-var $elm$core$Basics$not = _Basics_not;
 var $author$project$Replay$parseTurnHeader = function (line) {
 	if (A2($elm$core$String$startsWith, 'Turn # ', line)) {
 		var _v0 = A2($elm$core$String$split, ' - ', line);
@@ -6604,7 +6685,7 @@ var $author$project$Main$pushUrl = _Platform_outgoingPort(
 					$elm$json$Json$Encode$int($.T)),
 					_Utils_Tuple2(
 					'url',
-					$elm$json$Json$Encode$string($.B))
+					$elm$json$Json$Encode$string($.A))
 				]));
 	});
 var $author$project$Main$loadReplay = F3(
@@ -6620,9 +6701,9 @@ var $author$project$Main$loadReplay = F3(
 		return $elm$core$List$isEmpty(replay.U) ? _Utils_Tuple2(
 			A2($author$project$Main$Failed, url, 'No replay content found — check the URL'),
 			$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-			A3($author$project$Main$Loaded, url, replay, index),
+			A4($author$project$Main$Loaded, url, replay, index, $elm$core$Maybe$Nothing),
 			$author$project$Main$pushUrl(
-				{T: index, B: url}));
+				{T: index, A: url}));
 	});
 var $elm$url$Url$percentEncode = _Url_percentEncode;
 var $author$project$Main$proxyUrl = function (url) {
@@ -6645,8 +6726,8 @@ var $author$project$Main$update = F2(
 						A2($author$project$Main$Loading, url, 0),
 						$elm$http$Http$get(
 							{
-								ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
-								B: url
+								ap: $elm$http$Http$expectString($author$project$Main$GotReplay),
+								A: url
 							}));
 				case 2:
 					var result = msg.a;
@@ -6664,8 +6745,8 @@ var $author$project$Main$update = F2(
 										A2($author$project$Main$Retrying, url, idx),
 										$elm$http$Http$get(
 											{
-												ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
-												B: $author$project$Main$proxyUrl(url)
+												ap: $elm$http$Http$expectString($author$project$Main$GotReplay),
+												A: $author$project$Main$proxyUrl(url)
 											}));
 								} else {
 									var err = result.a;
@@ -6700,9 +6781,9 @@ var $author$project$Main$update = F2(
 						var url = model.a;
 						var replay = model.b;
 						return _Utils_Tuple2(
-							A3($author$project$Main$Loaded, url, replay, 0),
+							A4($author$project$Main$Loaded, url, replay, 0, $elm$core$Maybe$Nothing),
 							$author$project$Main$pushUrl(
-								{T: 0, B: url}));
+								{T: 0, A: url}));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
@@ -6713,9 +6794,9 @@ var $author$project$Main$update = F2(
 						var i = model.c;
 						var newIndex = A2($elm$core$Basics$max, 0, i - 1);
 						return _Utils_Tuple2(
-							A3($author$project$Main$Loaded, url, replay, newIndex),
+							A4($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing),
 							$author$project$Main$pushUrl(
-								{T: newIndex, B: url}));
+								{T: newIndex, A: url}));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
@@ -6729,9 +6810,9 @@ var $author$project$Main$update = F2(
 							$elm$core$List$length(replay.U) - 1,
 							i + 1);
 						return _Utils_Tuple2(
-							A3($author$project$Main$Loaded, url, replay, newIndex),
+							A4($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing),
 							$author$project$Main$pushUrl(
-								{T: newIndex, B: url}));
+								{T: newIndex, A: url}));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
@@ -6741,13 +6822,13 @@ var $author$project$Main$update = F2(
 						var replay = model.b;
 						var newIndex = $elm$core$List$length(replay.U) - 1;
 						return _Utils_Tuple2(
-							A3($author$project$Main$Loaded, url, replay, newIndex),
+							A4($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing),
 							$author$project$Main$pushUrl(
-								{T: newIndex, B: url}));
+								{T: newIndex, A: url}));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				default:
+				case 7:
 					var direction = msg.a;
 					switch (direction) {
 						case 'left':
@@ -6765,6 +6846,89 @@ var $author$project$Main$update = F2(
 						default:
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
+				case 8:
+					var id = msg.a;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var _v11 = $author$project$Main$cardApiUrl(id);
+						if (!_v11.$) {
+							var apiUrl = _v11.a;
+							return _Utils_Tuple2(
+								A4(
+									$author$project$Main$Loaded,
+									url,
+									replay,
+									i,
+									$elm$core$Maybe$Just(
+										$author$project$Main$FetchingCard(id))),
+								$elm$http$Http$get(
+									{
+										ap: $elm$http$Http$expectString(
+											$author$project$Main$GotCardImage(id)),
+										A: apiUrl
+									}));
+						} else {
+							return _Utils_Tuple2(
+								A4(
+									$author$project$Main$Loaded,
+									url,
+									replay,
+									i,
+									$elm$core$Maybe$Just(
+										$author$project$Main$CardNotFound(id))),
+								$elm$core$Platform$Cmd$none);
+						}
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 9:
+					var id = msg.a;
+					var result = msg.b;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var popup = function () {
+							if (!result.$) {
+								var body = result.a;
+								var _v14 = A2(
+									$elm$json$Json$Decode$decodeString,
+									A2($elm$json$Json$Decode$field, 'image', $elm$json$Json$Decode$string),
+									body);
+								if (!_v14.$) {
+									var imageUrl = _v14.a;
+									return A2($author$project$Main$ShowingCard, id, imageUrl);
+								} else {
+									return $author$project$Main$CardNotFound(id);
+								}
+							} else {
+								return $author$project$Main$CardNotFound(id);
+							}
+						}();
+						return _Utils_Tuple2(
+							A4(
+								$author$project$Main$Loaded,
+								url,
+								replay,
+								i,
+								$elm$core$Maybe$Just(popup)),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				default:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						return _Utils_Tuple2(
+							A4($author$project$Main$Loaded, url, replay, i, $elm$core$Maybe$Nothing),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
 			}
 		}
 	});
@@ -6774,6 +6938,104 @@ var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $author$project$Main$CloseCard = {$: 10};
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 0, a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
+var $author$project$Main$viewCardPopup = function (popup) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick($author$project$Main$CloseCard),
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'inset', '0'),
+				A2($elm$html$Html$Attributes$style, 'background', 'rgba(0,0,0,0.6)'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '1000'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer')
+			]),
+		_List_fromArray(
+			[
+				function () {
+				switch (popup.$) {
+					case 0:
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'color', 'white'),
+									A2($elm$html$Html$Attributes$style, 'font-style', 'italic'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '1rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Loading…')
+								]));
+					case 2:
+						var id = popup.a;
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'background', 'white'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+									A2($elm$html$Html$Attributes$style, 'padding', '1.5rem 2rem'),
+									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Card not found: ' + id)
+								]));
+					default:
+						var imageUrl = popup.b;
+						return A2(
+							$elm$html$Html$img,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$src(imageUrl + '/high.webp'),
+									A2($elm$html$Html$Attributes$style, 'max-height', '80vh'),
+									A2($elm$html$Html$Attributes$style, 'max-width', '90vw'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+									A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.5)'),
+									A2($elm$html$Html$Attributes$style, 'display', 'block')
+								]),
+							_List_Nil);
+				}
+			}()
+			]));
+};
 var $elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6837,12 +7099,12 @@ var $author$project$Main$CardId = function (a) {
 	return {$: 1, a: a};
 };
 var $author$project$Main$isCardId = function (s) {
-	return (!$elm$core$String$isEmpty(s)) && A2(
+	return (!$elm$core$String$isEmpty(s)) && (A2($elm$core$String$contains, '_', s) && A2(
 		$elm$core$String$all,
 		function (c) {
 			return $elm$core$Char$isAlpha(c) || ($elm$core$Char$isDigit(c) || ((c === '_') || (c === '-')));
 		},
-		s);
+		s));
 };
 var $author$project$Main$parseParen = function (str) {
 	var _v0 = A2($elm$core$String$split, ')', str);
@@ -6878,6 +7140,9 @@ var $author$project$Main$segmentText = function (str) {
 			A2($elm$core$List$concatMap, $author$project$Main$parseParen, rest));
 	}
 };
+var $author$project$Main$CardClicked = function (a) {
+	return {$: 8, a: a};
+};
 var $author$project$Main$viewSegment = function (seg) {
 	if (!seg.$) {
 		var str = seg.a;
@@ -6888,13 +7153,16 @@ var $author$project$Main$viewSegment = function (seg) {
 			$elm$html$Html$span,
 			_List_fromArray(
 				[
+					$elm$html$Html$Events$onClick(
+					$author$project$Main$CardClicked(id)),
 					A2($elm$html$Html$Attributes$style, 'font-family', '\'Courier New\', monospace'),
 					A2($elm$html$Html$Attributes$style, 'font-size', '0.78em'),
 					A2($elm$html$Html$Attributes$style, 'background', '#edf2f7'),
 					A2($elm$html$Html$Attributes$style, 'color', '#553c9a'),
 					A2($elm$html$Html$Attributes$style, 'padding', '0.1em 0.35em'),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '3px'),
-					A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap')
+					A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer')
 				]),
 			_List_fromArray(
 				[
@@ -6951,23 +7219,6 @@ var $author$project$Main$viewLine = function (line) {
 var $author$project$Main$FirstSection = {$: 3};
 var $author$project$Main$LastSection = {$: 6};
 var $elm$html$Html$button = _VirtualDom_node('button');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 0, a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
 var $author$project$Main$navArrow = F3(
 	function (visible, msg, symbol) {
 		return A2(
@@ -7277,13 +7528,6 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
 var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
 var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
@@ -7419,7 +7663,15 @@ var $author$project$Main$view = function (model) {
 						$elm$html$Html$text('Rotomi')
 					])),
 				$author$project$Main$viewUrlBar(model),
-				$author$project$Main$viewContent(model)
+				$author$project$Main$viewContent(model),
+				function () {
+				if ((model.$ === 3) && (!model.d.$)) {
+					var popup = model.d.a;
+					return $author$project$Main$viewCardPopup(popup);
+				} else {
+					return $elm$html$Html$text('');
+				}
+			}()
 			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
