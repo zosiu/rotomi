@@ -4570,7 +4570,10 @@ function _Url_percentDecode(string)
 	{
 		return $elm$core$Maybe$Nothing;
 	}
-}var $elm$core$List$cons = _List_cons;
+}var $author$project$Main$GotSwipe = function (a) {
+	return {$: 7, a: a};
+};
+var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
 	function (func, baseCase, _v0) {
@@ -6160,9 +6163,8 @@ var $author$project$Main$init = function (flags) {
 			}));
 };
 var $elm$json$Json$Decode$int = _Json_decodeInt;
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
 var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Main$onSwipe = _Platform_incomingPort('onSwipe', $elm$json$Json$Decode$string);
 var $author$project$Main$Failed = F2(
 	function (a, b) {
 		return {$: 4, a: a, b: b};
@@ -6171,6 +6173,8 @@ var $author$project$Main$Loaded = F3(
 	function (a, b, c) {
 		return {$: 3, a: a, b: b, c: c};
 	});
+var $author$project$Main$NextSection = {$: 5};
+var $author$project$Main$PrevSection = {$: 4};
 var $author$project$Main$Retrying = F2(
 	function (a, b) {
 		return {$: 2, a: a, b: b};
@@ -6626,41 +6630,59 @@ var $author$project$Main$proxyUrl = function (url) {
 };
 var $author$project$Main$update = F2(
 	function (msg, model) {
-		switch (msg.$) {
-			case 0:
-				var url = msg.a;
-				return _Utils_Tuple2(
-					$author$project$Main$EnteringUrl(url),
-					$elm$core$Platform$Cmd$none);
-			case 1:
-				var url = $elm$core$String$trim(
-					$author$project$Main$currentUrl(model));
-				return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-					A2($author$project$Main$Loading, url, 0),
-					$elm$http$Http$get(
-						{
-							ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
-							B: url
-						}));
-			case 2:
-				var result = msg.a;
-				switch (model.$) {
-					case 1:
-						var url = model.a;
-						var idx = model.b;
-						if (!result.$) {
-							var content = result.a;
-							return A3($author$project$Main$loadReplay, url, idx, content);
-						} else {
-							if (result.a.$ === 2) {
-								var _v3 = result.a;
-								return _Utils_Tuple2(
-									A2($author$project$Main$Retrying, url, idx),
-									$elm$http$Http$get(
-										{
-											ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
-											B: $author$project$Main$proxyUrl(url)
-										}));
+		update:
+		while (true) {
+			switch (msg.$) {
+				case 0:
+					var url = msg.a;
+					return _Utils_Tuple2(
+						$author$project$Main$EnteringUrl(url),
+						$elm$core$Platform$Cmd$none);
+				case 1:
+					var url = $elm$core$String$trim(
+						$author$project$Main$currentUrl(model));
+					return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+						A2($author$project$Main$Loading, url, 0),
+						$elm$http$Http$get(
+							{
+								ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
+								B: url
+							}));
+				case 2:
+					var result = msg.a;
+					switch (model.$) {
+						case 1:
+							var url = model.a;
+							var idx = model.b;
+							if (!result.$) {
+								var content = result.a;
+								return A3($author$project$Main$loadReplay, url, idx, content);
+							} else {
+								if (result.a.$ === 2) {
+									var _v3 = result.a;
+									return _Utils_Tuple2(
+										A2($author$project$Main$Retrying, url, idx),
+										$elm$http$Http$get(
+											{
+												ax: $elm$http$Http$expectString($author$project$Main$GotReplay),
+												B: $author$project$Main$proxyUrl(url)
+											}));
+								} else {
+									var err = result.a;
+									return _Utils_Tuple2(
+										A2(
+											$author$project$Main$Failed,
+											url,
+											$author$project$Main$httpErrorToString(err)),
+										$elm$core$Platform$Cmd$none);
+								}
+							}
+						case 2:
+							var url = model.a;
+							var idx = model.b;
+							if (!result.$) {
+								var content = result.a;
+								return A3($author$project$Main$loadReplay, url, idx, content);
 							} else {
 								var err = result.a;
 								return _Utils_Tuple2(
@@ -6670,77 +6692,80 @@ var $author$project$Main$update = F2(
 										$author$project$Main$httpErrorToString(err)),
 									$elm$core$Platform$Cmd$none);
 							}
-						}
-					case 2:
+						default:
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 3:
+					if (model.$ === 3) {
 						var url = model.a;
-						var idx = model.b;
-						if (!result.$) {
-							var content = result.a;
-							return A3($author$project$Main$loadReplay, url, idx, content);
-						} else {
-							var err = result.a;
-							return _Utils_Tuple2(
-								A2(
-									$author$project$Main$Failed,
-									url,
-									$author$project$Main$httpErrorToString(err)),
-								$elm$core$Platform$Cmd$none);
-						}
-					default:
+						var replay = model.b;
+						return _Utils_Tuple2(
+							A3($author$project$Main$Loaded, url, replay, 0),
+							$author$project$Main$pushUrl(
+								{T: 0, B: url}));
+					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 3:
-				if (model.$ === 3) {
-					var url = model.a;
-					var replay = model.b;
-					return _Utils_Tuple2(
-						A3($author$project$Main$Loaded, url, replay, 0),
-						$author$project$Main$pushUrl(
-							{T: 0, B: url}));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 4:
-				if (model.$ === 3) {
-					var url = model.a;
-					var replay = model.b;
-					var i = model.c;
-					var newIndex = A2($elm$core$Basics$max, 0, i - 1);
-					return _Utils_Tuple2(
-						A3($author$project$Main$Loaded, url, replay, newIndex),
-						$author$project$Main$pushUrl(
-							{T: newIndex, B: url}));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			case 5:
-				if (model.$ === 3) {
-					var url = model.a;
-					var replay = model.b;
-					var i = model.c;
-					var newIndex = A2(
-						$elm$core$Basics$min,
-						$elm$core$List$length(replay.U) - 1,
-						i + 1);
-					return _Utils_Tuple2(
-						A3($author$project$Main$Loaded, url, replay, newIndex),
-						$author$project$Main$pushUrl(
-							{T: newIndex, B: url}));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
-			default:
-				if (model.$ === 3) {
-					var url = model.a;
-					var replay = model.b;
-					var newIndex = $elm$core$List$length(replay.U) - 1;
-					return _Utils_Tuple2(
-						A3($author$project$Main$Loaded, url, replay, newIndex),
-						$author$project$Main$pushUrl(
-							{T: newIndex, B: url}));
-				} else {
-					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-				}
+					}
+				case 4:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var newIndex = A2($elm$core$Basics$max, 0, i - 1);
+						return _Utils_Tuple2(
+							A3($author$project$Main$Loaded, url, replay, newIndex),
+							$author$project$Main$pushUrl(
+								{T: newIndex, B: url}));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 5:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var newIndex = A2(
+							$elm$core$Basics$min,
+							$elm$core$List$length(replay.U) - 1,
+							i + 1);
+						return _Utils_Tuple2(
+							A3($author$project$Main$Loaded, url, replay, newIndex),
+							$author$project$Main$pushUrl(
+								{T: newIndex, B: url}));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 6:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var newIndex = $elm$core$List$length(replay.U) - 1;
+						return _Utils_Tuple2(
+							A3($author$project$Main$Loaded, url, replay, newIndex),
+							$author$project$Main$pushUrl(
+								{T: newIndex, B: url}));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				default:
+					var direction = msg.a;
+					switch (direction) {
+						case 'left':
+							var $temp$msg = $author$project$Main$NextSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						case 'right':
+							var $temp$msg = $author$project$Main$PrevSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						default:
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+			}
 		}
 	});
 var $elm$html$Html$div = _VirtualDom_node('div');
@@ -6925,8 +6950,6 @@ var $author$project$Main$viewLine = function (line) {
 };
 var $author$project$Main$FirstSection = {$: 3};
 var $author$project$Main$LastSection = {$: 6};
-var $author$project$Main$NextSection = {$: 5};
-var $author$project$Main$PrevSection = {$: 4};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 0, a: a};
@@ -7403,7 +7426,7 @@ var $author$project$Main$main = $elm$browser$Browser$element(
 	{
 		b1: $author$project$Main$init,
 		cy: function (_v0) {
-			return $elm$core$Platform$Sub$none;
+			return $author$project$Main$onSwipe($author$project$Main$GotSwipe);
 		},
 		cE: $author$project$Main$update,
 		cF: $author$project$Main$view
