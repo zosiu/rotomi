@@ -94,6 +94,11 @@ async function checkCard({ id, name: parsedName }) {
         reason: `name mismatch: parsed "${parsedName}" vs API "${apiName}"`,
       };
     }
+    // The app decodes the "image" field to show the card picture — if it's
+    // missing the app shows "Card not found" even though the name check passes.
+    if (typeof body.image !== "string" || body.image.length === 0) {
+      return { id, parsedName, ok: false, reason: "no image URL in API response" };
+    }
     return { id, parsedName, ok: true, reason: null };
   } catch {
     return { id, parsedName, ok: false, reason: "network error" };
