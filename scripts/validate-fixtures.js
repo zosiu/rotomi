@@ -42,23 +42,68 @@ function cardApiUrl(id) {
   return `https://api.tcgdex.net/v2/en/sets/${replaySetIdToTcgDex(setCode)}/${localId}`;
 }
 
-// --- Card ID check (returns { id, ok, reason }) ---
+// --- Name comparison ---
 
-async function checkCard(id) {
+// Two known benign differences that should not be flagged as errors:
+//
+//  1. Energy cards: replay text has "Basic Grass Energy" but the API returns
+//     just "Grass Energy" (no "Basic" prefix).
+//
+//  2. Some cards have flavor text in parentheses in the API name, e.g.
+//     "Boss's Orders (Giovanni)", while the parsed name is "Boss's Orders".
+//
+function namesMatch(apiName, parsedName) {
+  const norm = (s) => s.trim().toLowerCase();
+
+  // Direct match
+  if (norm(apiName) === norm(parsedName)) return true;
+
+  // Strip "Basic " prefix from parsed name (Energy cards)
+  const parsedWithoutBasic = parsedName.replace(/^Basic\s+/i, "");
+  if (norm(apiName) === norm(parsedWithoutBasic)) return true;
+
+  // Strip trailing " (…)" flavor text from API name
+  const apiWithoutFlavor = apiName.replace(/\s*\([^)]*\)\s*$/, "");
+  if (norm(apiWithoutFlavor) === norm(parsedName)) return true;
+
+  // Both adjustments at once
+  if (norm(apiWithoutFlavor) === norm(parsedWithoutBasic)) return true;
+
+  return false;
+}
+
+// --- Card check: verifies the card exists and the parsed name matches the API name ---
+// Returns { id, parsedName, ok, reason }
+
+async function checkCard({ id, name: parsedName }) {
   const url = cardApiUrl(id);
-  if (!url) return { id, ok: false, reason: "could not build API URL" };
+  if (!url) return { id, parsedName, ok: false, reason: "could not build API URL" };
   try {
     const res = await fetch(url);
-    return { id, ok: res.ok, reason: res.ok ? null : `HTTP ${res.status}` };
+    if (!res.ok) return { id, parsedName, ok: false, reason: `HTTP ${res.status}` };
+    const body = await res.json();
+    const apiName = typeof body.name === "string" ? body.name : null;
+    if (apiName === null) {
+      return { id, parsedName, ok: false, reason: "API response missing name field" };
+    }
+    if (!namesMatch(apiName, parsedName)) {
+      return {
+        id,
+        parsedName,
+        ok: false,
+        reason: `name mismatch: parsed "${parsedName}" vs API "${apiName}"`,
+      };
+    }
+    return { id, parsedName, ok: true, reason: null };
   } catch {
-    return { id, ok: false, reason: "network error" };
+    return { id, parsedName, ok: false, reason: "network error" };
   }
 }
 
-async function checkAllCards(ids, batchSize = 20) {
+async function checkAllCards(refs, batchSize = 20) {
   const results = [];
-  for (let i = 0; i < ids.length; i += batchSize) {
-    const batch = ids.slice(i, i + batchSize);
+  for (let i = 0; i < refs.length; i += batchSize) {
+    const batch = refs.slice(i, i + batchSize);
     results.push(...(await Promise.all(batch.map(checkCard))));
   }
   return results;
@@ -68,23 +113,23 @@ async function checkAllCards(ids, batchSize = 20) {
 
 const app = Elm.ValidateFixtures.init({ flags: fileData });
 
-app.ports.done.subscribe(async ({ output, allOk, cardIds }) => {
+app.ports.done.subscribe(async ({ output, allOk, cardRefs }) => {
   process.stdout.write(output);
 
-  if (cardIds.length === 0) {
+  if (cardRefs.length === 0) {
     process.exit(allOk ? 0 : 1);
     return;
   }
 
-  console.log(`\nChecking ${cardIds.length} unique card ID(s) against TCGdex…`);
+  console.log(`\nChecking ${cardRefs.length} unique card ID(s) against TCGdex…`);
 
-  const results = await checkAllCards(cardIds);
+  const results = await checkAllCards(cardRefs);
   const bad = results.filter((r) => !r.ok);
 
   if (bad.length === 0) {
-    console.log(`All ${cardIds.length} card ID(s) found in TCGdex ✓`);
+    console.log(`All ${cardRefs.length} card ID(s) verified in TCGdex ✓`);
   } else {
-    console.log(`\n${bad.length} card ID(s) not found in TCGdex:`);
+    console.log(`\n${bad.length} card ID(s) had issues:`);
     bad.forEach(({ id, reason }) => console.log(`  ${id}  (${reason})`));
   }
 

@@ -4,7 +4,7 @@ import Platform
 import Replay exposing (MatchResult, Players, Section(..))
 
 
-port done : { output : String, allOk : Bool, cardIds : List String } -> Cmd msg
+port done : { output : String, allOk : Bool, cardRefs : List { id : String, name : String } } -> Cmd msg
 
 
 type alias FileInput =
@@ -47,12 +47,12 @@ main =
                                )
                             ++ "\n"
 
-                    cardIds =
+                    cardRefs =
                         files
-                            |> List.concatMap (.content >> extractCardIds)
-                            |> uniqueSorted
+                            |> List.concatMap (.content >> extractCardRefs)
+                            |> uniqueRefsByIdSorted
                 in
-                ( (), done { output = output, allOk = allOk, cardIds = cardIds } )
+                ( (), done { output = output, allOk = allOk, cardRefs = cardRefs } )
         , update = \_ model -> ( model, Cmd.none )
         , subscriptions = \_ -> Sub.none
         }
@@ -195,20 +195,27 @@ formatResult r =
     String.join "\n" (mainLine :: issueLines)
 
 
--- CARD ID EXTRACTION
+-- CARD REFERENCE EXTRACTION
 
 
-extractCardIds : String -> List String
-extractCardIds content =
+extractCardRefs : String -> List { id : String, name : String }
+extractCardRefs content =
     content
         |> String.split "("
         |> List.drop 1
         |> List.concatMap
             (\s ->
                 case String.split ")" s of
-                    id :: _ ->
+                    id :: rest ->
                         if isCardId id then
-                            [ id ]
+                            let
+                                remainder =
+                                    String.join ")" rest
+
+                                ( name, _ ) =
+                                    extractCardName remainder
+                            in
+                            [ { id = id, name = name } ]
 
                         else
                             []
@@ -225,15 +232,15 @@ isCardId s =
         && String.all (\c -> Char.isAlpha c || Char.isDigit c || c == '_' || c == '-') s
 
 
-uniqueSorted : List String -> List String
-uniqueSorted xs =
-    xs
-        |> List.sort
+uniqueRefsByIdSorted : List { id : String, name : String } -> List { id : String, name : String }
+uniqueRefsByIdSorted refs =
+    refs
+        |> List.sortBy .id
         |> List.foldr
             (\x acc ->
                 case acc of
                     first :: _ ->
-                        if x == first then
+                        if x.id == first.id then
                             acc
 
                         else
@@ -243,3 +250,190 @@ uniqueSorted xs =
                         [ x ]
             )
             []
+
+
+-- CARD NAME EXTRACTION (mirrors extractCardName / helpers in Main.elm)
+
+
+extractCardName : String -> ( String, String )
+extractCardName content =
+    let
+        leadingSpace =
+            if String.startsWith " " content then
+                1
+
+            else
+                0
+
+        body =
+            String.dropLeft leadingSpace content
+
+        words =
+            String.words body
+
+        ( nameWords, hadTerminalPunct ) =
+            collectName words
+
+        rawName =
+            String.join " " nameWords
+
+        name =
+            trimTrailingColon rawName
+
+        offset =
+            leadingSpace
+                + String.length rawName
+                + (if hadTerminalPunct then
+                    1
+
+                   else
+                    0
+                  )
+
+        rest =
+            String.dropLeft offset content
+    in
+    ( name, rest )
+
+
+collectName : List String -> ( List String, Bool )
+collectName words =
+    case words of
+        [] ->
+            ( [], False )
+
+        word :: rest ->
+            let
+                ( stripped, hadPunct ) =
+                    stripTerminalPunct word
+            in
+            if isNameToken stripped then
+                if hadPunct then
+                    case rest of
+                        nextWord :: _ ->
+                            let
+                                ( nextStripped, _ ) =
+                                    stripTerminalPunct nextWord
+                            in
+                            if
+                                stripped /= "ex"
+                                    && String.length stripped <= 3
+                                    && isNameToken nextStripped
+                            then
+                                let
+                                    ( moreWords, finalHadPunct ) =
+                                        collectName rest
+                                in
+                                ( word :: moreWords, finalHadPunct )
+
+                            else
+                                ( [ stripped ], True )
+
+                        [] ->
+                            ( [ stripped ], True )
+
+                else
+                    let
+                        ( moreWords, finalHadPunct ) =
+                            collectName rest
+                    in
+                    ( stripped :: moreWords, finalHadPunct )
+
+            else if isVersionToken stripped then
+                ( [ stripped ], hadPunct )
+
+            else if isConnector word then
+                case rest of
+                    nextWord :: _ ->
+                        let
+                            ( nextStripped, _ ) =
+                                stripTerminalPunct nextWord
+                        in
+                        if isNameToken nextStripped then
+                            let
+                                ( moreWords, finalHadPunct ) =
+                                    collectName rest
+                            in
+                            ( word :: moreWords, finalHadPunct )
+
+                        else
+                            ( [], False )
+
+                    [] ->
+                        ( [], False )
+
+            else
+                ( [], False )
+
+
+isNameToken : String -> Bool
+isNameToken word =
+    word == "ex"
+        || (case String.uncons word of
+                Nothing ->
+                    False
+
+                Just ( c, _ ) ->
+                    Char.isUpper c
+                        && safeDigits word
+                        && not (hasCamelCase word)
+           )
+
+
+safeDigits : String -> Bool
+safeDigits word =
+    let
+        digits =
+            String.filter Char.isDigit word
+    in
+    String.isEmpty digits
+        || (String.length digits == 1 && String.endsWith digits word)
+
+
+hasCamelCase : String -> Bool
+hasCamelCase word =
+    let
+        ( _, found ) =
+            List.foldl
+                (\c ( prevWasLower, acc ) ->
+                    ( Char.isLower c, acc || (Char.isUpper c && prevWasLower) )
+                )
+                ( False, False )
+                (String.toList word)
+    in
+    found
+
+
+isConnector : String -> Bool
+isConnector word =
+    word == "of" || word == "at"
+
+
+isVersionToken : String -> Bool
+isVersionToken word =
+    case String.uncons word of
+        Nothing ->
+            False
+
+        Just ( c, _ ) ->
+            Char.isDigit c
+                && String.contains "." word
+                && String.all (\ch -> Char.isDigit ch || ch == '.') word
+
+
+stripTerminalPunct : String -> ( String, Bool )
+stripTerminalPunct word =
+    if String.endsWith "," word || String.endsWith "." word then
+        ( String.dropRight 1 word, True )
+
+    else
+        ( word, False )
+
+
+trimTrailingColon : String -> String
+trimTrailingColon s =
+    if String.endsWith ":" s then
+        String.dropRight 1 s
+
+    else
+        s

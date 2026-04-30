@@ -788,7 +788,7 @@ viewLine line =
 
 type TextSegment
     = PlainText String
-    | CardId String
+    | CardRef String String
 
 
 viewInlineText : String -> List (Html Msg)
@@ -802,7 +802,7 @@ viewSegment seg =
         PlainText str ->
             text str
 
-        CardId id ->
+        CardRef id name ->
             span
                 [ onClick (CardClicked id)
                 , style "font-family" "'Courier New', monospace"
@@ -814,7 +814,14 @@ viewSegment seg =
                 , style "white-space" "nowrap"
                 , style "cursor" "pointer"
                 ]
-                [ text id ]
+                [ text
+                    (if String.isEmpty name then
+                        id
+
+                     else
+                        name
+                    )
+                ]
 
 
 viewCardPopup : CardPopup -> Html Msg
@@ -877,8 +884,15 @@ parseParen str =
     case String.split ")" str of
         id :: remainderParts ->
             if isCardId id then
-                [ CardId id
-                , PlainText (String.join ")" remainderParts)
+                let
+                    remainder =
+                        String.join ")" remainderParts
+
+                    ( name, rest ) =
+                        extractCardName remainder
+                in
+                [ CardRef id name
+                , PlainText rest
                 ]
 
             else
@@ -886,6 +900,266 @@ parseParen str =
 
         [] ->
             [ PlainText ("(" ++ str) ]
+
+
+{-| Extract a human-readable card name from the text that follows a card ID.
+
+The content is the remainder after `)`, e.g. `" Yveltal to the Active Spot."`.
+Returns `(name, rest)` where name is the Title-Case card name (e.g. `"Yveltal"`)
+and rest is everything after the name in the original content.
+
+Name tokens are words that start with an uppercase letter, or exactly "ex".
+Collection stops at the first word that is neither, or when a word ends with
+"," or "." (terminal punctuation – the stripped word becomes the final name token).
+A trailing ":" on the assembled name is stripped (handles "Binding Mochi:").
+
+-}
+extractCardName : String -> ( String, String )
+extractCardName content =
+    let
+        leadingSpace =
+            if String.startsWith " " content then
+                1
+
+            else
+                0
+
+        body =
+            String.dropLeft leadingSpace content
+
+        words =
+            String.words body
+
+        ( nameWords, hadTerminalPunct ) =
+            collectName words
+
+        rawName =
+            String.join " " nameWords
+
+        name =
+            trimTrailingColon rawName
+
+        offset =
+            leadingSpace
+                + String.length rawName
+                + (if hadTerminalPunct then
+                    1
+
+                   else
+                    0
+                  )
+
+        rest =
+            String.dropLeft offset content
+    in
+    ( name, rest )
+
+
+{-| Collect name-token words, returning (words, hadTerminalPunct).
+
+Normal stop: first word that is neither a name token nor a connector.
+Connectors ("of", "at") are included only when the immediately following word
+is a name token — this handles "Forest of Vitality", "Academy at Night".
+
+Terminal punctuation ("," or ".") on the last name token is stripped and
+hadTerminalPunct is True, so the caller can account for the extra character
+in the offset.  Exception: if the next word is also a name token, the period
+is treated as an abbreviation dot (e.g. "Exp. Share") and kept as-is.
+
+-}
+collectName : List String -> ( List String, Bool )
+collectName words =
+    case words of
+        [] ->
+            ( [], False )
+
+        word :: rest ->
+            let
+                ( stripped, hadPunct ) =
+                    stripTerminalPunct word
+            in
+            if isNameToken stripped then
+                if hadPunct then
+                    -- Decide whether "." is an abbreviation dot or a sentence-ending period.
+                    --
+                    -- Abbreviation rule: apply only when ALL of:
+                    --   • stripped word is ≤ 3 chars (short abbreviation like "Exp")
+                    --   • stripped word is not "ex" ("ex." is always the Pokémon-type
+                    --     suffix at the end of a name, never a mid-name abbreviation)
+                    --   • the next word is a name token
+                    --
+                    -- This lets "Exp. Share" through while keeping "Lunatone." and
+                    -- "ex." (e.g. "Bloodmoon Ursaluna ex.") as sentence-ending periods.
+                    case rest of
+                        nextWord :: _ ->
+                            let
+                                ( nextStripped, _ ) =
+                                    stripTerminalPunct nextWord
+                            in
+                            if
+                                stripped /= "ex"
+                                    && String.length stripped <= 3
+                                    && isNameToken nextStripped
+                            then
+                                let
+                                    ( moreWords, finalHadPunct ) =
+                                        collectName rest
+                                in
+                                ( word :: moreWords, finalHadPunct )
+
+                            else
+                                ( [ stripped ], True )
+
+                        [] ->
+                            ( [ stripped ], True )
+
+                else
+                    let
+                        ( moreWords, finalHadPunct ) =
+                            collectName rest
+                    in
+                    ( stripped :: moreWords, finalHadPunct )
+
+            else if isVersionToken stripped then
+                -- Version-number suffix (e.g. "3.0" in "Pokégear 3.0").
+                -- Use the stripped form so a sentence-ending "." is not included
+                -- in the name; propagate hadPunct so the offset is adjusted.
+                ( [ stripped ], hadPunct )
+
+            else if isConnector word then
+                -- Include this connector only if the next word is a name token
+                case rest of
+                    nextWord :: _ ->
+                        let
+                            ( nextStripped, _ ) =
+                                stripTerminalPunct nextWord
+                        in
+                        if isNameToken nextStripped then
+                            let
+                                ( moreWords, finalHadPunct ) =
+                                    collectName rest
+                            in
+                            ( word :: moreWords, finalHadPunct )
+
+                        else
+                            ( [], False )
+
+                    [] ->
+                        ( [], False )
+
+            else
+                ( [], False )
+
+
+{-| A word is a name token if it can be part of a Pokemon card name.
+
+Rules:
+  - "ex" (the lowercase card-type suffix) is always a name token.
+  - Otherwise the word must start with an uppercase letter AND pass two checks:
+      1. safeDigits: at most one digit, and only as the very last character
+         ("Porygon2" ✓, "Alannvs86" ✗, "Mom3nt" ✗).
+      2. not hasCamelCase: no uppercase letter immediately following a lowercase
+         letter.  A hyphen resets the "previous was lower" flag, so hyphenated
+         names like "Buddy-Buddy", "Ting-Lu", "Roto-Stick" are fine.
+         Mixed-CamelCase player names like "NoxFoxEX" are rejected.
+
+-}
+isNameToken : String -> Bool
+isNameToken word =
+    word == "ex"
+        || (case String.uncons word of
+                Nothing ->
+                    False
+
+                Just ( c, _ ) ->
+                    Char.isUpper c
+                        && safeDigits word
+                        && not (hasCamelCase word)
+           )
+
+
+{-| True when the word's digits (if any) consist of exactly one digit at the end.
+
+"Porygon2" → True   "Alannvs86" → False (two digits)   "Mom3nt" → False (mid-word)
+
+-}
+safeDigits : String -> Bool
+safeDigits word =
+    let
+        digits =
+            String.filter Char.isDigit word
+    in
+    String.isEmpty digits
+        || (String.length digits == 1 && String.endsWith digits word)
+
+
+{-| True when the word contains an uppercase letter immediately following a
+lowercase letter — the defining pattern of CamelCase player names like "NoxFoxEX".
+A hyphen is treated as a separator (resets the "previous was lower" flag), so
+"Buddy-Buddy" and "Ting-Lu" are NOT considered CamelCase.
+-}
+hasCamelCase : String -> Bool
+hasCamelCase word =
+    let
+        ( _, found ) =
+            List.foldl
+                (\c ( prevWasLower, acc ) ->
+                    ( Char.isLower c, acc || (Char.isUpper c && prevWasLower) )
+                )
+                ( False, False )
+                (String.toList word)
+    in
+    found
+
+
+{-| Short lowercase connector words that can appear inside card names.
+
+Used by collectName to allow "Forest of Vitality", "Academy at Night" etc.
+A connector is included only when the word immediately following it is a name token.
+
+-}
+isConnector : String -> Bool
+isConnector word =
+    word == "of" || word == "at"
+
+
+{-| True for version-number tokens like "3.0" in "Pokégear 3.0".
+
+Must start with a digit, contain at least one ".", and consist only of digits
+and dots.  The dot requirement excludes bare numbers (turn counts, damage
+values etc.) from being mistakenly absorbed into the card name.
+
+-}
+isVersionToken : String -> Bool
+isVersionToken word =
+    case String.uncons word of
+        Nothing ->
+            False
+
+        Just ( c, _ ) ->
+            Char.isDigit c
+                && String.contains "." word
+                && String.all (\ch -> Char.isDigit ch || ch == '.') word
+
+
+{-| Strip a trailing "," or "." from a word, returning (strippedWord, True) if found. -}
+stripTerminalPunct : String -> ( String, Bool )
+stripTerminalPunct word =
+    if String.endsWith "," word || String.endsWith "." word then
+        ( String.dropRight 1 word, True )
+
+    else
+        ( word, False )
+
+
+{-| Strip a trailing ":" from an assembled name (e.g. "Binding Mochi:" → "Binding Mochi"). -}
+trimTrailingColon : String -> String
+trimTrailingColon s =
+    if String.endsWith ":" s then
+        String.dropRight 1 s
+
+    else
+        s
 
 
 isCardId : String -> Bool
