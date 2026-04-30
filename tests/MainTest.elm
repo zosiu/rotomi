@@ -123,11 +123,53 @@ suite =
                     update (GotReplay (Ok content)) (Loading url)
                         |> Tuple.first
                         |> Expect.equal (Loaded url (Replay.parse content))
-            , test "Err result transitions to Failed" <|
+            , test "NetworkError triggers proxy retry" <|
                 \_ ->
                     update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com")
                         |> Tuple.first
-                        |> Expect.equal (Failed "https://example.com" "Network error — check the URL and CORS headers")
+                        |> Expect.equal (Retrying "https://example.com")
+            , test "404 transitions to Failed with friendly message" <|
+                \_ ->
+                    update (GotReplay (Err (Http.BadStatus 404))) (Loading "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
+            , test "other errors transition to Failed without retrying" <|
+                \_ ->
+                    update (GotReplay (Err Http.Timeout)) (Loading "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "Request timed out")
+            , test "proxy Ok result transitions to Loaded" <|
+                \_ ->
+                    let
+                        url =
+                            "https://example.com/replay.txt"
+
+                        content =
+                            "Turn # 1 - A's Turn\nA drew a card.\n"
+                    in
+                    update (GotReplay (Ok content)) (Retrying url)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded url (Replay.parse content))
+            , test "proxy 404 transitions to Failed with friendly message" <|
+                \_ ->
+                    update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
+            , test "proxy error transitions to Failed" <|
+                \_ ->
+                    update (GotReplay (Err Http.Timeout)) (Retrying "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "Request timed out")
+            , test "empty content transitions to Failed" <|
+                \_ ->
+                    update (GotReplay (Ok "")) (Loading "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
+            , test "unrecognised content from proxy transitions to Failed" <|
+                \_ ->
+                    update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             ]
         , describe "player identification"
             [ test "identifies the player with revealed hand as red" <|

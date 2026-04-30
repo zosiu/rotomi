@@ -7,6 +7,7 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
 import Replay
+import Url
 
 
 port pushUrl : String -> Cmd msg
@@ -44,6 +45,7 @@ main =
 type Model
     = EnteringUrl String
     | Loading String
+    | Retrying String
     | Loaded String Replay.Replay
     | Failed String String
 
@@ -55,6 +57,9 @@ currentUrl model =
             url
 
         Loading url ->
+            url
+
+        Retrying url ->
             url
 
         Loaded url _ ->
@@ -98,7 +103,20 @@ update msg model =
                 Loading url ->
                     case result of
                         Ok content ->
-                            ( Loaded url (Replay.parse content), pushUrl url )
+                            loadReplay url content
+
+                        Err Http.NetworkError ->
+                            ( Retrying url
+                            , Http.get { url = proxyUrl url, expect = Http.expectString GotReplay }
+                            )
+
+                        Err err ->
+                            ( Failed url (httpErrorToString err), Cmd.none )
+
+                Retrying url ->
+                    case result of
+                        Ok content ->
+                            loadReplay url content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -107,23 +125,44 @@ update msg model =
                     ( model, Cmd.none )
 
 
+loadReplay : String -> String -> ( Model, Cmd Msg )
+loadReplay url content =
+    let
+        replay =
+            Replay.parse content
+    in
+    if List.isEmpty replay.sections then
+        ( Failed url "No replay content found — check the URL", Cmd.none )
+
+    else
+        ( Loaded url replay, pushUrl url )
+
+
+proxyUrl : String -> String
+proxyUrl url =
+    "https://api.allorigins.win/raw?url=" ++ Url.percentEncode url
+
+
 httpErrorToString : Http.Error -> String
 httpErrorToString err =
     case err of
-        Http.BadUrl url ->
-            "Invalid URL: " ++ url
+        Http.BadUrl _ ->
+            "Invalid URL"
 
         Http.Timeout ->
             "Request timed out"
 
         Http.NetworkError ->
-            "Network error — check the URL and CORS headers"
+            "Network error — check your connection"
+
+        Http.BadStatus 404 ->
+            "No replay content found — check the URL"
 
         Http.BadStatus status ->
-            "Server returned " ++ String.fromInt status
+            "Server error (" ++ String.fromInt status ++ ")"
 
-        Http.BadBody msg ->
-            "Could not read response: " ++ msg
+        Http.BadBody _ ->
+            "Unexpected response format"
 
 
 
@@ -160,6 +199,9 @@ viewUrlBar model =
         isLoading =
             case model of
                 Loading _ ->
+                    True
+
+                Retrying _ ->
                     True
 
                 _ ->
@@ -268,6 +310,13 @@ viewContent model =
             text ""
 
         Loading _ ->
+            div
+                [ style "color" "#718096"
+                , style "font-style" "italic"
+                ]
+                [ text "Loading replay…" ]
+
+        Retrying _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
