@@ -30,10 +30,13 @@
     <script>
       const app = Elm.Main.init({
         node: document.getElementById("app"),
-        flags: readReplayUrl(window.location.search),
+        flags: {
+          replayUrl: readReplayUrl(window.location.search),
+          sectionIndex: readSectionIndex(window.location.search),
+        },
       });
-      app.ports.pushUrl.subscribe(function (url) {
-        history.pushState({}, "", buildShareUrl(url) || window.location.pathname);
+      app.ports.pushUrl.subscribe(function ({ url, index }) {
+        history.pushState({}, "", buildShareUrl(url, index) || window.location.pathname);
       });
     </script>
   </body>

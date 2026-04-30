@@ -10,25 +10,25 @@ import Replay
 import Url
 
 
-port pushUrl : String -> Cmd msg
+port pushUrl : { url : String, index : Int } -> Cmd msg
 
 
-init : String -> ( Model, Cmd Msg )
+init : { replayUrl : String, sectionIndex : Int } -> ( Model, Cmd Msg )
 init flags =
     let
         url =
-            String.trim flags
+            String.trim flags.replayUrl
     in
     if String.isEmpty url then
         ( EnteringUrl "", Cmd.none )
 
     else
-        ( Loading url
+        ( Loading url flags.sectionIndex
         , Http.get { url = url, expect = Http.expectString GotReplay }
         )
 
 
-main : Program String Model Msg
+main : Program { replayUrl : String, sectionIndex : Int } Model Msg
 main =
     Browser.element
         { init = init
@@ -44,9 +44,9 @@ main =
 
 type Model
     = EnteringUrl String
-    | Loading String
-    | Retrying String
-    | Loaded String Replay.Replay
+    | Loading String Int
+    | Retrying String Int
+    | Loaded String Replay.Replay Int
     | Failed String String
 
 
@@ -56,13 +56,13 @@ currentUrl model =
         EnteringUrl url ->
             url
 
-        Loading url ->
+        Loading url _ ->
             url
 
-        Retrying url ->
+        Retrying url _ ->
             url
 
-        Loaded url _ ->
+        Loaded url _ _ ->
             url
 
         Failed url _ ->
@@ -77,6 +77,10 @@ type Msg
     = UrlChanged String
     | LoadClicked
     | GotReplay (Result Http.Error String)
+    | FirstSection
+    | PrevSection
+    | NextSection
+    | LastSection
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -94,29 +98,29 @@ update msg model =
                 ( model, Cmd.none )
 
             else
-                ( Loading url
+                ( Loading url 0
                 , Http.get { url = url, expect = Http.expectString GotReplay }
                 )
 
         GotReplay result ->
             case model of
-                Loading url ->
+                Loading url idx ->
                     case result of
                         Ok content ->
-                            loadReplay url content
+                            loadReplay url idx content
 
                         Err Http.NetworkError ->
-                            ( Retrying url
+                            ( Retrying url idx
                             , Http.get { url = proxyUrl url, expect = Http.expectString GotReplay }
                             )
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
 
-                Retrying url ->
+                Retrying url idx ->
                     case result of
                         Ok content ->
-                            loadReplay url content
+                            loadReplay url idx content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -124,18 +128,73 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        FirstSection ->
+            case model of
+                Loaded url replay _ ->
+                    ( Loaded url replay 0
+                    , pushUrl { url = url, index = 0 }
+                    )
 
-loadReplay : String -> String -> ( Model, Cmd Msg )
-loadReplay url content =
+                _ ->
+                    ( model, Cmd.none )
+
+        PrevSection ->
+            case model of
+                Loaded url replay i ->
+                    let
+                        newIndex =
+                            max 0 (i - 1)
+                    in
+                    ( Loaded url replay newIndex
+                    , pushUrl { url = url, index = newIndex }
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        NextSection ->
+            case model of
+                Loaded url replay i ->
+                    let
+                        newIndex =
+                            min (List.length replay.sections - 1) (i + 1)
+                    in
+                    ( Loaded url replay newIndex
+                    , pushUrl { url = url, index = newIndex }
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        LastSection ->
+            case model of
+                Loaded url replay _ ->
+                    let
+                        newIndex =
+                            List.length replay.sections - 1
+                    in
+                    ( Loaded url replay newIndex
+                    , pushUrl { url = url, index = newIndex }
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+
+loadReplay : String -> Int -> String -> ( Model, Cmd Msg )
+loadReplay url requestedIndex content =
     let
         replay =
             Replay.parse content
+
+        index =
+            min (max 0 requestedIndex) (max 0 (List.length replay.sections - 1))
     in
     if List.isEmpty replay.sections then
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay, pushUrl url )
+        ( Loaded url replay index, pushUrl { url = url, index = index } )
 
 
 proxyUrl : String -> String
@@ -198,10 +257,10 @@ viewUrlBar model =
 
         isLoading =
             case model of
-                Loading _ ->
+                Loading _ _ ->
                     True
 
-                Retrying _ ->
+                Retrying _ _ ->
                     True
 
                 _ ->
@@ -309,30 +368,42 @@ viewContent model =
         EnteringUrl _ ->
             text ""
 
-        Loading _ ->
+        Loading _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Retrying _ ->
+        Retrying _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay ->
-            viewReplay replay
+        Loaded _ replay index ->
+            viewReplay replay index
 
         Failed _ _ ->
             text ""
 
 
-viewReplay : Replay.Replay -> Html Msg
-viewReplay replay =
-    div [] (List.map (viewSection replay.players) replay.sections)
+viewReplay : Replay.Replay -> Int -> Html Msg
+viewReplay replay index =
+    let
+        total =
+            List.length replay.sections
+
+        section =
+            replay.sections |> List.drop index |> List.head
+    in
+    case section of
+        Nothing ->
+            text ""
+
+        Just s ->
+            viewSectionWithNav replay.players (index > 0) (index < total - 1) s
 
 
 playerColor : Maybe Replay.Players -> String -> String
@@ -352,56 +423,146 @@ playerColor players name =
             "#2d3748"
 
 
-viewSection : Maybe Replay.Players -> Replay.Section -> Html Msg
-viewSection players section =
+viewSectionWithNav : Maybe Replay.Players -> Bool -> Bool -> Replay.Section -> Html Msg
+viewSectionWithNav players hasPrev hasNext section =
     case section of
         Replay.SetupSection lines ->
-            viewBoxSection { label = "Setup", labelColor = "#718096" } lines
+            viewNavSection
+                { badge = viewSectionBadge "#718096" "Setup"
+                , extra = []
+                , borderColor = "#71809640"
+                , content = List.map viewLine lines
+                , hasPrev = hasPrev
+                , hasNext = hasNext
+                }
 
         Replay.TurnSection turn lines ->
             let
                 badgeColor =
                     playerColor players turn.player
-
-                borderColor =
-                    badgeColor ++ "40"
             in
-            div [ style "margin-bottom" "1.5rem" ]
-                [ div
-                    [ style "display" "flex"
-                    , style "align-items" "center"
-                    , style "gap" "0.6rem"
-                    , style "margin-bottom" "0.5rem"
-                    ]
+            viewNavSection
+                { badge = viewSectionBadge badgeColor ("Turn " ++ String.fromInt turn.number)
+                , extra =
                     [ span
-                        [ style "background" badgeColor
-                        , style "color" "white"
-                        , style "font-size" "0.7rem"
-                        , style "font-weight" "700"
-                        , style "letter-spacing" "0.08em"
-                        , style "padding" "0.2rem 0.55rem"
-                        , style "border-radius" "4px"
-                        ]
-                        [ text ("TURN " ++ String.fromInt turn.number) ]
-                    , span
                         [ style "font-weight" "600"
                         , style "color" "#4a5568"
                         , style "font-size" "0.95rem"
                         ]
                         [ text turn.player ]
                     ]
-                , div
-                    [ style "border-left" ("3px solid " ++ borderColor)
-                    , style "padding-left" "0.75rem"
-                    ]
-                    (List.map viewLine lines)
-                ]
+                , borderColor = badgeColor ++ "40"
+                , content = List.map viewLine lines
+                , hasPrev = hasPrev
+                , hasNext = hasNext
+                }
 
         Replay.CheckupSection lines ->
-            viewBoxSection { label = "Pokémon Checkup", labelColor = "#b7791f" } lines
+            viewNavSection
+                { badge = viewSectionBadge "#b7791f" "Pokémon Checkup"
+                , extra = []
+                , borderColor = "#b7791f40"
+                , content = List.map viewLine lines
+                , hasPrev = hasPrev
+                , hasNext = hasNext
+                }
 
         Replay.ResultSection result ->
-            viewResult players result
+            let
+                winnerColor =
+                    playerColor players result.winner
+            in
+            viewNavSection
+                { badge = viewSectionBadge "#718096" "Result"
+                , extra = []
+                , borderColor = "#71809640"
+                , content =
+                    [ div
+                        [ style "font-size" "0.9rem"
+                        , style "color" "#4a5568"
+                        , style "padding" "0.2rem 0"
+                        , style "line-height" "1.5"
+                        ]
+                        [ text result.reason ]
+                    , div
+                        [ style "font-size" "0.95rem"
+                        , style "font-weight" "700"
+                        , style "color" winnerColor
+                        , style "padding" "0.2rem 0"
+                        ]
+                        [ text (result.winner ++ " wins.") ]
+                    ]
+                , hasPrev = hasPrev
+                , hasNext = hasNext
+                }
+
+
+viewNavSection :
+    { badge : Html Msg
+    , extra : List (Html Msg)
+    , borderColor : String
+    , content : List (Html Msg)
+    , hasPrev : Bool
+    , hasNext : Bool
+    }
+    -> Html Msg
+viewNavSection { badge, extra, borderColor, content, hasPrev, hasNext } =
+    div []
+        [ div
+            [ style "display" "flex"
+            , style "justify-content" "space-between"
+            , style "align-items" "center"
+            , style "margin-bottom" "0.5rem"
+            ]
+            [ div
+                [ style "display" "flex"
+                , style "gap" "0.35rem"
+                ]
+                [ navArrow hasPrev FirstSection "«"
+                , navArrow hasPrev PrevSection "‹"
+                ]
+            , div
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "gap" "0.6rem"
+                ]
+                (badge :: extra)
+            , div
+                [ style "display" "flex"
+                , style "gap" "0.35rem"
+                ]
+                [ navArrow hasNext NextSection "›"
+                , navArrow hasNext LastSection "»"
+                ]
+            ]
+        , div
+            [ style "border-left" ("3px solid " ++ borderColor)
+            , style "padding-left" "0.75rem"
+            ]
+            content
+        ]
+
+
+navArrow : Bool -> Msg -> String -> Html Msg
+navArrow visible msg symbol =
+    button
+        [ onClick msg
+        , style "visibility"
+            (if visible then
+                "visible"
+
+             else
+                "hidden"
+            )
+        , style "background" "none"
+        , style "border" "none"
+        , style "cursor" "pointer"
+        , style "font-size" "1rem"
+        , style "color" "#718096"
+        , style "padding" "0"
+        , style "line-height" "1"
+        ]
+        [ text symbol ]
 
 
 viewSectionBadge : String -> String -> Html Msg
@@ -417,53 +578,6 @@ viewSectionBadge color label =
         , style "border-radius" "4px"
         ]
         [ text label ]
-
-
-viewBoxSection :
-    { label : String, labelColor : String }
-    -> List Replay.ReplayLine
-    -> Html Msg
-viewBoxSection { label, labelColor } lines =
-    div [ style "margin-bottom" "1.5rem" ]
-        [ div [ style "margin-bottom" "0.5rem" ]
-            [ viewSectionBadge labelColor label ]
-        , div
-            [ style "border-left" ("3px solid " ++ labelColor ++ "40")
-            , style "padding-left" "0.75rem"
-            ]
-            (List.map viewLine lines)
-        ]
-
-
-viewResult : Maybe Replay.Players -> Replay.MatchResult -> Html Msg
-viewResult players result =
-    let
-        winnerColor =
-            playerColor players result.winner
-    in
-    div [ style "margin-bottom" "1.5rem" ]
-        [ div [ style "margin-bottom" "0.5rem" ]
-            [ viewSectionBadge "#718096" "Result" ]
-        , div
-            [ style "border-left" "3px solid #71809640"
-            , style "padding-left" "0.75rem"
-            ]
-            [ div
-                [ style "font-size" "0.9rem"
-                , style "color" "#4a5568"
-                , style "padding" "0.2rem 0"
-                , style "line-height" "1.5"
-                ]
-                [ text result.reason ]
-            , div
-                [ style "font-size" "0.95rem"
-                , style "font-weight" "700"
-                , style "color" winnerColor
-                , style "padding" "0.2rem 0"
-                ]
-                [ text (result.winner ++ " wins.") ]
-            ]
-        ]
 
 
 viewLine : Replay.ReplayLine -> Html Msg

@@ -91,24 +91,29 @@ suite =
         , describe "init"
             [ test "empty flags start in EnteringUrl" <|
                 \_ ->
-                    init ""
+                    init { replayUrl = "", sectionIndex = 0 }
                         |> Tuple.first
                         |> Expect.equal (EnteringUrl "")
             , test "whitespace flags start in EnteringUrl" <|
                 \_ ->
-                    init "   "
+                    init { replayUrl = "   ", sectionIndex = 0 }
                         |> Tuple.first
                         |> Expect.equal (EnteringUrl "")
             , test "url flags start in Loading" <|
                 \_ ->
-                    init "https://example.com/replay.txt"
+                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 0 }
                         |> Tuple.first
-                        |> Expect.equal (Loading "https://example.com/replay.txt")
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 0)
             , test "url flags are trimmed" <|
                 \_ ->
-                    init "  https://example.com/replay.txt  "
+                    init { replayUrl = "  https://example.com/replay.txt  ", sectionIndex = 0 }
                         |> Tuple.first
-                        |> Expect.equal (Loading "https://example.com/replay.txt")
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 0)
+            , test "section index is preserved in Loading state" <|
+                \_ ->
+                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 3 }
+                        |> Tuple.first
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 3)
             ]
         , describe "GotReplay"
             [ test "Ok result transitions to Loaded with parsed replay" <|
@@ -120,22 +125,22 @@ suite =
                         content =
                             "Turn # 1 - A's Turn\nA drew a card.\n"
                     in
-                    update (GotReplay (Ok content)) (Loading url)
+                    update (GotReplay (Ok content)) (Loading url 0)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content))
+                        |> Expect.equal (Loaded url (Replay.parse content) 0)
             , test "NetworkError triggers proxy retry" <|
                 \_ ->
-                    update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com")
+                    update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com" 0)
                         |> Tuple.first
-                        |> Expect.equal (Retrying "https://example.com")
+                        |> Expect.equal (Retrying "https://example.com" 0)
             , test "404 transitions to Failed with friendly message" <|
                 \_ ->
-                    update (GotReplay (Err (Http.BadStatus 404))) (Loading "https://example.com")
+                    update (GotReplay (Err (Http.BadStatus 404))) (Loading "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "other errors transition to Failed without retrying" <|
                 \_ ->
-                    update (GotReplay (Err Http.Timeout)) (Loading "https://example.com")
+                    update (GotReplay (Err Http.Timeout)) (Loading "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "Request timed out")
             , test "proxy Ok result transitions to Loaded" <|
@@ -147,29 +152,127 @@ suite =
                         content =
                             "Turn # 1 - A's Turn\nA drew a card.\n"
                     in
-                    update (GotReplay (Ok content)) (Retrying url)
+                    update (GotReplay (Ok content)) (Retrying url 0)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content))
+                        |> Expect.equal (Loaded url (Replay.parse content) 0)
             , test "proxy 404 transitions to Failed with friendly message" <|
                 \_ ->
-                    update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com")
+                    update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "proxy error transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Err Http.Timeout)) (Retrying "https://example.com")
+                    update (GotReplay (Err Http.Timeout)) (Retrying "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "Request timed out")
             , test "empty content transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Ok "")) (Loading "https://example.com")
+                    update (GotReplay (Ok "")) (Loading "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "unrecognised content from proxy transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com")
+                    update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
+            , test "deep-linked section index is restored on load" <|
+                \_ ->
+                    let
+                        url =
+                            "https://example.com/replay.txt"
+
+                        content =
+                            "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
+                    in
+                    update (GotReplay (Ok content)) (Loading url 1)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded url (Replay.parse content) 1)
+            , test "out-of-range section index is clamped to last section" <|
+                \_ ->
+                    let
+                        url =
+                            "https://example.com/replay.txt"
+
+                        content =
+                            "Setup\nSome setup.\n"
+                    in
+                    update (GotReplay (Ok content)) (Loading url 99)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded url (Replay.parse content) 0)
+            ]
+        , describe "section navigation"
+            [ test "FirstSection jumps to index 0" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update FirstSection (Loaded "url" replay 1)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0)
+            , test "LastSection jumps to the last index" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update LastSection (Loaded "url" replay 0)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 1)
+            , test "NextSection increments the index" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update NextSection (Loaded "url" replay 0)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 1)
+            , test "NextSection does not go past the last section" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update NextSection (Loaded "url" replay 0)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0)
+            , test "PrevSection decrements the index" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update PrevSection (Loaded "url" replay 1)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0)
+            , test "PrevSection does not go below zero" <|
+                \_ ->
+                    let
+                        content =
+                            "Setup\nSome setup.\n"
+
+                        replay =
+                            Replay.parse content
+                    in
+                    update PrevSection (Loaded "url" replay 0)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0)
             ]
         , describe "player identification"
             [ test "identifies the player with revealed hand as red" <|
