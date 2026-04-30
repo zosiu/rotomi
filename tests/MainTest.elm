@@ -1,6 +1,8 @@
 module MainTest exposing (suite)
 
 import Expect
+import Http
+import Main exposing (Model(..), Msg(..), init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
@@ -85,6 +87,47 @@ suite =
                     Replay.parse "Turn # 1 - A's Turn\n\nA drew a card.\n\n"
                         |> firstTurnLines
                         |> Expect.equalLists [ TopLine "A drew a card." ]
+            ]
+        , describe "init"
+            [ test "empty flags start in EnteringUrl" <|
+                \_ ->
+                    init ""
+                        |> Tuple.first
+                        |> Expect.equal (EnteringUrl "")
+            , test "whitespace flags start in EnteringUrl" <|
+                \_ ->
+                    init "   "
+                        |> Tuple.first
+                        |> Expect.equal (EnteringUrl "")
+            , test "url flags start in Loading" <|
+                \_ ->
+                    init "https://example.com/replay.txt"
+                        |> Tuple.first
+                        |> Expect.equal (Loading "https://example.com/replay.txt")
+            , test "url flags are trimmed" <|
+                \_ ->
+                    init "  https://example.com/replay.txt  "
+                        |> Tuple.first
+                        |> Expect.equal (Loading "https://example.com/replay.txt")
+            ]
+        , describe "GotReplay"
+            [ test "Ok result transitions to Loaded with parsed replay" <|
+                \_ ->
+                    let
+                        url =
+                            "https://example.com/replay.txt"
+
+                        content =
+                            "Turn # 1 - A's Turn\nA drew a card.\n"
+                    in
+                    update (GotReplay (Ok content)) (Loading url)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded url (Replay.parse content))
+            , test "Err result transitions to Failed" <|
+                \_ ->
+                    update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com")
+                        |> Tuple.first
+                        |> Expect.equal (Failed "https://example.com" "Network error — check the URL and CORS headers")
             ]
         , describe "player identification"
             [ test "identifies the player with revealed hand as red" <|

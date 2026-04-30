@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (Model(..), Msg(..), init, main, update)
 
 import Browser
 import Html exposing (Html, button, div, h1, input, span, text)
@@ -9,10 +9,28 @@ import Json.Decode as Decode
 import Replay
 
 
-main : Program () Model Msg
+port pushUrl : String -> Cmd msg
+
+
+init : String -> ( Model, Cmd Msg )
+init flags =
+    let
+        url =
+            String.trim flags
+    in
+    if String.isEmpty url then
+        ( EnteringUrl "", Cmd.none )
+
+    else
+        ( Loading url
+        , Http.get { url = url, expect = Http.expectString GotReplay }
+        )
+
+
+main : Program String Model Msg
 main =
     Browser.element
-        { init = \_ -> ( EnteringUrl "", Cmd.none )
+        { init = init
         , update = update
         , view = view
         , subscriptions = \_ -> Sub.none
@@ -80,7 +98,7 @@ update msg model =
                 Loading url ->
                     case result of
                         Ok content ->
-                            ( Loaded url (Replay.parse content), Cmd.none )
+                            ( Loaded url (Replay.parse content), pushUrl url )
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
