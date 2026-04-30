@@ -13,6 +13,9 @@ import Url
 port pushUrl : { url : String, index : Int } -> Cmd msg
 
 
+port onSwipe : (String -> msg) -> Sub msg
+
+
 init : { replayUrl : String, sectionIndex : Int } -> ( Model, Cmd Msg )
 init flags =
     let
@@ -34,7 +37,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = \_ -> onSwipe GotSwipe
         }
 
 
@@ -81,6 +84,7 @@ type Msg
     | PrevSection
     | NextSection
     | LastSection
+    | GotSwipe String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -176,6 +180,17 @@ update msg model =
                     ( Loaded url replay newIndex
                     , pushUrl { url = url, index = newIndex }
                     )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotSwipe direction ->
+            case direction of
+                "left" ->
+                    update NextSection model
+
+                "right" ->
+                    update PrevSection model
 
                 _ ->
                     ( model, Cmd.none )

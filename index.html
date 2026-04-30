@@ -38,6 +38,18 @@
       app.ports.pushUrl.subscribe(function ({ url, index }) {
         history.pushState({}, "", buildShareUrl(url, index) || window.location.pathname);
       });
+
+      var touchStartX = 0;
+      var SWIPE_THRESHOLD = 50;
+      document.addEventListener("touchstart", function (e) {
+        touchStartX = e.changedTouches[0].clientX;
+      }, { passive: true });
+      document.addEventListener("touchend", function (e) {
+        var dx = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > SWIPE_THRESHOLD) {
+          app.ports.onSwipe.send(dx < 0 ? "left" : "right");
+        }
+      }, { passive: true });
     </script>
   </body>
 </html>
