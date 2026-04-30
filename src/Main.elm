@@ -356,13 +356,7 @@ viewSection : Maybe Replay.Players -> Replay.Section -> Html Msg
 viewSection players section =
     case section of
         Replay.SetupSection lines ->
-            viewBoxSection
-                { label = "Setup"
-                , labelColor = "#718096"
-                , bg = "#f7fafc"
-                , border = "#e2e8f0"
-                }
-                lines
+            viewBoxSection { label = "Setup", labelColor = "#718096" } lines
 
         Replay.TurnSection turn lines ->
             let
@@ -404,38 +398,38 @@ viewSection players section =
                 ]
 
         Replay.CheckupSection lines ->
-            viewBoxSection
-                { label = "Pokémon Checkup"
-                , labelColor = "#b7791f"
-                , bg = "#fffff0"
-                , border = "#f6e05e"
-                }
-                lines
+            viewBoxSection { label = "Pokémon Checkup", labelColor = "#b7791f" } lines
 
         Replay.ResultSection result ->
             viewResult players result
 
 
+viewSectionBadge : String -> String -> Html Msg
+viewSectionBadge color label =
+    span
+        [ style "background" color
+        , style "color" "white"
+        , style "font-size" "0.7rem"
+        , style "font-weight" "700"
+        , style "letter-spacing" "0.08em"
+        , style "text-transform" "uppercase"
+        , style "padding" "0.2rem 0.55rem"
+        , style "border-radius" "4px"
+        ]
+        [ text label ]
+
+
 viewBoxSection :
-    { label : String, labelColor : String, bg : String, border : String }
+    { label : String, labelColor : String }
     -> List Replay.ReplayLine
     -> Html Msg
-viewBoxSection { label, labelColor, bg, border } lines =
+viewBoxSection { label, labelColor } lines =
     div [ style "margin-bottom" "1.5rem" ]
-        [ div
-            [ style "font-size" "0.7rem"
-            , style "font-weight" "700"
-            , style "letter-spacing" "0.1em"
-            , style "text-transform" "uppercase"
-            , style "color" labelColor
-            , style "margin-bottom" "0.35rem"
-            ]
-            [ text label ]
+        [ div [ style "margin-bottom" "0.5rem" ]
+            [ viewSectionBadge labelColor label ]
         , div
-            [ style "background" bg
-            , style "border" ("1px solid " ++ border)
-            , style "border-radius" "8px"
-            , style "padding" "0.6rem 0.9rem"
+            [ style "border-left" ("3px solid " ++ labelColor ++ "40")
+            , style "padding-left" "0.75rem"
             ]
             (List.map viewLine lines)
         ]
@@ -448,31 +442,24 @@ viewResult players result =
             playerColor players result.winner
     in
     div [ style "margin-bottom" "1.5rem" ]
-        [ div
-            [ style "font-size" "0.7rem"
-            , style "font-weight" "700"
-            , style "letter-spacing" "0.1em"
-            , style "text-transform" "uppercase"
-            , style "color" "#718096"
-            , style "margin-bottom" "0.35rem"
-            ]
-            [ text "Result" ]
+        [ div [ style "margin-bottom" "0.5rem" ]
+            [ viewSectionBadge "#718096" "Result" ]
         , div
-            [ style "background" "#f7fafc"
-            , style "border" "1px solid #e2e8f0"
-            , style "border-radius" "8px"
-            , style "padding" "0.6rem 0.9rem"
+            [ style "border-left" "3px solid #71809640"
+            , style "padding-left" "0.75rem"
             ]
             [ div
                 [ style "font-size" "0.9rem"
                 , style "color" "#4a5568"
-                , style "margin-bottom" "0.25rem"
+                , style "padding" "0.2rem 0"
+                , style "line-height" "1.5"
                 ]
                 [ text result.reason ]
             , div
                 [ style "font-size" "0.95rem"
                 , style "font-weight" "700"
                 , style "color" winnerColor
+                , style "padding" "0.2rem 0"
                 ]
                 [ text (result.winner ++ " wins.") ]
             ]
