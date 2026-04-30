@@ -8,7 +8,8 @@
     "build": "elm make src/Main.elm --optimize --output=dist/app.js && cp index.html dist/index.html",
     "test": "elm-test",
     "test:watch": "elm-test --watch",
-    "format": "elm-format src/ tests/ --yes"
+    "format": "elm-format src/ tests/ --yes",
+    "validate-fixtures": "elm make src/ValidateFixtures.elm --output=scripts/validate-fixtures-elm.js && node scripts/validate-fixtures.js"
   },
   "keywords": [],
   "author": "",

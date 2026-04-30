@@ -29,6 +29,23 @@ npm test           # run once
 npm run test:watch # re-run on every file change
 ```
 
+## Fixture validation
+
+Replay fixture files live in `replay_fixtures/`. To verify they all parse
+correctly against the parser logic:
+
+```sh
+npm run validate-fixtures
+```
+
+Accepts an optional directory argument:
+
+```sh
+node scripts/validate-fixtures.js path/to/other/fixtures
+```
+
+Exits non-zero on failure, so it can be added to CI.
+
 ## Build
 
 ```sh
