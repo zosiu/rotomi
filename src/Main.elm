@@ -1,8 +1,8 @@
-port module Main exposing (Model(..), Msg(..), init, main, update)
+port module Main exposing (CardPopup(..), Model(..), Msg(..), init, main, update)
 
 import Browser
-import Html exposing (Html, button, div, h1, input, span, text)
-import Html.Attributes exposing (placeholder, style, type_, value)
+import Html exposing (Html, button, div, h1, img, input, span, text)
+import Html.Attributes exposing (placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
@@ -45,11 +45,17 @@ main =
 -- MODEL
 
 
+type CardPopup
+    = FetchingCard String
+    | ShowingCard String String
+    | CardNotFound String
+
+
 type Model
     = EnteringUrl String
     | Loading String Int
     | Retrying String Int
-    | Loaded String Replay.Replay Int
+    | Loaded String Replay.Replay Int (Maybe CardPopup)
     | Failed String String
 
 
@@ -65,7 +71,7 @@ currentUrl model =
         Retrying url _ ->
             url
 
-        Loaded url _ _ ->
+        Loaded url _ _ _ ->
             url
 
         Failed url _ ->
@@ -85,6 +91,9 @@ type Msg
     | NextSection
     | LastSection
     | GotSwipe String
+    | CardClicked String
+    | GotCardImage String (Result Http.Error String)
+    | CloseCard
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -134,8 +143,8 @@ update msg model =
 
         FirstSection ->
             case model of
-                Loaded url replay _ ->
-                    ( Loaded url replay 0
+                Loaded url replay _ _ ->
+                    ( Loaded url replay 0 Nothing
                     , pushUrl { url = url, index = 0 }
                     )
 
@@ -144,12 +153,12 @@ update msg model =
 
         PrevSection ->
             case model of
-                Loaded url replay i ->
+                Loaded url replay i _ ->
                     let
                         newIndex =
                             max 0 (i - 1)
                     in
-                    ( Loaded url replay newIndex
+                    ( Loaded url replay newIndex Nothing
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -158,12 +167,12 @@ update msg model =
 
         NextSection ->
             case model of
-                Loaded url replay i ->
+                Loaded url replay i _ ->
                     let
                         newIndex =
                             min (List.length replay.sections - 1) (i + 1)
                     in
-                    ( Loaded url replay newIndex
+                    ( Loaded url replay newIndex Nothing
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -172,12 +181,12 @@ update msg model =
 
         LastSection ->
             case model of
-                Loaded url replay _ ->
+                Loaded url replay _ _ ->
                     let
                         newIndex =
                             List.length replay.sections - 1
                     in
-                    ( Loaded url replay newIndex
+                    ( Loaded url replay newIndex Nothing
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -191,6 +200,54 @@ update msg model =
 
                 "right" ->
                     update PrevSection model
+
+                _ ->
+                    ( model, Cmd.none )
+
+        CardClicked id ->
+            case model of
+                Loaded url replay i _ ->
+                    case cardApiUrl id of
+                        Just apiUrl ->
+                            ( Loaded url replay i (Just (FetchingCard id))
+                            , Http.get
+                                { url = apiUrl
+                                , expect = Http.expectString (GotCardImage id)
+                                }
+                            )
+
+                        Nothing ->
+                            ( Loaded url replay i (Just (CardNotFound id)), Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotCardImage id result ->
+            case model of
+                Loaded url replay i _ ->
+                    let
+                        popup =
+                            case result of
+                                Ok body ->
+                                    case Decode.decodeString (Decode.field "image" Decode.string) body of
+                                        Ok imageUrl ->
+                                            ShowingCard id imageUrl
+
+                                        Err _ ->
+                                            CardNotFound id
+
+                                Err _ ->
+                                    CardNotFound id
+                    in
+                    ( Loaded url replay i (Just popup), Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        CloseCard ->
+            case model of
+                Loaded url replay i _ ->
+                    ( Loaded url replay i Nothing, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -209,12 +266,105 @@ loadReplay url requestedIndex content =
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index, pushUrl { url = url, index = index } )
+        ( Loaded url replay index Nothing, pushUrl { url = url, index = index } )
 
 
 proxyUrl : String -> String
 proxyUrl url =
     "https://api.allorigins.win/raw?url=" ++ Url.percentEncode url
+
+
+{-| Build the TCGdex set-card API URL for a replay card ID like "sv4_160_ph".
+Returns Nothing if the ID has no underscore (can't be split into set + local ID).
+-}
+cardApiUrl : String -> Maybe String
+cardApiUrl id =
+    case String.split "_" id of
+        setCode :: localId :: _ ->
+            Just
+                ("https://api.tcgdex.net/v2/en/sets/"
+                    ++ replaySetIdToTcgDex setCode
+                    ++ "/"
+                    ++ localId
+                )
+
+        _ ->
+            Nothing
+
+
+{-| Convert a replay set code to the TCGdex set ID.
+
+Replay format uses hyphens for fractional sets and no leading zeros:
+  sv4, sv4-5, me1, swsh12-5
+TCGdex format uses dots and leading zeros for sv/me series:
+  sv04, sv04.5, me01, swsh12.5
+-}
+replaySetIdToTcgDex : String -> String
+replaySetIdToTcgDex code =
+    case code of
+        "mebsp" ->
+            "mep"
+
+        "svbsp" ->
+            "svp"
+
+        "zsv10-5" ->
+            "sv10.5b"
+
+        "rsv10-5" ->
+            "sv10.5w"
+
+        _ ->
+            code
+                |> dotifyFractional
+                |> zeroPadSetPrefix
+
+
+dotifyFractional : String -> String
+dotifyFractional s =
+    case String.split "-5" s of
+        [ prefix, suffix ] ->
+            prefix ++ ".5" ++ suffix
+
+        _ ->
+            s
+
+
+zeroPadSetPrefix : String -> String
+zeroPadSetPrefix s =
+    if String.startsWith "sv" s then
+        zeroPadAfterPrefix "sv" s
+
+    else if String.startsWith "me" s then
+        zeroPadAfterPrefix "me" s
+
+    else
+        s
+
+
+zeroPadAfterPrefix : String -> String -> String
+zeroPadAfterPrefix prefix s =
+    let
+        rest =
+            String.dropLeft (String.length prefix) s
+    in
+    case String.toList rest of
+        [] ->
+            s
+
+        [ d ] ->
+            if Char.isDigit d then
+                prefix ++ "0" ++ rest
+
+            else
+                s
+
+        d :: next :: _ ->
+            if Char.isDigit d && not (Char.isDigit next) then
+                prefix ++ "0" ++ rest
+
+            else
+                s
 
 
 httpErrorToString : Http.Error -> String
@@ -261,6 +411,12 @@ view model =
             [ text "Rotomi" ]
         , viewUrlBar model
         , viewContent model
+        , case model of
+            Loaded _ _ _ (Just popup) ->
+                viewCardPopup popup
+
+            _ ->
+                text ""
         ]
 
 
@@ -397,7 +553,7 @@ viewContent model =
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index ->
+        Loaded _ replay index _ ->
             viewReplay replay index
 
         Failed _ _ ->
@@ -648,15 +804,62 @@ viewSegment seg =
 
         CardId id ->
             span
-                [ style "font-family" "'Courier New', monospace"
+                [ onClick (CardClicked id)
+                , style "font-family" "'Courier New', monospace"
                 , style "font-size" "0.78em"
                 , style "background" "#edf2f7"
                 , style "color" "#553c9a"
                 , style "padding" "0.1em 0.35em"
                 , style "border-radius" "3px"
                 , style "white-space" "nowrap"
+                , style "cursor" "pointer"
                 ]
                 [ text id ]
+
+
+viewCardPopup : CardPopup -> Html Msg
+viewCardPopup popup =
+    div
+        [ onClick CloseCard
+        , style "position" "fixed"
+        , style "inset" "0"
+        , style "background" "rgba(0,0,0,0.6)"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "justify-content" "center"
+        , style "z-index" "1000"
+        , style "cursor" "pointer"
+        ]
+        [ case popup of
+            FetchingCard _ ->
+                div
+                    [ style "color" "white"
+                    , style "font-style" "italic"
+                    , style "font-size" "1rem"
+                    ]
+                    [ text "Loading…" ]
+
+            CardNotFound id ->
+                div
+                    [ style "background" "white"
+                    , style "border-radius" "8px"
+                    , style "padding" "1.5rem 2rem"
+                    , style "color" "#4a5568"
+                    , style "font-size" "0.95rem"
+                    ]
+                    [ text ("Card not found: " ++ id) ]
+
+            ShowingCard _ imageUrl ->
+                img
+                    [ src (imageUrl ++ "/high.webp")
+                    , style "max-height" "80vh"
+                    , style "max-width" "90vw"
+                    , style "border-radius" "8px"
+                    , style "box-shadow" "0 8px 32px rgba(0,0,0,0.5)"
+                    , style "display" "block"
+                    ]
+                    []
+        ]
 
 
 segmentText : String -> List TextSegment
@@ -688,4 +891,5 @@ parseParen str =
 isCardId : String -> Bool
 isCardId s =
     not (String.isEmpty s)
+        && String.contains "_" s
         && String.all (\c -> Char.isAlpha c || Char.isDigit c || c == '_' || c == '-') s

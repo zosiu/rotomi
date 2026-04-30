@@ -4,7 +4,7 @@ import Platform
 import Replay exposing (MatchResult, Players, Section(..))
 
 
-port done : { output : String, allOk : Bool } -> Cmd msg
+port done : { output : String, allOk : Bool, cardIds : List String } -> Cmd msg
 
 
 type alias FileInput =
@@ -46,8 +46,13 @@ main =
                                     "Some files have issues"
                                )
                             ++ "\n"
+
+                    cardIds =
+                        files
+                            |> List.concatMap (.content >> extractCardIds)
+                            |> uniqueSorted
                 in
-                ( (), done { output = output, allOk = allOk } )
+                ( (), done { output = output, allOk = allOk, cardIds = cardIds } )
         , update = \_ model -> ( model, Cmd.none )
         , subscriptions = \_ -> Sub.none
         }
@@ -188,3 +193,53 @@ formatResult r =
             List.map (\issue -> "       " ++ issue) r.issues
     in
     String.join "\n" (mainLine :: issueLines)
+
+
+-- CARD ID EXTRACTION
+
+
+extractCardIds : String -> List String
+extractCardIds content =
+    content
+        |> String.split "("
+        |> List.drop 1
+        |> List.concatMap
+            (\s ->
+                case String.split ")" s of
+                    id :: _ ->
+                        if isCardId id then
+                            [ id ]
+
+                        else
+                            []
+
+                    [] ->
+                        []
+            )
+
+
+isCardId : String -> Bool
+isCardId s =
+    not (String.isEmpty s)
+        && String.contains "_" s
+        && String.all (\c -> Char.isAlpha c || Char.isDigit c || c == '_' || c == '-') s
+
+
+uniqueSorted : List String -> List String
+uniqueSorted xs =
+    xs
+        |> List.sort
+        |> List.foldr
+            (\x acc ->
+                case acc of
+                    first :: _ ->
+                        if x == first then
+                            acc
+
+                        else
+                            x :: acc
+
+                    [] ->
+                        [ x ]
+            )
+            []

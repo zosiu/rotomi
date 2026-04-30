@@ -2,7 +2,7 @@ module MainTest exposing (suite)
 
 import Expect
 import Http
-import Main exposing (Model(..), Msg(..), init, update)
+import Main exposing (CardPopup(..), Model(..), Msg(..), init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
@@ -127,7 +127,7 @@ suite =
                     in
                     update (GotReplay (Ok content)) (Loading url 0)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 Nothing)
             , test "NetworkError triggers proxy retry" <|
                 \_ ->
                     update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com" 0)
@@ -154,7 +154,7 @@ suite =
                     in
                     update (GotReplay (Ok content)) (Retrying url 0)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 Nothing)
             , test "proxy 404 transitions to Failed with friendly message" <|
                 \_ ->
                     update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com" 0)
@@ -186,7 +186,7 @@ suite =
                     in
                     update (GotReplay (Ok content)) (Loading url 1)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 1)
+                        |> Expect.equal (Loaded url (Replay.parse content) 1 Nothing)
             , test "out-of-range section index is clamped to last section" <|
                 \_ ->
                     let
@@ -198,7 +198,7 @@ suite =
                     in
                     update (GotReplay (Ok content)) (Loading url 99)
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 Nothing)
             ]
         , describe "section navigation"
             [ test "FirstSection jumps to index 0" <|
@@ -210,9 +210,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update FirstSection (Loaded "url" replay 1)
+                    update FirstSection (Loaded "url" replay 1 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0)
+                        |> Expect.equal (Loaded "url" replay 0 Nothing)
             , test "LastSection jumps to the last index" <|
                 \_ ->
                     let
@@ -222,9 +222,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update LastSection (Loaded "url" replay 0)
+                    update LastSection (Loaded "url" replay 0 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 1)
+                        |> Expect.equal (Loaded "url" replay 1 Nothing)
             , test "NextSection increments the index" <|
                 \_ ->
                     let
@@ -234,9 +234,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update NextSection (Loaded "url" replay 0)
+                    update NextSection (Loaded "url" replay 0 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 1)
+                        |> Expect.equal (Loaded "url" replay 1 Nothing)
             , test "NextSection does not go past the last section" <|
                 \_ ->
                     let
@@ -246,9 +246,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update NextSection (Loaded "url" replay 0)
+                    update NextSection (Loaded "url" replay 0 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0)
+                        |> Expect.equal (Loaded "url" replay 0 Nothing)
             , test "PrevSection decrements the index" <|
                 \_ ->
                     let
@@ -258,9 +258,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update PrevSection (Loaded "url" replay 1)
+                    update PrevSection (Loaded "url" replay 1 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0)
+                        |> Expect.equal (Loaded "url" replay 0 Nothing)
             , test "PrevSection does not go below zero" <|
                 \_ ->
                     let
@@ -270,9 +270,68 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update PrevSection (Loaded "url" replay 0)
+                    update PrevSection (Loaded "url" replay 0 Nothing)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0)
+                        |> Expect.equal (Loaded "url" replay 0 Nothing)
+            ]
+        , describe "card popup"
+            [ test "CardClicked sets FetchingCard popup for a valid id" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update (CardClicked "sv4_160_ph") (Loaded "url" replay 0 Nothing)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (FetchingCard "sv4_160_ph")))
+            , test "CardClicked with unparseable id shows CardNotFound immediately" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update (CardClicked "nounderscore") (Loaded "url" replay 0 Nothing)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (CardNotFound "nounderscore")))
+            , test "GotCardImage with valid JSON shows card image" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+
+                        json =
+                            "{\"id\":\"swsh1-1\",\"image\":\"https://assets.tcgdex.net/en/swsh/swsh1/1\"}"
+                    in
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 Nothing)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "swsh1-1" "https://assets.tcgdex.net/en/swsh/swsh1/1")))
+            , test "GotCardImage with invalid JSON shows CardNotFound" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 Nothing)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")))
+            , test "GotCardImage with HTTP error shows CardNotFound" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update (GotCardImage "swsh1-1" (Err Http.NetworkError)) (Loaded "url" replay 0 Nothing)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")))
+            , test "CloseCard removes the popup" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update CloseCard (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")))
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 Nothing)
             ]
         , describe "player identification"
             [ test "identifies the player with revealed hand as red" <|
