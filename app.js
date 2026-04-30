@@ -7095,8 +7095,156 @@ var $elm$core$List$concatMap = F2(
 		return $elm$core$List$concat(
 			A2($elm$core$List$map, f, list));
 	});
-var $author$project$Main$CardId = function (a) {
-	return {$: 1, a: a};
+var $author$project$Main$CardRef = F2(
+	function (a, b) {
+		return {$: 1, a: a, b: b};
+	});
+var $author$project$Main$isConnector = function (word) {
+	return (word === 'of') || (word === 'at');
+};
+var $author$project$Main$hasCamelCase = function (word) {
+	var _v0 = A3(
+		$elm$core$List$foldl,
+		F2(
+			function (c, _v1) {
+				var prevWasLower = _v1.a;
+				var acc = _v1.b;
+				return _Utils_Tuple2(
+					$elm$core$Char$isLower(c),
+					acc || ($elm$core$Char$isUpper(c) && prevWasLower));
+			}),
+		_Utils_Tuple2(false, false),
+		$elm$core$String$toList(word));
+	var found = _v0.b;
+	return found;
+};
+var $elm$core$String$filter = _String_filter;
+var $author$project$Main$safeDigits = function (word) {
+	var digits = A2($elm$core$String$filter, $elm$core$Char$isDigit, word);
+	return $elm$core$String$isEmpty(digits) || (($elm$core$String$length(digits) === 1) && A2($elm$core$String$endsWith, digits, word));
+};
+var $author$project$Main$isNameToken = function (word) {
+	return (word === 'ex') || function () {
+		var _v0 = $elm$core$String$uncons(word);
+		if (_v0.$ === 1) {
+			return false;
+		} else {
+			var _v1 = _v0.a;
+			var c = _v1.a;
+			return $elm$core$Char$isUpper(c) && ($author$project$Main$safeDigits(word) && (!$author$project$Main$hasCamelCase(word)));
+		}
+	}();
+};
+var $author$project$Main$isVersionToken = function (word) {
+	var _v0 = $elm$core$String$uncons(word);
+	if (_v0.$ === 1) {
+		return false;
+	} else {
+		var _v1 = _v0.a;
+		var c = _v1.a;
+		return $elm$core$Char$isDigit(c) && (A2($elm$core$String$contains, '.', word) && A2(
+			$elm$core$String$all,
+			function (ch) {
+				return $elm$core$Char$isDigit(ch) || (ch === '.');
+			},
+			word));
+	}
+};
+var $elm$core$Basics$neq = _Utils_notEqual;
+var $author$project$Main$stripTerminalPunct = function (word) {
+	return (A2($elm$core$String$endsWith, ',', word) || A2($elm$core$String$endsWith, '.', word)) ? _Utils_Tuple2(
+		A2($elm$core$String$dropRight, 1, word),
+		true) : _Utils_Tuple2(word, false);
+};
+var $author$project$Main$collectName = function (words) {
+	if (!words.b) {
+		return _Utils_Tuple2(_List_Nil, false);
+	} else {
+		var word = words.a;
+		var rest = words.b;
+		var _v1 = $author$project$Main$stripTerminalPunct(word);
+		var stripped = _v1.a;
+		var hadPunct = _v1.b;
+		if ($author$project$Main$isNameToken(stripped)) {
+			if (hadPunct) {
+				if (rest.b) {
+					var nextWord = rest.a;
+					var _v3 = $author$project$Main$stripTerminalPunct(nextWord);
+					var nextStripped = _v3.a;
+					if ((stripped !== 'ex') && (($elm$core$String$length(stripped) <= 3) && $author$project$Main$isNameToken(nextStripped))) {
+						var _v4 = $author$project$Main$collectName(rest);
+						var moreWords = _v4.a;
+						var finalHadPunct = _v4.b;
+						return _Utils_Tuple2(
+							A2($elm$core$List$cons, word, moreWords),
+							finalHadPunct);
+					} else {
+						return _Utils_Tuple2(
+							_List_fromArray(
+								[stripped]),
+							true);
+					}
+				} else {
+					return _Utils_Tuple2(
+						_List_fromArray(
+							[stripped]),
+						true);
+				}
+			} else {
+				var _v5 = $author$project$Main$collectName(rest);
+				var moreWords = _v5.a;
+				var finalHadPunct = _v5.b;
+				return _Utils_Tuple2(
+					A2($elm$core$List$cons, stripped, moreWords),
+					finalHadPunct);
+			}
+		} else {
+			if ($author$project$Main$isVersionToken(stripped)) {
+				return _Utils_Tuple2(
+					_List_fromArray(
+						[stripped]),
+					hadPunct);
+			} else {
+				if ($author$project$Main$isConnector(word)) {
+					if (rest.b) {
+						var nextWord = rest.a;
+						var _v7 = $author$project$Main$stripTerminalPunct(nextWord);
+						var nextStripped = _v7.a;
+						if ($author$project$Main$isNameToken(nextStripped)) {
+							var _v8 = $author$project$Main$collectName(rest);
+							var moreWords = _v8.a;
+							var finalHadPunct = _v8.b;
+							return _Utils_Tuple2(
+								A2($elm$core$List$cons, word, moreWords),
+								finalHadPunct);
+						} else {
+							return _Utils_Tuple2(_List_Nil, false);
+						}
+					} else {
+						return _Utils_Tuple2(_List_Nil, false);
+					}
+				} else {
+					return _Utils_Tuple2(_List_Nil, false);
+				}
+			}
+		}
+	}
+};
+var $author$project$Main$trimTrailingColon = function (s) {
+	return A2($elm$core$String$endsWith, ':', s) ? A2($elm$core$String$dropRight, 1, s) : s;
+};
+var $author$project$Main$extractCardName = function (content) {
+	var leadingSpace = A2($elm$core$String$startsWith, ' ', content) ? 1 : 0;
+	var body = A2($elm$core$String$dropLeft, leadingSpace, content);
+	var words = $elm$core$String$words(body);
+	var _v0 = $author$project$Main$collectName(words);
+	var nameWords = _v0.a;
+	var hadTerminalPunct = _v0.b;
+	var rawName = A2($elm$core$String$join, ' ', nameWords);
+	var name = $author$project$Main$trimTrailingColon(rawName);
+	var offset = (leadingSpace + $elm$core$String$length(rawName)) + (hadTerminalPunct ? 1 : 0);
+	var rest = A2($elm$core$String$dropLeft, offset, content);
+	return _Utils_Tuple2(name, rest);
 };
 var $author$project$Main$isCardId = function (s) {
 	return (!$elm$core$String$isEmpty(s)) && (A2($elm$core$String$contains, '_', s) && A2(
@@ -7111,15 +7259,22 @@ var $author$project$Main$parseParen = function (str) {
 	if (_v0.b) {
 		var id = _v0.a;
 		var remainderParts = _v0.b;
-		return $author$project$Main$isCardId(id) ? _List_fromArray(
-			[
-				$author$project$Main$CardId(id),
-				$author$project$Main$PlainText(
-				A2($elm$core$String$join, ')', remainderParts))
-			]) : _List_fromArray(
-			[
-				$author$project$Main$PlainText('(' + str)
-			]);
+		if ($author$project$Main$isCardId(id)) {
+			var remainder = A2($elm$core$String$join, ')', remainderParts);
+			var _v1 = $author$project$Main$extractCardName(remainder);
+			var name = _v1.a;
+			var rest = _v1.b;
+			return _List_fromArray(
+				[
+					A2($author$project$Main$CardRef, id, name),
+					$author$project$Main$PlainText(rest)
+				]);
+		} else {
+			return _List_fromArray(
+				[
+					$author$project$Main$PlainText('(' + str)
+				]);
+		}
 	} else {
 		return _List_fromArray(
 			[
@@ -7149,6 +7304,7 @@ var $author$project$Main$viewSegment = function (seg) {
 		return $elm$html$Html$text(str);
 	} else {
 		var id = seg.a;
+		var name = seg.b;
 		return A2(
 			$elm$html$Html$span,
 			_List_fromArray(
@@ -7166,7 +7322,8 @@ var $author$project$Main$viewSegment = function (seg) {
 				]),
 			_List_fromArray(
 				[
-					$elm$html$Html$text(id)
+					$elm$html$Html$text(
+					$elm$core$String$isEmpty(name) ? id : name)
 				]));
 	}
 };
