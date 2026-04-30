@@ -25,9 +25,19 @@
   </head>
   <body>
     <div id="app"></div>
+    <script src="url-params.js"></script>
     <script src="app.js"></script>
     <script>
-      Elm.Main.init({ node: document.getElementById("app") });
+      const app = Elm.Main.init({
+        node: document.getElementById("app"),
+        flags: {
+          replayUrl: readReplayUrl(window.location.search),
+          sectionIndex: readSectionIndex(window.location.search),
+        },
+      });
+      app.ports.pushUrl.subscribe(function ({ url, index }) {
+        history.pushState({}, "", buildShareUrl(url, index) || window.location.pathname);
+      });
     </script>
   </body>
 </html>
