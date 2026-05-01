@@ -42,6 +42,26 @@ function cardApiUrl(id) {
   return `https://api.tcgdex.net/v2/en/sets/${replaySetIdToTcgDex(setCode)}/${localId}`;
 }
 
+// --- Basic Energy fallbacks (mirrors basicEnergyImageUrl in Main.elm) ---
+// Some Basic Energy cards exist in TCGdex but have no image field.
+// The app falls back to these known-good image URLs.
+
+const BASIC_ENERGY_FALLBACKS = {
+  "Grass Energy":     "https://assets.tcgdex.net/en/sv/sv02/278",
+  "Water Energy":     "https://assets.tcgdex.net/en/sv/sv02/279",
+  "Fire Energy":      "https://assets.tcgdex.net/en/sv/sv03/230",
+  "Lightning Energy": "https://assets.tcgdex.net/en/sv/sv01/257",
+  "Fighting Energy":  "https://assets.tcgdex.net/en/sv/sv01/258",
+  "Psychic Energy":   "https://assets.tcgdex.net/en/sv/sv03.5/207",
+  "Darkness Energy":  "https://assets.tcgdex.net/en/sv/sv06.5/098",
+  "Metal Energy":     "https://assets.tcgdex.net/en/sv/sv06.5/099",
+};
+
+function basicEnergyFallback(apiName) {
+  const key = apiName.replace(/^Basic\s+/i, "");
+  return BASIC_ENERGY_FALLBACKS[key] ?? null;
+}
+
 // --- Name comparison ---
 
 // Two known benign differences that should not be flagged as errors:
@@ -95,11 +115,14 @@ async function checkCard({ id, name: parsedName }) {
       };
     }
     // The app decodes the "image" field to show the card picture — if it's
-    // missing the app shows "Card not found" even though the name check passes.
+    // missing the app falls back to basicEnergyImageUrl, then shows "Card not found".
     if (typeof body.image !== "string" || body.image.length === 0) {
-      return { id, parsedName, ok: false, reason: "no image URL in API response" };
+      if (!basicEnergyFallback(apiName)) {
+        return { id, parsedName, ok: false, reason: "no image URL in API response" };
+      }
+      return { id, parsedName, ok: true, info: `fallback image for "${apiName}"` };
     }
-    return { id, parsedName, ok: true, reason: null };
+    return { id, parsedName, ok: true, info: null };
   } catch {
     return { id, parsedName, ok: false, reason: "network error" };
   }
@@ -130,12 +153,18 @@ app.ports.done.subscribe(async ({ output, allOk, cardRefs }) => {
 
   const results = await checkAllCards(cardRefs);
   const bad = results.filter((r) => !r.ok);
+  const info = results.filter((r) => r.ok && r.info);
 
   if (bad.length === 0) {
     console.log(`All ${cardRefs.length} card ID(s) verified in TCGdex ✓`);
   } else {
     console.log(`\n${bad.length} card ID(s) had issues:`);
     bad.forEach(({ id, reason }) => console.log(`  ${id}  (${reason})`));
+  }
+
+  if (info.length > 0) {
+    console.log(`\n${info.length} card ID(s) using fallback images:`);
+    info.forEach(({ id, info: msg }) => console.log(`  ${id}  (${msg})`));
   }
 
   process.exit(allOk && bad.length === 0 ? 0 : 1);

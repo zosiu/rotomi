@@ -234,7 +234,19 @@ update msg model =
                                             ShowingCard id imageUrl
 
                                         Err _ ->
-                                            CardNotFound id
+                                            -- No image field — try the basic energy fallback,
+                                            -- keyed on the API name (may or may not have "Basic " prefix).
+                                            case Decode.decodeString (Decode.field "name" Decode.string) body of
+                                                Ok apiName ->
+                                                    case basicEnergyImageUrl apiName of
+                                                        Just fallbackUrl ->
+                                                            ShowingCard id fallbackUrl
+
+                                                        Nothing ->
+                                                            CardNotFound id
+
+                                                Err _ ->
+                                                    CardNotFound id
 
                                 Err _ ->
                                     CardNotFound id
@@ -365,6 +377,50 @@ zeroPadAfterPrefix prefix s =
 
             else
                 s
+
+
+{-| Fallback image base URLs for Basic Energy cards that exist in TCGdex but
+have no image field in their API response.  The lookup strips an optional
+"Basic " prefix so it works whether the API returns "Grass Energy" or
+"Basic Grass Energy".
+-}
+basicEnergyImageUrl : String -> Maybe String
+basicEnergyImageUrl apiName =
+    let
+        key =
+            if String.startsWith "Basic " apiName then
+                String.dropLeft 6 apiName
+
+            else
+                apiName
+    in
+    case key of
+        "Grass Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv02/278"
+
+        "Water Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv02/279"
+
+        "Fire Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv03/230"
+
+        "Lightning Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv01/257"
+
+        "Fighting Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv01/258"
+
+        "Psychic Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv03.5/207"
+
+        "Darkness Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv06.5/098"
+
+        "Metal Energy" ->
+            Just "https://assets.tcgdex.net/en/sv/sv06.5/099"
+
+        _ ->
+            Nothing
 
 
 httpErrorToString : Http.Error -> String
