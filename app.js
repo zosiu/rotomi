@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.a3.an === region.bk.an)
+	if (region.aZ.an === region.bh.an)
 	{
-		return 'on line ' + region.a3.an;
+		return 'on line ' + region.aZ.an;
 	}
-	return 'on lines ' + region.a3.an + ' through ' + region.bk.an;
+	return 'on lines ' + region.aZ.an + ' through ' + region.bh.an;
 }
 
 
@@ -1861,7 +1861,7 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cD,
+		impl.cE,
 		impl.df,
 		impl.c9,
 		function() { return function() {} }
@@ -2728,8 +2728,8 @@ var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
 		N: func(record.N),
-		a4: record.a4,
-		a1: record.a1
+		a_: record.a_,
+		aX: record.aX
 	}
 });
 
@@ -2998,10 +2998,10 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 
 		var value = result.a;
 		var message = !tag ? value : tag < 3 ? value.a : value.N;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a4;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a_;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.a1) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.aX) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -3951,7 +3951,7 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cD,
+		impl.cE,
 		impl.df,
 		impl.c9,
 		function(sendToApp, initialModel) {
@@ -3987,11 +3987,11 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cD,
+		impl.cE,
 		impl.df,
 		impl.c9,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.a2 && impl.a2(sendToApp)
+			var divertHrefToApp = impl.aY && impl.aY(sendToApp)
 			var view = impl.dg;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
@@ -4000,7 +4000,7 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.ci);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.cj);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
@@ -4066,7 +4066,7 @@ function _Browser_application(impl)
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		a2: function(sendToApp)
+		aY: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -4082,9 +4082,9 @@ function _Browser_application(impl)
 					var next = $elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.bK === next.bK
+							&& curr.bL === next.bL
 							&& curr.bu === next.bu
-							&& curr.bH.a === next.bH.a
+							&& curr.bI.a === next.bI.a
 						)
 							? $elm$browser$Browser$Internal(next)
 							: $elm$browser$Browser$External(href)
@@ -4092,9 +4092,9 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		cD: function(flags)
+		cE: function(flags)
 		{
-			return A3(impl.cD, flags, _Browser_getUrl(), key);
+			return A3(impl.cE, flags, _Browser_getUrl(), key);
 		},
 		dg: impl.dg,
 		df: impl.df,
@@ -4164,17 +4164,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { cB: 'hidden', cl: 'visibilitychange' }
+		? { cC: 'hidden', cm: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { cB: 'mozHidden', cl: 'mozvisibilitychange' }
+		? { cC: 'mozHidden', cm: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { cB: 'msHidden', cl: 'msvisibilitychange' }
+		? { cC: 'msHidden', cm: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { cB: 'webkitHidden', cl: 'webkitvisibilitychange' }
-		: { cB: 'hidden', cl: 'visibilitychange' };
+		? { cC: 'webkitHidden', cm: 'webkitvisibilitychange' }
+		: { cC: 'hidden', cm: 'visibilitychange' };
 }
 
 
@@ -4255,11 +4255,11 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		bT: _Browser_getScene(),
-		b3: {
-			b7: _Browser_window.pageXOffset,
-			b8: _Browser_window.pageYOffset,
-			b5: _Browser_doc.documentElement.clientWidth,
+		bU: _Browser_getScene(),
+		b4: {
+			b8: _Browser_window.pageXOffset,
+			b9: _Browser_window.pageYOffset,
+			b6: _Browser_doc.documentElement.clientWidth,
 			bt: _Browser_doc.documentElement.clientHeight
 		}
 	};
@@ -4270,7 +4270,7 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		b5: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		b6: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
 		bt: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
@@ -4294,14 +4294,14 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			bT: {
-				b5: node.scrollWidth,
+			bU: {
+				b6: node.scrollWidth,
 				bt: node.scrollHeight
 			},
-			b3: {
-				b7: node.scrollLeft,
-				b8: node.scrollTop,
-				b5: node.clientWidth,
+			b4: {
+				b8: node.scrollLeft,
+				b9: node.scrollTop,
+				b6: node.clientWidth,
 				bt: node.clientHeight
 			}
 		};
@@ -4332,17 +4332,17 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			bT: _Browser_getScene(),
-			b3: {
-				b7: x,
-				b8: y,
-				b5: _Browser_doc.documentElement.clientWidth,
+			bU: _Browser_getScene(),
+			b4: {
+				b8: x,
+				b9: y,
+				b6: _Browser_doc.documentElement.clientWidth,
 				bt: _Browser_doc.documentElement.clientHeight
 			},
-			cv: {
-				b7: x + rect.left,
-				b8: y + rect.top,
-				b5: rect.width,
+			cw: {
+				b8: x + rect.left,
+				b9: y + rect.top,
+				b6: rect.width,
 				bt: rect.height
 			}
 		};
@@ -4395,18 +4395,18 @@ var _Http_toTask = F3(function(router, toTask, request)
 		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
 		xhr.addEventListener('load', function() { done(_Http_toResponse(request.ak.b, xhr)); });
-		$elm$core$Maybe$isJust(request.b2) && _Http_track(router, xhr, request.b2.a);
+		$elm$core$Maybe$isJust(request.b3) && _Http_track(router, xhr, request.b3.a);
 
 		try {
-			xhr.open(request.cH, request.v, true);
+			xhr.open(request.cI, request.v, true);
 		} catch (e) {
 			return done($elm$http$Http$BadUrl_(request.v));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.ci.a && xhr.setRequestHeader('Content-Type', request.ci.a);
-		xhr.send(request.ci.b);
+		request.cj.a && xhr.setRequestHeader('Content-Type', request.cj.a);
+		xhr.send(request.cj.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -4423,7 +4423,7 @@ function _Http_configureRequest(xhr, request)
 	}
 	xhr.timeout = request.dc.a || 0;
 	xhr.responseType = request.ak.d;
-	xhr.withCredentials = request.cb;
+	xhr.withCredentials = request.cc;
 }
 
 
@@ -4543,14 +4543,14 @@ function _Http_track(router, xhr, tracker)
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
 			c6: event.loaded,
-			bX: event.total
+			bY: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
 			c0: event.loaded,
-			bX: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+			bY: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
 		}))));
 	});
 }
@@ -5078,7 +5078,7 @@ var $elm$url$Url$Http = 0;
 var $elm$url$Url$Https = 1;
 var $elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {bn: fragment, bu: host, bF: path, bH: port_, bK: protocol, bL: query};
+		return {bl: fragment, bu: host, bG: path, bI: port_, bL: protocol, bM: query};
 	});
 var $elm$core$String$contains = _String_contains;
 var $elm$core$String$length = _String_length;
@@ -5980,7 +5980,7 @@ var $elm$http$Http$Request = function (a) {
 };
 var $elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {bP: reqs, b$: subs};
+		return {bQ: reqs, b0: subs};
 	});
 var $elm$http$Http$init = $elm$core$Task$succeed(
 	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
@@ -6024,7 +6024,7 @@ var $elm$http$Http$updateReqs = F3(
 					return A2(
 						$elm$core$Task$andThen,
 						function (pid) {
-							var _v4 = req.b2;
+							var _v4 = req.b3;
 							if (_v4.$ === 1) {
 								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -6054,7 +6054,7 @@ var $elm$http$Http$onEffects = F4(
 				return $elm$core$Task$succeed(
 					A2($elm$http$Http$State, reqs, subs));
 			},
-			A3($elm$http$Http$updateReqs, router, cmds, state.bP));
+			A3($elm$http$Http$updateReqs, router, cmds, state.bQ));
 	});
 var $elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
@@ -6097,7 +6097,7 @@ var $elm$http$Http$onSelfMsg = F3(
 				A2(
 					$elm$core$List$filterMap,
 					A3($elm$http$Http$maybeSend, router, tracker, progress),
-					state.b$)));
+					state.b0)));
 	});
 var $elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -6111,13 +6111,13 @@ var $elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return $elm$http$Http$Request(
 				{
-					cb: r.cb,
-					ci: r.ci,
+					cc: r.cc,
+					cj: r.cj,
 					ak: A2(_Http_mapExpect, func, r.ak),
 					br: r.br,
-					cH: r.cH,
+					cI: r.cI,
 					dc: r.dc,
-					b2: r.b2,
+					b3: r.b3,
 					v: r.v
 				});
 		}
@@ -6141,21 +6141,21 @@ var $elm$http$Http$subscription = _Platform_leaf('Http');
 var $elm$http$Http$request = function (r) {
 	return $elm$http$Http$command(
 		$elm$http$Http$Request(
-			{cb: false, ci: r.ci, ak: r.ak, br: r.br, cH: r.cH, dc: r.dc, b2: r.b2, v: r.v}));
+			{cc: false, cj: r.cj, ak: r.ak, br: r.br, cI: r.cI, dc: r.dc, b3: r.b3, v: r.v}));
 };
 var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
-		{ci: $elm$http$Http$emptyBody, ak: r.ak, br: _List_Nil, cH: 'GET', dc: $elm$core$Maybe$Nothing, b2: $elm$core$Maybe$Nothing, v: r.v});
+		{cj: $elm$http$Http$emptyBody, ak: r.ak, br: _List_Nil, cI: 'GET', dc: $elm$core$Maybe$Nothing, b3: $elm$core$Maybe$Nothing, v: r.v});
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$String$trim = _String_trim;
 var $author$project$Main$init = function (flags) {
-	var url = $elm$core$String$trim(flags.bO);
+	var url = $elm$core$String$trim(flags.bP);
 	return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(
 		$author$project$Main$EnteringUrl(''),
 		$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-		A3($author$project$Main$Loading, url, flags.bU, flags.B),
+		A3($author$project$Main$Loading, url, flags.bV, flags.C),
 		$elm$http$Http$get(
 			{
 				ak: $elm$http$Http$expectString($author$project$Main$GotReplay),
@@ -6315,11 +6315,11 @@ var $author$project$Main$currentUrl = function (model) {
 };
 var $author$project$Main$CardAbility = F3(
 	function (abilityType, name, effect) {
-		return {a8: abilityType, aj: effect, ao: name};
+		return {a2: abilityType, aj: effect, ao: name};
 	});
 var $author$project$Main$CardAttack = F4(
 	function (name, cost, damage, effect) {
-		return {aO: cost, cp: damage, aj: effect, ao: name};
+		return {aL: cost, cq: damage, aj: effect, ao: name};
 	});
 var $author$project$Main$CardData = F3(
 	function (imageUrl, attacks, abilities) {
@@ -6478,7 +6478,7 @@ var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
-var $author$project$Replay$emptyState = {Z: $elm$core$Maybe$Nothing, K: _List_Nil, F: _List_Nil, ac: 0};
+var $author$project$Replay$emptyState = {Z: $elm$core$Maybe$Nothing, K: _List_Nil, B: _List_Nil, ac: 0};
 var $author$project$Replay$ResultSection = function (a) {
 	return {$: 3, a: a};
 };
@@ -6509,7 +6509,7 @@ var $author$project$Replay$parseMatchResult = function (text) {
 						$elm$core$String$join,
 						' ',
 						$elm$core$List$reverse(reasonWords)),
-					b6: winner
+					b7: winner
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6573,11 +6573,11 @@ var $author$project$Replay$buildSection = F2(
 var $author$project$Replay$finalizeSections = function (state) {
 	var _v0 = state.Z;
 	if (_v0.$ === 1) {
-		return state.F;
+		return state.B;
 	} else {
 		var kind = _v0.a;
 		return _Utils_ap(
-			state.F,
+			state.B,
 			_List_fromArray(
 				[
 					A2(
@@ -6658,8 +6658,8 @@ var $author$project$Replay$identifyPlayers = function (sections) {
 			var p2 = _v3.a;
 			return $elm$core$Maybe$Just(
 				{
-					bc: _Utils_eq(p1, red) ? p2 : p1,
-					bM: red
+					a7: _Utils_eq(p1, red) ? p2 : p1,
+					bN: red
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6692,11 +6692,11 @@ var $author$project$Replay$classifyLine = function (line) {
 var $author$project$Replay$commitSection = function (state) {
 	var _v0 = state.Z;
 	if (_v0.$ === 1) {
-		return state.F;
+		return state.B;
 	} else {
 		var kind = _v0.a;
 		return _Utils_ap(
-			state.F,
+			state.B,
 			_List_fromArray(
 				[
 					A2(
@@ -6717,7 +6717,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 				$elm$core$Maybe$map,
 				function (n) {
 					return {
-						aX: $elm$core$Maybe$Just(n),
+						aR: $elm$core$Maybe$Just(n),
 						b: A2($elm$core$String$dropRight, 7, playerPart)
 					};
 				},
@@ -6730,7 +6730,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 		if (A2($elm$core$String$endsWith, '\'s Turn', line) && (!A2($elm$core$String$contains, '.', line))) {
 			return $elm$core$Maybe$Just(
 				{
-					aX: $elm$core$Maybe$Nothing,
+					aR: $elm$core$Maybe$Nothing,
 					b: A2($elm$core$String$dropRight, 7, line)
 				});
 		} else {
@@ -6743,7 +6743,7 @@ var $author$project$Replay$startSection = F2(
 		return {
 			Z: $elm$core$Maybe$Just(kind),
 			K: _List_Nil,
-			F: $author$project$Replay$commitSection(state),
+			B: $author$project$Replay$commitSection(state),
 			ac: state.ac
 		};
 	});
@@ -6767,17 +6767,17 @@ var $author$project$Replay$processLine = F2(
 				var _v0 = $author$project$Replay$parseTurnHeader(line);
 				if (!_v0.$) {
 					var player = _v0.a.b;
-					var maybeNumber = _v0.a.aX;
+					var maybeNumber = _v0.a.aR;
 					var newCount = state.ac + 1;
 					var turn = {
-						cT: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
+						bE: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
 						b: player
 					};
 					return {
 						Z: $elm$core$Maybe$Just(
 							$author$project$Replay$KindTurn(turn)),
 						K: _List_Nil,
-						F: $author$project$Replay$commitSection(state),
+						B: $author$project$Replay$commitSection(state),
 						ac: newCount
 					};
 				} else {
@@ -6814,7 +6814,7 @@ var $author$project$Replay$parse = function (raw) {
 					$elm$core$String$lines(raw)))));
 	return {
 		c_: $author$project$Replay$identifyPlayers(sections),
-		F: sections
+		B: sections
 	};
 };
 var $elm$json$Json$Encode$int = _Json_wrap;
@@ -6840,7 +6840,7 @@ var $author$project$Main$pushUrl = _Platform_outgoingPort(
 				[
 					_Utils_Tuple2(
 					'groupIndex',
-					$elm$json$Json$Encode$int($.B)),
+					$elm$json$Json$Encode$int($.C)),
 					_Utils_Tuple2(
 					'index',
 					$elm$json$Json$Encode$int($.L)),
@@ -6994,7 +6994,7 @@ var $author$project$Action$tryAttached = function (raw) {
 						var pokemon = {d: pCard, b: player};
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Attached(
-								{cE: itemCard, b: player, ay: pos, aC: pokemon}));
+								{cF: itemCard, b: player, ay: pos, aC: pokemon}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7161,7 +7161,7 @@ var $author$project$Action$tryCoinFlipChoice = function (raw) {
 					A2($elm$core$String$split, ' for', choicePart)));
 			return $elm$core$Maybe$Just(
 				$author$project$Action$CoinFlipChoice(
-					{cn: choice, b: player}));
+					{co: choice, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7198,7 +7198,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$CoinFlipResult(
 						{
-							bm: 1,
+							bk: 1,
 							bs: (outcome === 'heads') ? 1 : 0,
 							b: player
 						}));
@@ -7221,7 +7221,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 						var heads = _v4.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$CoinFlipResult(
-								{bm: flipped, bs: heads, b: player}));
+								{bk: flipped, bs: heads, b: player}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7269,7 +7269,7 @@ var $author$project$Action$tryConditionApplied = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionApplied(
-						{bf: condition, A: pokemon}));
+						{bb: condition, A: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7300,7 +7300,7 @@ var $author$project$Action$tryConditionRemoved = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionRemoved(
-						{bf: condition, A: pokemon}));
+						{bb: condition, A: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7439,7 +7439,7 @@ var $author$project$Action$tryDrewCard = function (raw) {
 				var card = _v2.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$DrewCard(
-						{cd: andPlayed, d: card, b: player}));
+						{ce: andPlayed, d: card, b: player}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7531,7 +7531,7 @@ var $author$project$Action$tryEvolved = function (raw) {
 						var to = _v5.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Evolved(
-								{aR: from, b: player, ay: pos, a7: to}));
+								{aN: from, b: player, ay: pos, a1: to}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7559,7 +7559,7 @@ var $author$project$Action$tryGoDecision = function (raw) {
 			var first = A2($elm$core$String$startsWith, 'first', choice);
 			return $elm$core$Maybe$Just(
 				$author$project$Action$GoDecision(
-					{cA: first, b: player}));
+					{cB: first, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7625,7 +7625,7 @@ var $author$project$Action$tryMovedDamageCounters = function (raw) {
 							var toRef = _v7.b.a;
 							return $elm$core$Maybe$Just(
 								$author$project$Action$MovedDamageCounters(
-									{l: n, aR: fromRef, b: mover, a7: toRef}));
+									{l: n, aN: fromRef, b: mover, a1: toRef}));
 						} else {
 							return $elm$core$Maybe$Nothing;
 						}
@@ -7684,7 +7684,7 @@ var $author$project$Action$tryMovedToDiscard = function (raw) {
 					var n = _v4.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MovedToDiscard(
-							{l: n, cK: mover, cZ: ownerName}));
+							{l: n, cL: mover, cZ: ownerName}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -7777,7 +7777,7 @@ var $author$project$Action$tryMulliganBonus = function (raw) {
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MulliganBonus(
 							{
-								ch: A3(
+								ci: A3(
 									$elm$core$String$replace,
 									'.',
 									'',
@@ -8025,7 +8025,7 @@ var $author$project$Action$tryPoisonCheckupDamage = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PoisonCheckupDamage(
-								{co: n, A: pokemon});
+								{cp: n, A: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -8266,9 +8266,9 @@ var $author$project$Action$trySwitched = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$Switched(
 						{
-							aR: fromRef.d,
+							aN: fromRef.d,
 							b: fromRef.b,
-							a7: {av: '', ao: ''}
+							a1: {av: '', ao: ''}
 						}));
 			} else {
 				return $elm$core$Maybe$Nothing;
@@ -8321,7 +8321,7 @@ var $author$project$Action$tryTookDamage = function (raw) {
 					var amount = _v3.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$TookDamage(
-							{cc: amount, A: pokemon}));
+							{cd: amount, A: pokemon}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -8511,15 +8511,15 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 							$author$project$Action$UsedAttack(
 								{
 									aG: attacker,
-									aZ: modifier,
+									aT: modifier,
 									ax: move,
 									aC: $elm$core$Maybe$Just(
-										{cp: damage, cs: defender})
+										{cq: damage, ct: defender})
 								}));
 					} else {
 						return $elm$core$Maybe$Just(
 							$author$project$Action$UsedAttack(
-								{aG: attacker, aZ: $elm$core$Maybe$Nothing, ax: rest, aC: $elm$core$Maybe$Nothing}));
+								{aG: attacker, aT: $elm$core$Maybe$Nothing, ax: rest, aC: $elm$core$Maybe$Nothing}));
 					}
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -8529,7 +8529,7 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 					$author$project$Action$UsedAttack(
 						{
 							aG: attacker,
-							aZ: $elm$core$Maybe$Nothing,
+							aT: $elm$core$Maybe$Nothing,
 							ax: $elm$core$String$trimRight(rest),
 							aC: $elm$core$Maybe$Nothing
 						}));
@@ -8754,7 +8754,7 @@ var $author$project$Action$collectDetails = F2(
 						var remaining = _v1.b;
 						var detail = {
 							Q: $author$project$Action$parseAction(raw),
-							aL: bullets,
+							aJ: bullets,
 							V: raw
 						};
 						var $temp$lines = remaining,
@@ -8767,7 +8767,7 @@ var $author$project$Action$collectDetails = F2(
 						var rest = lines.b;
 						var detail = {
 							Q: $author$project$Action$parseAction(raw),
-							aL: _List_Nil,
+							aJ: _List_Nil,
 							V: raw
 						};
 						var $temp$lines = rest,
@@ -8797,7 +8797,7 @@ var $author$project$Action$groupHelp = F2(
 						$elm$core$List$cons,
 						{
 							Q: $author$project$Action$parseAction(raw),
-							bi: details,
+							bf: details,
 							V: raw
 						},
 						acc);
@@ -8846,10 +8846,10 @@ var $author$project$Main$loadReplay = F4(
 			A2(
 				$elm$core$Basics$max,
 				0,
-				$elm$core$List$length(replay.F) - 1));
+				$elm$core$List$length(replay.B) - 1));
 		var groupIndex = function () {
 			var section = $elm$core$List$head(
-				A2($elm$core$List$drop, index, replay.F));
+				A2($elm$core$List$drop, index, replay.B));
 			var maxGroup = function (n) {
 				return A2($elm$core$Basics$max, 0, n - 1);
 			}(
@@ -8862,12 +8862,12 @@ var $author$project$Main$loadReplay = F4(
 				A2($elm$core$Basics$max, 0, requestedGroupIndex),
 				maxGroup);
 		}();
-		return $elm$core$List$isEmpty(replay.F) ? _Utils_Tuple2(
+		return $elm$core$List$isEmpty(replay.B) ? _Utils_Tuple2(
 			A2($author$project$Main$Failed, url, 'No replay content found — check the URL'),
 			$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
 			A6($author$project$Main$Loaded, url, replay, index, groupIndex, $elm$core$Maybe$Nothing, $elm$core$Dict$empty),
 			$author$project$Main$pushUrl(
-				{B: groupIndex, L: index, v: url}));
+				{C: groupIndex, L: index, v: url}));
 	});
 var $elm$url$Url$percentEncode = _Url_percentEncode;
 var $author$project$Main$proxyUrl = function (url) {
@@ -8984,7 +8984,7 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{B: 0, L: 0, v: url}),
+										{C: 0, L: 0, v: url}),
 										$author$project$Main$scrollToTop
 									])));
 					} else {
@@ -9004,14 +9004,14 @@ var $author$project$Main$update = F2(
 									_List_fromArray(
 										[
 											$author$project$Main$pushUrl(
-											{B: g - 1, L: i, v: url}),
+											{C: g - 1, L: i, v: url}),
 											$author$project$Main$scrollToTop
 										])));
 						} else {
 							if (i > 0) {
 								var newI = i - 1;
 								var prevSection = $elm$core$List$head(
-									A2($elm$core$List$drop, newI, replay.F));
+									A2($elm$core$List$drop, newI, replay.B));
 								var prevCount = A2(
 									$elm$core$Maybe$withDefault,
 									1,
@@ -9030,7 +9030,7 @@ var $author$project$Main$update = F2(
 											[
 												$author$project$Main$pushUrl(
 												{
-													B: A2($elm$core$Basics$max, 0, prevCount - 1),
+													C: A2($elm$core$Basics$max, 0, prevCount - 1),
 													L: newI,
 													v: url
 												}),
@@ -9050,9 +9050,9 @@ var $author$project$Main$update = F2(
 						var i = model.c;
 						var g = model.d;
 						var cache = model.f;
-						var totalSections = $elm$core$List$length(replay.F);
+						var totalSections = $elm$core$List$length(replay.B);
 						var currentSection = $elm$core$List$head(
-							A2($elm$core$List$drop, i, replay.F));
+							A2($elm$core$List$drop, i, replay.B));
 						var totalGroups = A2(
 							$elm$core$Maybe$withDefault,
 							1,
@@ -9063,7 +9063,7 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{B: g + 1, L: i, v: url}),
+										{C: g + 1, L: i, v: url}),
 										$author$project$Main$scrollToTop
 									]))) : ((_Utils_cmp(i, totalSections - 1) < 0) ? _Utils_Tuple2(
 							A6($author$project$Main$Loaded, url, replay, i + 1, 0, $elm$core$Maybe$Nothing, cache),
@@ -9071,7 +9071,7 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{B: 0, L: i + 1, v: url}),
+										{C: 0, L: i + 1, v: url}),
 										$author$project$Main$scrollToTop
 									]))) : _Utils_Tuple2(model, $elm$core$Platform$Cmd$none));
 					} else {
@@ -9082,9 +9082,9 @@ var $author$project$Main$update = F2(
 						var url = model.a;
 						var replay = model.b;
 						var cache = model.f;
-						var lastI = $elm$core$List$length(replay.F) - 1;
+						var lastI = $elm$core$List$length(replay.B) - 1;
 						var lastSection = $elm$core$List$head(
-							A2($elm$core$List$drop, lastI, replay.F));
+							A2($elm$core$List$drop, lastI, replay.B));
 						var lastCount = A2(
 							$elm$core$Maybe$withDefault,
 							1,
@@ -9103,7 +9103,7 @@ var $author$project$Main$update = F2(
 									[
 										$author$project$Main$pushUrl(
 										{
-											B: A2($elm$core$Basics$max, 0, lastCount - 1),
+											C: A2($elm$core$Basics$max, 0, lastCount - 1),
 											L: lastI,
 											v: url
 										}),
@@ -9448,7 +9448,7 @@ var $author$project$Main$viewDamageDetail = function (info) {
 									$elm$html$Html$text(line)
 								]));
 					},
-					info.aK))
+					info.aI))
 			]));
 };
 var $elm$core$List$filter = F2(
@@ -9496,7 +9496,7 @@ var $author$project$Main$viewAbilityDetail = function (ability) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(ability.a8)
+								$elm$html$Html$text(ability.a2)
 							])),
 						A2(
 						$elm$html$Html$span,
@@ -9573,7 +9573,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							[
 								$elm$html$Html$text(attack.ao)
 							])),
-						$elm$core$String$isEmpty(attack.cp) ? $elm$html$Html$text('') : A2(
+						$elm$core$String$isEmpty(attack.cq) ? $elm$html$Html$text('') : A2(
 						$elm$html$Html$span,
 						_List_fromArray(
 							[
@@ -9583,10 +9583,10 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(attack.cp + ' dmg')
+								$elm$html$Html$text(attack.cq + ' dmg')
 							]))
 					])),
-				$elm$core$List$isEmpty(attack.aO) ? $elm$html$Html$text('') : A2(
+				$elm$core$List$isEmpty(attack.aL) ? $elm$html$Html$text('') : A2(
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
@@ -9595,7 +9595,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 						A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
 						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.6rem')
 					]),
-				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aO)),
+				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aL)),
 				$elm$core$String$isEmpty(attack.aj) ? $elm$html$Html$text('') : A2(
 				$elm$html$Html$p,
 				_List_fromArray(
@@ -9758,13 +9758,116 @@ var $author$project$Main$viewCardPopup = function (popup) {
 			}()
 			]));
 };
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
+		}
+	});
+var $elm$core$List$concat = function (lists) {
+	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
+};
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $author$project$Main$sectionLines = function (section) {
+	switch (section.$) {
+		case 0:
+			var lines = section.a;
+			return lines;
+		case 1:
+			var lines = section.b;
+			return lines;
+		case 2:
+			var lines = section.a;
+			return lines;
+		default:
+			return _List_Nil;
+	}
+};
 var $author$project$Main$playerColor = F2(
 	function (players, name) {
 		if (!players.$) {
 			var p = players.a;
-			return _Utils_eq(name, p.bM) ? '#c53030' : (_Utils_eq(name, p.bc) ? '#2c5282' : '#2d3748');
+			return _Utils_eq(name, p.bN) ? '#c53030' : (_Utils_eq(name, p.a7) ? '#2c5282' : '#2d3748');
 		} else {
 			return '#2d3748';
+		}
+	});
+var $author$project$Main$viewSectionBadge = F2(
+	function (color, label) {
+		return A2(
+			$elm$html$Html$span,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'background', color),
+					A2($elm$html$Html$Attributes$style, 'color', 'white'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
+					A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+					A2($elm$html$Html$Attributes$style, 'letter-spacing', '0.08em'),
+					A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase'),
+					A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0.55rem'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(label)
+				]));
+	});
+var $author$project$Main$sectionNavInfo = F2(
+	function (players, maybeSection) {
+		if (maybeSection.$ === 1) {
+			return _Utils_Tuple3(
+				$elm$html$Html$text(''),
+				_List_Nil,
+				'#71809640');
+		} else {
+			var section = maybeSection.a;
+			switch (section.$) {
+				case 0:
+					return _Utils_Tuple3(
+						A2($author$project$Main$viewSectionBadge, '#718096', 'Setup'),
+						_List_Nil,
+						'#71809640');
+				case 1:
+					var turn = section.a;
+					var badgeColor = A2($author$project$Main$playerColor, players, turn.b);
+					return _Utils_Tuple3(
+						A2(
+							$author$project$Main$viewSectionBadge,
+							badgeColor,
+							'Turn ' + $elm$core$String$fromInt(turn.bE)),
+						_List_fromArray(
+							[
+								A2(
+								$elm$html$Html$span,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
+										A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+										A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(turn.b)
+									]))
+							]),
+						badgeColor + '40');
+				case 2:
+					return _Utils_Tuple3(
+						A2($author$project$Main$viewSectionBadge, '#b7791f', 'Pokémon Checkup'),
+						_List_Nil,
+						'#b7791f40');
+				default:
+					return _Utils_Tuple3(
+						A2($author$project$Main$viewSectionBadge, '#718096', 'Result'),
+						_List_Nil,
+						'#71809640');
+			}
 		}
 	});
 var $elm$core$List$takeReverse = F3(
@@ -9916,22 +10019,6 @@ var $elm$core$List$any = F2(
 			}
 		}
 	});
-var $elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
-		}
-	});
-var $elm$core$List$concat = function (lists) {
-	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
-};
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
-	});
 var $elm$core$Basics$neq = _Utils_notEqual;
 var $author$project$Main$DamageClicked = function (a) {
 	return {$: 10, a: a};
@@ -9968,7 +10055,7 @@ var $author$project$Main$PlainText = function (a) {
 };
 var $author$project$Main$splitByPhrase = F2(
 	function (highlight, str) {
-		var phrase = highlight.a0;
+		var phrase = highlight.aW;
 		if ($elm$core$String$isEmpty(phrase)) {
 			return $elm$core$String$isEmpty(str) ? _List_Nil : _List_fromArray(
 				[
@@ -10007,7 +10094,7 @@ var $author$project$Main$splitByPhrase = F2(
 										]),
 									A2(
 										$elm$core$List$cons,
-										A3($author$project$Main$MoveRef, phrase, highlight.aW, highlight.aM),
+										A3($author$project$Main$MoveRef, phrase, highlight.aQ, highlight.aK),
 										interleave(rest)));
 							}
 						}
@@ -10264,14 +10351,14 @@ var $author$project$Main$segmentPlayers = F2(
 				function (seg) {
 					if (!seg.$) {
 						var s = seg.a;
-						return A3($author$project$Main$splitByPlayer, players.bc, '#2c5282', s);
+						return A3($author$project$Main$splitByPlayer, players.a7, '#2c5282', s);
 					} else {
 						var other = seg;
 						return _List_fromArray(
 							[other]);
 					}
 				},
-				A3($author$project$Main$splitByPlayer, players.bM, '#c53030', str));
+				A3($author$project$Main$splitByPlayer, players.bN, '#c53030', str));
 		}
 	});
 var $author$project$Main$parseParen = F2(
@@ -10493,7 +10580,7 @@ var $author$project$Main$viewActionGroup = F3(
 					}
 				}();
 				return $elm$core$Maybe$Just(
-					{aM: cardId, aW: kind, a0: cleaned});
+					{aK: cardId, aQ: kind, aW: cleaned});
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -10517,15 +10604,15 @@ var $author$project$Main$viewActionGroup = F3(
 								$elm$core$Maybe$Nothing,
 								$author$project$Replay$BulletLine(bullet.V));
 						},
-						detail.aL));
+						detail.aJ));
 			},
-			group.bi);
+			group.bf);
 		var _v0 = group.Q;
 		if (_v0.$ === 15) {
 			var target = _v0.a.aC;
-			var modifier = _v0.a.aZ;
+			var modifier = _v0.a.aT;
 			if (!target.$) {
-				var damage = target.a.cp;
+				var damage = target.a.cq;
 				if ((!_Utils_eq(modifier, $elm$core$Maybe$Nothing)) || A2(
 					$elm$core$Maybe$withDefault,
 					false,
@@ -10534,7 +10621,7 @@ var $author$project$Main$viewActionGroup = F3(
 						function (d) {
 							return d.V === 'Damage breakdown:';
 						},
-						$elm$core$List$head(group.bi)))) {
+						$elm$core$List$head(group.bf)))) {
 					var nonBreakdownDetails = A2(
 						$elm$core$List$concatMap,
 						function (detail) {
@@ -10554,14 +10641,14 @@ var $author$project$Main$viewActionGroup = F3(
 											$elm$core$Maybe$Nothing,
 											$author$project$Replay$BulletLine(bullet.V));
 									},
-									detail.aL));
+									detail.aJ));
 						},
 						A2(
 							$elm$core$List$filter,
 							function (d) {
 								return d.V !== 'Damage breakdown:';
 							},
-							group.bi));
+							group.bf));
 					var forDamage = ' for ' + ($elm$core$String$fromInt(damage) + ' damage.');
 					var prefixIdx = $elm$core$List$head(
 						A2($elm$core$String$indexes, forDamage, group.V));
@@ -10576,15 +10663,15 @@ var $author$project$Main$viewActionGroup = F3(
 									function ($) {
 										return $.V;
 									},
-									detail.aL));
+									detail.aJ));
 						},
 						A2(
 							$elm$core$List$filter,
 							function (d) {
 								return d.V === 'Damage breakdown:';
 							},
-							group.bi));
-					var damageInfo = {aK: breakdownLines};
+							group.bf));
+					var damageInfo = {aI: breakdownLines};
 					var attackPrefixRaw = function () {
 						if (!prefixIdx.$) {
 							var i = prefixIdx.a;
@@ -10672,12 +10759,12 @@ var $author$project$Main$navArrow = F3(
 				]));
 	});
 var $author$project$Main$viewNavSection = function (_v0) {
-	var badge = _v0.aI;
-	var extra = _v0.aQ;
-	var borderColor = _v0.aJ;
-	var content = _v0.aN;
-	var hasPrev = _v0.aU;
-	var hasNext = _v0.aT;
+	var badge = _v0.a6;
+	var extra = _v0.bj;
+	var borderColor = _v0.a9;
+	var content = _v0.bc;
+	var hasPrev = _v0.bq;
+	var hasNext = _v0.bp;
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -10749,151 +10836,210 @@ var $author$project$Main$viewNavSection = function (_v0) {
 				content)
 			]));
 };
-var $author$project$Main$viewSectionBadge = F2(
-	function (color, label) {
+var $author$project$Main$viewResultContent = F2(
+	function (players, result) {
 		return A2(
-			$elm$html$Html$span,
+			$elm$html$Html$div,
+			_List_Nil,
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'background', color),
-					A2($elm$html$Html$Attributes$style, 'color', 'white'),
-					A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
-					A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-					A2($elm$html$Html$Attributes$style, 'letter-spacing', '0.08em'),
-					A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase'),
-					A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0.55rem'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '0.9rem'),
+							A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+							A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0'),
+							A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(result.c$)
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+							A2(
+							$elm$html$Html$Attributes$style,
+							'color',
+							A2($author$project$Main$playerColor, players, result.b7)),
+							A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(result.b7 + ' wins.')
+						]))
+				]));
+	});
+var $author$project$Main$viewPastSectionGroups = F3(
+	function (cache, players, section) {
+		var greyed = function (children) {
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'opacity', '0.4')
+					]),
+				children);
+		};
+		if (section.$ === 3) {
+			var result = section.a;
+			return _List_fromArray(
+				[
+					greyed(
+					_List_fromArray(
+						[
+							A2($author$project$Main$viewResultContent, players, result)
+						]))
+				]);
+		} else {
+			return A2(
+				$elm$core$List$map,
+				function (group) {
+					return greyed(
+						A3($author$project$Main$viewActionGroup, players, cache, group));
+				},
+				$elm$core$List$reverse(
+					$author$project$Action$groupLines(
+						$author$project$Main$sectionLines(section))));
+		}
+	});
+var $author$project$Main$viewSectionDivider = F2(
+	function (players, section) {
+		var _v0 = function () {
+			switch (section.$) {
+				case 0:
+					return _Utils_Tuple2('Setup', '#718096');
+				case 1:
+					var turn = section.a;
+					return _Utils_Tuple2(
+						'Turn ' + ($elm$core$String$fromInt(turn.bE) + (' · ' + turn.b)),
+						A2($author$project$Main$playerColor, players, turn.b));
+				case 2:
+					return _Utils_Tuple2('Pokémon Checkup', '#b7791f');
+				default:
+					return _Utils_Tuple2('Result', '#718096');
+			}
+		}();
+		var label = _v0.a;
+		var color = _v0.b;
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+					A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+					A2($elm$html$Html$Attributes$style, 'gap', '0.5rem'),
+					A2($elm$html$Html$Attributes$style, 'margin', '0.75rem 0'),
+					A2($elm$html$Html$Attributes$style, 'opacity', '0.45')
 				]),
 			_List_fromArray(
 				[
-					$elm$html$Html$text(label)
-				]));
-	});
-var $author$project$Main$viewSectionWithNav = F6(
-	function (cache, players, sectionIndex, groupIndex, totalSections, section) {
-		var renderLines = F4(
-			function (badge, extra, borderColor, lines) {
-				var hasPrev = (groupIndex > 0) || (sectionIndex > 0);
-				var groups = $author$project$Action$groupLines(lines);
-				var totalGroups = $elm$core$List$length(groups);
-				var hasNext = (_Utils_cmp(groupIndex, totalGroups - 1) < 0) || (_Utils_cmp(sectionIndex, totalSections - 1) < 0);
-				var visibleContent = A2(
-					$elm$core$List$indexedMap,
-					F2(
-						function (i, group) {
-							return A2(
-								$elm$html$Html$div,
-								(i > 0) ? _List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'opacity', '0.4'),
-										A2($elm$html$Html$Attributes$style, 'pointer-events', 'none')
-									]) : _List_Nil,
-								A3($author$project$Main$viewActionGroup, players, cache, group));
-						}),
-					$elm$core$List$reverse(
-						A2($elm$core$List$take, groupIndex + 1, groups)));
-				return $author$project$Main$viewNavSection(
-					{aI: badge, aJ: borderColor, aN: visibleContent, aQ: extra, aT: hasNext, aU: hasPrev});
-			});
-		switch (section.$) {
-			case 0:
-				var lines = section.a;
-				return A4(
-					renderLines,
-					A2($author$project$Main$viewSectionBadge, '#718096', 'Setup'),
-					_List_Nil,
-					'#71809640',
-					lines);
-			case 1:
-				var turn = section.a;
-				var lines = section.b;
-				var badgeColor = A2($author$project$Main$playerColor, players, turn.b);
-				return A4(
-					renderLines,
 					A2(
-						$author$project$Main$viewSectionBadge,
-						badgeColor,
-						'Turn ' + $elm$core$String$fromInt(turn.cT)),
+					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							A2(
-							$elm$html$Html$span,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
-									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-									A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text(turn.b)
-								]))
+							A2($elm$html$Html$Attributes$style, 'flex', '1'),
+							A2($elm$html$Html$Attributes$style, 'height', '1px'),
+							A2($elm$html$Html$Attributes$style, 'background', '#cbd5e0')
 						]),
-					badgeColor + '40',
-					lines);
-			case 2:
-				var lines = section.a;
-				return A4(
-					renderLines,
-					A2($author$project$Main$viewSectionBadge, '#b7791f', 'Pokémon Checkup'),
-					_List_Nil,
-					'#b7791f40',
-					lines);
-			default:
-				var result = section.a;
-				var winnerColor = A2($author$project$Main$playerColor, players, result.b6);
-				var hasPrev = sectionIndex > 0;
-				var hasNext = _Utils_cmp(sectionIndex, totalSections - 1) < 0;
-				return $author$project$Main$viewNavSection(
-					{
-						aI: A2($author$project$Main$viewSectionBadge, '#718096', 'Result'),
-						aJ: '#71809640',
-						aN: _List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'font-size', '0.9rem'),
-										A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-										A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0'),
-										A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text(result.c$)
-									])),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem'),
-										A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-										A2($elm$html$Html$Attributes$style, 'color', winnerColor),
-										A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text(result.b6 + ' wins.')
-									]))
-							]),
-						aQ: _List_Nil,
-						aT: hasNext,
-						aU: hasPrev
-					});
-		}
+					_List_Nil),
+					A2(
+					$elm$html$Html$span,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
+							A2($elm$html$Html$Attributes$style, 'color', color),
+							A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap'),
+							A2($elm$html$Html$Attributes$style, 'letter-spacing', '0.05em'),
+							A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text(label)
+						])),
+					A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'flex', '1'),
+							A2($elm$html$Html$Attributes$style, 'height', '1px'),
+							A2($elm$html$Html$Attributes$style, 'background', '#cbd5e0')
+						]),
+					_List_Nil)
+				]));
 	});
 var $author$project$Main$viewReplay = F4(
 	function (cache, replay, sectionIndex, groupIndex) {
-		var total = $elm$core$List$length(replay.F);
-		var section = $elm$core$List$head(
-			A2($elm$core$List$drop, sectionIndex, replay.F));
-		if (section.$ === 1) {
-			return $elm$html$Html$text('');
-		} else {
-			var s = section.a;
-			return A6($author$project$Main$viewSectionWithNav, cache, replay.c_, sectionIndex, groupIndex, total, s);
-		}
+		var total = $elm$core$List$length(replay.B);
+		var players = replay.c_;
+		var pastSections = A2($elm$core$List$take, sectionIndex, replay.B);
+		var pastContent = A2(
+			$elm$core$List$concatMap,
+			function (section) {
+				return A2(
+					$elm$core$List$cons,
+					A2($author$project$Main$viewSectionDivider, players, section),
+					A3($author$project$Main$viewPastSectionGroups, cache, players, section));
+			},
+			$elm$core$List$reverse(pastSections));
+		var hasPrev = (groupIndex > 0) || (sectionIndex > 0);
+		var currentSection = $elm$core$List$head(
+			A2($elm$core$List$drop, sectionIndex, replay.B));
+		var totalGroupsInCurrent = A2(
+			$elm$core$Maybe$withDefault,
+			0,
+			A2($elm$core$Maybe$map, $author$project$Main$sectionGroupCount, currentSection));
+		var hasNext = (_Utils_cmp(groupIndex, totalGroupsInCurrent - 1) < 0) || (_Utils_cmp(sectionIndex, total - 1) < 0);
+		var currentContent = function () {
+			if (currentSection.$ === 1) {
+				return _List_Nil;
+			} else {
+				var section = currentSection.a;
+				if (section.$ === 3) {
+					var result = section.a;
+					return _List_fromArray(
+						[
+							A2($author$project$Main$viewResultContent, players, result)
+						]);
+				} else {
+					var groups = $author$project$Action$groupLines(
+						$author$project$Main$sectionLines(section));
+					var totalGroups = $elm$core$List$length(groups);
+					return A2(
+						$elm$core$List$indexedMap,
+						F2(
+							function (i, group) {
+								return A2(
+									$elm$html$Html$div,
+									(i > 0) ? _List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$style, 'opacity', '0.4')
+										]) : _List_Nil,
+									A3($author$project$Main$viewActionGroup, players, cache, group));
+							}),
+						$elm$core$List$reverse(
+							A2($elm$core$List$take, groupIndex + 1, groups)));
+				}
+			}
+		}();
+		var _v0 = A2($author$project$Main$sectionNavInfo, players, currentSection);
+		var badge = _v0.a;
+		var extra = _v0.b;
+		var borderColor = _v0.c;
+		return $author$project$Main$viewNavSection(
+			{
+				a6: badge,
+				a9: borderColor,
+				bc: _Utils_ap(currentContent, pastContent),
+				bj: extra,
+				bp: hasNext,
+				bq: hasPrev
+			});
 	});
 var $author$project$Main$viewContent = function (model) {
 	switch (model.$) {
@@ -11157,7 +11303,7 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{
-		cD: $author$project$Main$init,
+		cE: $author$project$Main$init,
 		c9: function (_v0) {
 			return $author$project$Main$onSwipe($author$project$Main$GotSwipe);
 		},
@@ -11175,7 +11321,7 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 						$elm$json$Json$Decode$andThen,
 						function (groupIndex) {
 							return $elm$json$Json$Decode$succeed(
-								{B: groupIndex, bO: replayUrl, bU: sectionIndex});
+								{C: groupIndex, bP: replayUrl, bV: sectionIndex});
 						},
 						A2($elm$json$Json$Decode$field, 'groupIndex', $elm$json$Json$Decode$int));
 				},
