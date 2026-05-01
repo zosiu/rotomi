@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.a1.as === region.bi.as)
+	if (region.a2.as === region.bj.as)
 	{
-		return 'on line ' + region.a1.as;
+		return 'on line ' + region.a2.as;
 	}
-	return 'on lines ' + region.a1.as + ' through ' + region.bi.as;
+	return 'on lines ' + region.a2.as + ' through ' + region.bj.as;
 }
 
 
@@ -1861,9 +1861,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cB,
-		impl.dd,
-		impl.c7,
+		impl.cC,
+		impl.de,
+		impl.c8,
 		function() { return function() {} }
 	);
 });
@@ -2728,8 +2728,8 @@ var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
 		K: func(record.K),
-		a2: record.a2,
-		a$: record.a$
+		a3: record.a3,
+		a0: record.a0
 	}
 });
 
@@ -2998,10 +2998,10 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 
 		var value = result.a;
 		var message = !tag ? value : tag < 3 ? value.a : value.K;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a2;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a3;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.a$) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.a0) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -3951,11 +3951,11 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cB,
-		impl.dd,
-		impl.c7,
+		impl.cC,
+		impl.de,
+		impl.c8,
 		function(sendToApp, initialModel) {
-			var view = impl.de;
+			var view = impl.df;
 			/**/
 			var domNode = args['node'];
 			//*/
@@ -3987,12 +3987,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cB,
-		impl.dd,
-		impl.c7,
+		impl.cC,
+		impl.de,
+		impl.c8,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.a0 && impl.a0(sendToApp)
-			var view = impl.de;
+			var divertHrefToApp = impl.a1 && impl.a1(sendToApp)
+			var view = impl.df;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
@@ -4000,12 +4000,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.cg);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.ch);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.db) && (_VirtualDom_doc.title = title = doc.db);
+				(title !== doc.dc) && (_VirtualDom_doc.title = title = doc.dc);
 			});
 		}
 	);
@@ -4061,12 +4061,12 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.cS;
-	var onUrlRequest = impl.cT;
+	var onUrlChange = impl.cT;
+	var onUrlRequest = impl.cU;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		a0: function(sendToApp)
+		a1: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -4082,9 +4082,9 @@ function _Browser_application(impl)
 					var next = $elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.bI === next.bI
-							&& curr.bs === next.bs
-							&& curr.bF.a === next.bF.a
+							&& curr.bJ === next.bJ
+							&& curr.bt === next.bt
+							&& curr.bG.a === next.bG.a
 						)
 							? $elm$browser$Browser$Internal(next)
 							: $elm$browser$Browser$External(href)
@@ -4092,13 +4092,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		cB: function(flags)
+		cC: function(flags)
 		{
-			return A3(impl.cB, flags, _Browser_getUrl(), key);
+			return A3(impl.cC, flags, _Browser_getUrl(), key);
 		},
+		df: impl.df,
 		de: impl.de,
-		dd: impl.dd,
-		c7: impl.c7
+		c8: impl.c8
 	});
 }
 
@@ -4164,17 +4164,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { cz: 'hidden', cj: 'visibilitychange' }
+		? { cA: 'hidden', ck: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { cz: 'mozHidden', cj: 'mozvisibilitychange' }
+		? { cA: 'mozHidden', ck: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { cz: 'msHidden', cj: 'msvisibilitychange' }
+		? { cA: 'msHidden', ck: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { cz: 'webkitHidden', cj: 'webkitvisibilitychange' }
-		: { cz: 'hidden', cj: 'visibilitychange' };
+		? { cA: 'webkitHidden', ck: 'webkitvisibilitychange' }
+		: { cA: 'hidden', ck: 'visibilitychange' };
 }
 
 
@@ -4255,12 +4255,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		bR: _Browser_getScene(),
-		b1: {
-			b5: _Browser_window.pageXOffset,
-			b6: _Browser_window.pageYOffset,
-			b3: _Browser_doc.documentElement.clientWidth,
-			br: _Browser_doc.documentElement.clientHeight
+		bS: _Browser_getScene(),
+		b2: {
+			b6: _Browser_window.pageXOffset,
+			b7: _Browser_window.pageYOffset,
+			b4: _Browser_doc.documentElement.clientWidth,
+			bs: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -4270,8 +4270,8 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		b3: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		br: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		b4: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		bs: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -4294,15 +4294,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			bR: {
-				b3: node.scrollWidth,
-				br: node.scrollHeight
+			bS: {
+				b4: node.scrollWidth,
+				bs: node.scrollHeight
 			},
-			b1: {
-				b5: node.scrollLeft,
-				b6: node.scrollTop,
-				b3: node.clientWidth,
-				br: node.clientHeight
+			b2: {
+				b6: node.scrollLeft,
+				b7: node.scrollTop,
+				b4: node.clientWidth,
+				bs: node.clientHeight
 			}
 		};
 	});
@@ -4332,18 +4332,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			bR: _Browser_getScene(),
-			b1: {
-				b5: x,
-				b6: y,
-				b3: _Browser_doc.documentElement.clientWidth,
-				br: _Browser_doc.documentElement.clientHeight
+			bS: _Browser_getScene(),
+			b2: {
+				b6: x,
+				b7: y,
+				b4: _Browser_doc.documentElement.clientWidth,
+				bs: _Browser_doc.documentElement.clientHeight
 			},
-			ct: {
-				b5: x + rect.left,
-				b6: y + rect.top,
-				b3: rect.width,
-				br: rect.height
+			cu: {
+				b6: x + rect.left,
+				b7: y + rect.top,
+				b4: rect.width,
+				bs: rect.height
 			}
 		};
 	});
@@ -4395,18 +4395,18 @@ var _Http_toTask = F3(function(router, toTask, request)
 		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
 		xhr.addEventListener('load', function() { done(_Http_toResponse(request.am.b, xhr)); });
-		$elm$core$Maybe$isJust(request.b0) && _Http_track(router, xhr, request.b0.a);
+		$elm$core$Maybe$isJust(request.b1) && _Http_track(router, xhr, request.b1.a);
 
 		try {
-			xhr.open(request.cF, request.A, true);
+			xhr.open(request.cG, request.A, true);
 		} catch (e) {
 			return done($elm$http$Http$BadUrl_(request.A));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.cg.a && xhr.setRequestHeader('Content-Type', request.cg.a);
-		xhr.send(request.cg.b);
+		request.ch.a && xhr.setRequestHeader('Content-Type', request.ch.a);
+		xhr.send(request.ch.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -4417,13 +4417,13 @@ var _Http_toTask = F3(function(router, toTask, request)
 
 function _Http_configureRequest(xhr, request)
 {
-	for (var headers = request.bp; headers.b; headers = headers.b) // WHILE_CONS
+	for (var headers = request.bq; headers.b; headers = headers.b) // WHILE_CONS
 	{
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
-	xhr.timeout = request.da.a || 0;
+	xhr.timeout = request.db.a || 0;
 	xhr.responseType = request.am.d;
-	xhr.withCredentials = request.b9;
+	xhr.withCredentials = request.ca;
 }
 
 
@@ -4445,9 +4445,9 @@ function _Http_toMetadata(xhr)
 {
 	return {
 		A: xhr.responseURL,
-		c5: xhr.status,
-		c6: xhr.statusText,
-		bp: _Http_parseHeaders(xhr.getAllResponseHeaders())
+		c6: xhr.status,
+		c7: xhr.statusText,
+		bq: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
 
@@ -4542,15 +4542,15 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
-			c4: event.loaded,
-			bV: event.total
+			c5: event.loaded,
+			bW: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
-			c_: event.loaded,
-			bV: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+			c$: event.loaded,
+			bW: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
 		}))));
 	});
 }
@@ -5078,7 +5078,7 @@ var $elm$url$Url$Http = 0;
 var $elm$url$Url$Https = 1;
 var $elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {bl: fragment, bs: host, bD: path, bF: port_, bI: protocol, bJ: query};
+		return {bm: fragment, bt: host, bE: path, bG: port_, bJ: protocol, bK: query};
 	});
 var $elm$core$String$contains = _String_contains;
 var $elm$core$String$length = _String_length;
@@ -5959,7 +5959,7 @@ var $elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return $elm$core$Result$Err(
-					$elm$http$Http$BadStatus(metadata.c5));
+					$elm$http$Http$BadStatus(metadata.c6));
 			default:
 				var body = response.b;
 				return A2(
@@ -5980,7 +5980,7 @@ var $elm$http$Http$Request = function (a) {
 };
 var $elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {bN: reqs, bZ: subs};
+		return {bO: reqs, b_: subs};
 	});
 var $elm$http$Http$init = $elm$core$Task$succeed(
 	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
@@ -6024,7 +6024,7 @@ var $elm$http$Http$updateReqs = F3(
 					return A2(
 						$elm$core$Task$andThen,
 						function (pid) {
-							var _v4 = req.b0;
+							var _v4 = req.b1;
 							if (_v4.$ === 1) {
 								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -6054,7 +6054,7 @@ var $elm$http$Http$onEffects = F4(
 				return $elm$core$Task$succeed(
 					A2($elm$http$Http$State, reqs, subs));
 			},
-			A3($elm$http$Http$updateReqs, router, cmds, state.bN));
+			A3($elm$http$Http$updateReqs, router, cmds, state.bO));
 	});
 var $elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
@@ -6097,7 +6097,7 @@ var $elm$http$Http$onSelfMsg = F3(
 				A2(
 					$elm$core$List$filterMap,
 					A3($elm$http$Http$maybeSend, router, tracker, progress),
-					state.bZ)));
+					state.b_)));
 	});
 var $elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -6111,13 +6111,13 @@ var $elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return $elm$http$Http$Request(
 				{
-					b9: r.b9,
-					cg: r.cg,
+					ca: r.ca,
+					ch: r.ch,
 					am: A2(_Http_mapExpect, func, r.am),
-					bp: r.bp,
-					cF: r.cF,
-					da: r.da,
-					b0: r.b0,
+					bq: r.bq,
+					cG: r.cG,
+					db: r.db,
+					b1: r.b1,
 					A: r.A
 				});
 		}
@@ -6141,21 +6141,21 @@ var $elm$http$Http$subscription = _Platform_leaf('Http');
 var $elm$http$Http$request = function (r) {
 	return $elm$http$Http$command(
 		$elm$http$Http$Request(
-			{b9: false, cg: r.cg, am: r.am, bp: r.bp, cF: r.cF, da: r.da, b0: r.b0, A: r.A}));
+			{ca: false, ch: r.ch, am: r.am, bq: r.bq, cG: r.cG, db: r.db, b1: r.b1, A: r.A}));
 };
 var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
-		{cg: $elm$http$Http$emptyBody, am: r.am, bp: _List_Nil, cF: 'GET', da: $elm$core$Maybe$Nothing, b0: $elm$core$Maybe$Nothing, A: r.A});
+		{ch: $elm$http$Http$emptyBody, am: r.am, bq: _List_Nil, cG: 'GET', db: $elm$core$Maybe$Nothing, b1: $elm$core$Maybe$Nothing, A: r.A});
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$String$trim = _String_trim;
 var $author$project$Main$init = function (flags) {
-	var url = $elm$core$String$trim(flags.bM);
+	var url = $elm$core$String$trim(flags.bN);
 	return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(
 		$author$project$Main$EnteringUrl(''),
 		$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-		A2($author$project$Main$Loading, url, flags.bS),
+		A2($author$project$Main$Loading, url, flags.bT),
 		$elm$http$Http$get(
 			{
 				am: $elm$http$Http$expectString($author$project$Main$GotReplay),
@@ -6166,7 +6166,7 @@ var $elm$json$Json$Decode$int = _Json_decodeInt;
 var $elm$json$Json$Decode$string = _Json_decodeString;
 var $author$project$Main$onSwipe = _Platform_incomingPort('onSwipe', $elm$json$Json$Decode$string);
 var $author$project$Main$CardNotFound = function (a) {
-	return {$: 4, a: a};
+	return {$: 5, a: a};
 };
 var $author$project$Main$Failed = F2(
 	function (a, b) {
@@ -6181,7 +6181,7 @@ var $author$project$Main$FetchingMove = F2(
 	});
 var $author$project$Main$GotCardImage = F2(
 	function (a, b) {
-		return {$: 10, a: a, b: b};
+		return {$: 11, a: a, b: b};
 	});
 var $author$project$Main$Loaded = F5(
 	function (a, b, c, d, e) {
@@ -6197,6 +6197,9 @@ var $author$project$Main$ShowingCard = F2(
 	function (a, b) {
 		return {$: 2, a: a, b: b};
 	});
+var $author$project$Main$ShowingDamageInfo = function (a) {
+	return {$: 4, a: a};
+};
 var $author$project$Main$ShowingMove = F2(
 	function (a, b) {
 		return {$: 3, a: a, b: b};
@@ -6312,11 +6315,11 @@ var $author$project$Main$currentUrl = function (model) {
 };
 var $author$project$Main$CardAbility = F3(
 	function (abilityType, name, effect) {
-		return {a6: abilityType, al: effect, at: name};
+		return {a7: abilityType, al: effect, at: name};
 	});
 var $author$project$Main$CardAttack = F4(
 	function (name, cost, damage, effect) {
-		return {aP: cost, cn: damage, al: effect, at: name};
+		return {aQ: cost, co: damage, al: effect, at: name};
 	});
 var $author$project$Main$CardData = F3(
 	function (imageUrl, attacks, abilities) {
@@ -6462,11 +6465,11 @@ var $author$project$Replay$parseMatchResult = function (text) {
 			var reasonWords = _v0.b;
 			return $elm$core$String$isEmpty(winner) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
 				{
-					cZ: A2(
+					c_: A2(
 						$elm$core$String$join,
 						' ',
 						$elm$core$List$reverse(reasonWords)),
-					b4: winner
+					b5: winner
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6615,8 +6618,8 @@ var $author$project$Replay$identifyPlayers = function (sections) {
 			var p2 = _v3.a;
 			return $elm$core$Maybe$Just(
 				{
-					ba: _Utils_eq(p1, red) ? p2 : p1,
-					bK: red
+					bb: _Utils_eq(p1, red) ? p2 : p1,
+					bL: red
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6684,7 +6687,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 				$elm$core$Maybe$map,
 				function (n) {
 					return {
-						aV: $elm$core$Maybe$Just(n),
+						aW: $elm$core$Maybe$Just(n),
 						b: A2($elm$core$String$dropRight, 7, playerPart)
 					};
 				},
@@ -6697,7 +6700,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 		if (A2($elm$core$String$endsWith, '\'s Turn', line) && (!A2($elm$core$String$contains, '.', line))) {
 			return $elm$core$Maybe$Just(
 				{
-					aV: $elm$core$Maybe$Nothing,
+					aW: $elm$core$Maybe$Nothing,
 					b: A2($elm$core$String$dropRight, 7, line)
 				});
 		} else {
@@ -6734,10 +6737,10 @@ var $author$project$Replay$processLine = F2(
 				var _v0 = $author$project$Replay$parseTurnHeader(line);
 				if (!_v0.$) {
 					var player = _v0.a.b;
-					var maybeNumber = _v0.a.aV;
+					var maybeNumber = _v0.a.aW;
 					var newCount = state.ab + 1;
 					var turn = {
-						cR: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
+						cS: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
 						b: player
 					};
 					return {
@@ -6780,7 +6783,7 @@ var $author$project$Replay$parse = function (raw) {
 					A2($elm$core$String$replace, '\u000D', ''),
 					$elm$core$String$lines(raw)))));
 	return {
-		cY: $author$project$Replay$identifyPlayers(sections),
+		cZ: $author$project$Replay$identifyPlayers(sections),
 		_: sections
 	};
 };
@@ -7088,6 +7091,26 @@ var $author$project$Main$update = F2(
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
 				case 10:
+					var info = msg.a;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var cache = model.e;
+						return _Utils_Tuple2(
+							A5(
+								$author$project$Main$Loaded,
+								url,
+								replay,
+								i,
+								$elm$core$Maybe$Just(
+									$author$project$Main$ShowingDamageInfo(info)),
+								cache),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 11:
 					var id = msg.a;
 					var result = msg.b;
 					if (model.$ === 3) {
@@ -7096,26 +7119,26 @@ var $author$project$Main$update = F2(
 						var i = model.c;
 						var currentPopup = model.d;
 						var cache = model.e;
-						var _v17 = function () {
+						var _v18 = function () {
 							if (!result.$) {
 								var body = result.a;
-								var _v19 = $author$project$Main$decodeCardData(body);
-								if (!_v19.$) {
-									var cardData = _v19.a;
+								var _v20 = $author$project$Main$decodeCardData(body);
+								if (!_v20.$) {
+									var cardData = _v20.a;
 									var resolvedData = function () {
-										var _v23 = cardData.aq;
-										if (!_v23.$) {
+										var _v24 = cardData.aq;
+										if (!_v24.$) {
 											return cardData;
 										} else {
-											var _v24 = A2(
+											var _v25 = A2(
 												$elm$json$Json$Decode$decodeString,
 												A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
 												body);
-											if (!_v24.$) {
-												var apiName = _v24.a;
-												var _v25 = $author$project$Main$basicEnergyImageUrl(apiName);
-												if (!_v25.$) {
-													var fallbackUrl = _v25.a;
+											if (!_v25.$) {
+												var apiName = _v25.a;
+												var _v26 = $author$project$Main$basicEnergyImageUrl(apiName);
+												if (!_v26.$) {
+													var fallbackUrl = _v26.a;
 													return _Utils_update(
 														cardData,
 														{
@@ -7131,12 +7154,12 @@ var $author$project$Main$update = F2(
 									}();
 									var nextPopup = function () {
 										if ((!currentPopup.$) && (currentPopup.a.$ === 1)) {
-											var _v21 = currentPopup.a;
-											var moveName = _v21.b;
+											var _v22 = currentPopup.a;
+											var moveName = _v22.b;
 											return A2($author$project$Main$ShowingMove, resolvedData, moveName);
 										} else {
-											var _v22 = resolvedData.aq;
-											if (!_v22.$) {
+											var _v23 = resolvedData.aq;
+											if (!_v23.$) {
 												return A2($author$project$Main$ShowingCard, id, resolvedData);
 											} else {
 												return $author$project$Main$CardNotFound(id);
@@ -7157,8 +7180,8 @@ var $author$project$Main$update = F2(
 									cache);
 							}
 						}();
-						var popup = _v17.a;
-						var newCache = _v17.b;
+						var popup = _v18.a;
+						var newCache = _v18.b;
 						return _Utils_Tuple2(
 							A5(
 								$author$project$Main$Loaded,
@@ -7192,7 +7215,7 @@ var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$CloseCard = {$: 11};
+var $author$project$Main$CloseCard = {$: 12};
 var $elm$html$Html$img = _VirtualDom_node('img');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 0, a: a};
@@ -7223,6 +7246,44 @@ var $elm$html$Html$Attributes$src = function (url) {
 		$elm$html$Html$Attributes$stringProperty,
 		'src',
 		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
+var $author$project$Main$viewDamageDetail = function (info) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'background', 'white'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '12px'),
+				A2($elm$html$Html$Attributes$style, 'padding', '1.25rem 1.75rem'),
+				A2($elm$html$Html$Attributes$style, 'max-width', '360px'),
+				A2($elm$html$Html$Attributes$style, 'width', '90vw'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'default'),
+				A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				A2(
+					$elm$core$List$map,
+					function (line) {
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
+									A2($elm$html$Html$Attributes$style, 'color', '#2d3748'),
+									A2($elm$html$Html$Attributes$style, 'padding', '0.15rem 0'),
+									A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(line)
+								]));
+					},
+					info.aN))
+			]));
 };
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
@@ -7278,7 +7339,7 @@ var $author$project$Main$viewAbilityDetail = function (ability) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(ability.a6)
+								$elm$html$Html$text(ability.a7)
 							])),
 						A2(
 						$elm$html$Html$span,
@@ -7355,7 +7416,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							[
 								$elm$html$Html$text(attack.at)
 							])),
-						$elm$core$String$isEmpty(attack.cn) ? $elm$html$Html$text('') : A2(
+						$elm$core$String$isEmpty(attack.co) ? $elm$html$Html$text('') : A2(
 						$elm$html$Html$span,
 						_List_fromArray(
 							[
@@ -7365,10 +7426,10 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(attack.cn + ' dmg')
+								$elm$html$Html$text(attack.co + ' dmg')
 							]))
 					])),
-				$elm$core$List$isEmpty(attack.aP) ? $elm$html$Html$text('') : A2(
+				$elm$core$List$isEmpty(attack.aQ) ? $elm$html$Html$text('') : A2(
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
@@ -7377,7 +7438,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 						A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
 						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.6rem')
 					]),
-				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aP)),
+				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aQ)),
 				$elm$core$String$isEmpty(attack.al) ? $elm$html$Html$text('') : A2(
 				$elm$html$Html$p,
 				_List_fromArray(
@@ -7493,7 +7554,7 @@ var $author$project$Main$viewCardPopup = function (popup) {
 								[
 									$elm$html$Html$text('Loading…')
 								]));
-					case 4:
+					case 5:
 						var id = popup.a;
 						return A2(
 							$elm$html$Html$div,
@@ -7529,10 +7590,13 @@ var $author$project$Main$viewCardPopup = function (popup) {
 						} else {
 							return $elm$html$Html$text('');
 						}
-					default:
+					case 3:
 						var cardData = popup.a;
 						var moveName = popup.b;
 						return A2($author$project$Main$viewMoveDetail, cardData, moveName);
+					default:
+						var info = popup.a;
+						return $author$project$Main$viewDamageDetail(info);
 				}
 			}()
 			]));
@@ -7719,7 +7783,7 @@ var $author$project$Action$tryAttached = function (raw) {
 						var pokemon = {d: pCard, b: player};
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Attached(
-								{cC: itemCard, b: player, aD: pos, aH: pokemon}));
+								{cD: itemCard, b: player, aD: pos, aH: pokemon}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7859,7 +7923,7 @@ var $author$project$Action$tryChoseOption = function (raw) {
 			return $elm$core$Maybe$Just(
 				$author$project$Action$ChoseOption(
 					{
-						cV: $elm$core$String$trimRight(option),
+						cW: $elm$core$String$trimRight(option),
 						b: player
 					}));
 		} else {
@@ -7886,7 +7950,7 @@ var $author$project$Action$tryCoinFlipChoice = function (raw) {
 					A2($elm$core$String$split, ' for', choicePart)));
 			return $elm$core$Maybe$Just(
 				$author$project$Action$CoinFlipChoice(
-					{cl: choice, b: player}));
+					{cm: choice, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7923,8 +7987,8 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$CoinFlipResult(
 						{
-							bk: 1,
-							bq: (outcome === 'heads') ? 1 : 0,
+							bl: 1,
+							br: (outcome === 'heads') ? 1 : 0,
 							b: player
 						}));
 			} else {
@@ -7946,7 +8010,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 						var heads = _v4.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$CoinFlipResult(
-								{bk: flipped, bq: heads, b: player}));
+								{bl: flipped, br: heads, b: player}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7994,7 +8058,7 @@ var $author$project$Action$tryConditionApplied = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionApplied(
-						{bd: condition, z: pokemon}));
+						{be: condition, z: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8025,7 +8089,7 @@ var $author$project$Action$tryConditionRemoved = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionRemoved(
-						{bd: condition, z: pokemon}));
+						{be: condition, z: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8164,7 +8228,7 @@ var $author$project$Action$tryDrewCard = function (raw) {
 				var card = _v2.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$DrewCard(
-						{cb: andPlayed, d: card, b: player}));
+						{cc: andPlayed, d: card, b: player}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8256,7 +8320,7 @@ var $author$project$Action$tryEvolved = function (raw) {
 						var to = _v5.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Evolved(
-								{aR: from, b: player, aD: pos, a5: to}));
+								{aS: from, b: player, aD: pos, a6: to}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -8284,7 +8348,7 @@ var $author$project$Action$tryGoDecision = function (raw) {
 			var first = A2($elm$core$String$startsWith, 'first', choice);
 			return $elm$core$Maybe$Just(
 				$author$project$Action$GoDecision(
-					{cy: first, b: player}));
+					{cz: first, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -8350,7 +8414,7 @@ var $author$project$Action$tryMovedDamageCounters = function (raw) {
 							var toRef = _v7.b.a;
 							return $elm$core$Maybe$Just(
 								$author$project$Action$MovedDamageCounters(
-									{l: n, aR: fromRef, b: mover, a5: toRef}));
+									{l: n, aS: fromRef, b: mover, a6: toRef}));
 						} else {
 							return $elm$core$Maybe$Nothing;
 						}
@@ -8409,7 +8473,7 @@ var $author$project$Action$tryMovedToDiscard = function (raw) {
 					var n = _v4.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MovedToDiscard(
-							{l: n, cI: mover, cX: ownerName}));
+							{l: n, cJ: mover, cY: ownerName}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -8502,7 +8566,7 @@ var $author$project$Action$tryMulliganBonus = function (raw) {
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MulliganBonus(
 							{
-								cf: A3(
+								cg: A3(
 									$elm$core$String$replace,
 									'.',
 									'',
@@ -8750,7 +8814,7 @@ var $author$project$Action$tryPoisonCheckupDamage = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PoisonCheckupDamage(
-								{cm: n, z: pokemon});
+								{cn: n, z: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -8991,9 +9055,9 @@ var $author$project$Action$trySwitched = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$Switched(
 						{
-							aR: fromRef.d,
+							aS: fromRef.d,
 							b: fromRef.b,
-							a5: {aA: '', at: ''}
+							a6: {aA: '', at: ''}
 						}));
 			} else {
 				return $elm$core$Maybe$Nothing;
@@ -9046,7 +9110,7 @@ var $author$project$Action$tryTookDamage = function (raw) {
 					var amount = _v3.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$TookDamage(
-							{ca: amount, z: pokemon}));
+							{cb: amount, z: pokemon}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -9236,15 +9300,15 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 							$author$project$Action$UsedAttack(
 								{
 									aL: attacker,
-									aX: modifier,
+									aY: modifier,
 									aC: move,
 									aH: $elm$core$Maybe$Just(
-										{cn: damage, cq: defender})
+										{co: damage, cr: defender})
 								}));
 					} else {
 						return $elm$core$Maybe$Just(
 							$author$project$Action$UsedAttack(
-								{aL: attacker, aX: $elm$core$Maybe$Nothing, aC: rest, aH: $elm$core$Maybe$Nothing}));
+								{aL: attacker, aY: $elm$core$Maybe$Nothing, aC: rest, aH: $elm$core$Maybe$Nothing}));
 					}
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -9254,7 +9318,7 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 					$author$project$Action$UsedAttack(
 						{
 							aL: attacker,
-							aX: $elm$core$Maybe$Nothing,
+							aY: $elm$core$Maybe$Nothing,
 							aC: $elm$core$String$trimRight(rest),
 							aH: $elm$core$Maybe$Nothing
 						}));
@@ -9479,7 +9543,7 @@ var $author$project$Action$collectDetails = F2(
 						var remaining = _v1.b;
 						var detail = {
 							N: $author$project$Action$parseAction(raw),
-							aN: bullets,
+							aO: bullets,
 							S: raw
 						};
 						var $temp$lines = remaining,
@@ -9492,7 +9556,7 @@ var $author$project$Action$collectDetails = F2(
 						var rest = lines.b;
 						var detail = {
 							N: $author$project$Action$parseAction(raw),
-							aN: _List_Nil,
+							aO: _List_Nil,
 							S: raw
 						};
 						var $temp$lines = rest,
@@ -9522,7 +9586,7 @@ var $author$project$Action$groupHelp = F2(
 						$elm$core$List$cons,
 						{
 							N: $author$project$Action$parseAction(raw),
-							bg: details,
+							bh: details,
 							S: raw
 						},
 						acc);
@@ -9547,7 +9611,7 @@ var $author$project$Main$playerColor = F2(
 	function (players, name) {
 		if (!players.$) {
 			var p = players.a;
-			return _Utils_eq(name, p.bK) ? '#c53030' : (_Utils_eq(name, p.ba) ? '#2c5282' : '#2d3748');
+			return _Utils_eq(name, p.bL) ? '#c53030' : (_Utils_eq(name, p.bb) ? '#2c5282' : '#2d3748');
 		} else {
 			return '#2d3748';
 		}
@@ -9575,6 +9639,33 @@ var $elm$core$List$any = F2(
 			}
 		}
 	});
+var $elm$core$Basics$neq = _Utils_notEqual;
+var $author$project$Main$DamageClicked = function (a) {
+	return {$: 10, a: a};
+};
+var $author$project$Main$viewDamageChip = F2(
+	function (damage, info) {
+		return A2(
+			$elm$html$Html$span,
+			_List_fromArray(
+				[
+					$elm$html$Html$Events$onClick(
+					$author$project$Main$DamageClicked(info)),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'font-size', '0.8em'),
+					A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
+					A2($elm$html$Html$Attributes$style, 'background', '#fed7d7'),
+					A2($elm$html$Html$Attributes$style, 'color', '#9b2c2c'),
+					A2($elm$html$Html$Attributes$style, 'padding', '0.1em 0.45em'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '999px'),
+					A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap')
+				]),
+			_List_fromArray(
+				[
+					$elm$html$Html$text(
+					$elm$core$String$fromInt(damage) + ' damage')
+				]));
+	});
 var $author$project$Main$MoveRef = F3(
 	function (a, b, c) {
 		return {$: 3, a: a, b: b, c: c};
@@ -9584,7 +9675,7 @@ var $author$project$Main$PlainText = function (a) {
 };
 var $author$project$Main$splitByPhrase = F2(
 	function (highlight, str) {
-		var phrase = highlight.a_;
+		var phrase = highlight.a$;
 		if ($elm$core$String$isEmpty(phrase)) {
 			return $elm$core$String$isEmpty(str) ? _List_Nil : _List_fromArray(
 				[
@@ -9623,7 +9714,7 @@ var $author$project$Main$splitByPhrase = F2(
 										]),
 									A2(
 										$elm$core$List$cons,
-										A3($author$project$Main$MoveRef, phrase, highlight.aU, highlight.aO),
+										A3($author$project$Main$MoveRef, phrase, highlight.aV, highlight.aP),
 										interleave(rest)));
 							}
 						}
@@ -9709,7 +9800,6 @@ var $author$project$Main$isVersionToken = function (word) {
 			word));
 	}
 };
-var $elm$core$Basics$neq = _Utils_notEqual;
 var $author$project$Main$stripTerminalPunct = function (word) {
 	return (A2($elm$core$String$endsWith, ',', word) || A2($elm$core$String$endsWith, '.', word)) ? _Utils_Tuple2(
 		A2($elm$core$String$dropRight, 1, word),
@@ -9881,14 +9971,14 @@ var $author$project$Main$segmentPlayers = F2(
 				function (seg) {
 					if (!seg.$) {
 						var s = seg.a;
-						return A3($author$project$Main$splitByPlayer, players.ba, '#2c5282', s);
+						return A3($author$project$Main$splitByPlayer, players.bb, '#2c5282', s);
 					} else {
 						var other = seg;
 						return _List_fromArray(
 							[other]);
 					}
 				},
-				A3($author$project$Main$splitByPlayer, players.bK, '#c53030', str));
+				A3($author$project$Main$splitByPlayer, players.bL, '#c53030', str));
 		}
 	});
 var $author$project$Main$parseParen = F2(
@@ -10081,19 +10171,19 @@ var $author$project$Main$viewLine = F3(
 var $author$project$Main$viewActionGroup = F3(
 	function (players, cache, group) {
 		var topHighlight = function () {
-			var _v0 = group.N;
-			if (_v0.$ === 15) {
-				var attacker = _v0.a.aL;
-				var move = _v0.a.aC;
+			var _v3 = group.N;
+			if (_v3.$ === 15) {
+				var attacker = _v3.a.aL;
+				var move = _v3.a.aC;
 				var cleaned = function () {
 					var trimmed = $elm$core$String$trim(move);
 					return A2($elm$core$String$endsWith, '.', trimmed) ? A2($elm$core$String$dropRight, 1, trimmed) : trimmed;
 				}();
 				var cardId = attacker.d.aA;
 				var kind = function () {
-					var _v1 = A2($elm$core$Dict$get, cardId, cache);
-					if (!_v1.$) {
-						var cardData = _v1.a;
+					var _v4 = A2($elm$core$Dict$get, cardId, cache);
+					if (!_v4.$) {
+						var cardData = _v4.a;
 						return A2(
 							$elm$core$List$any,
 							function (a) {
@@ -10110,40 +10200,155 @@ var $author$project$Main$viewActionGroup = F3(
 					}
 				}();
 				return $elm$core$Maybe$Just(
-					{aO: cardId, aU: kind, a_: cleaned});
+					{aP: cardId, aV: kind, a$: cleaned});
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
 		}();
-		return A2(
-			$elm$core$List$cons,
-			A3(
-				$author$project$Main$viewLine,
-				players,
-				topHighlight,
-				$author$project$Replay$TopLine(group.S)),
-			A2(
-				$elm$core$List$concatMap,
-				function (detail) {
+		var normalDetails = A2(
+			$elm$core$List$concatMap,
+			function (detail) {
+				return A2(
+					$elm$core$List$cons,
+					A3(
+						$author$project$Main$viewLine,
+						players,
+						$elm$core$Maybe$Nothing,
+						$author$project$Replay$DetailLine(detail.S)),
+					A2(
+						$elm$core$List$map,
+						function (bullet) {
+							return A3(
+								$author$project$Main$viewLine,
+								players,
+								$elm$core$Maybe$Nothing,
+								$author$project$Replay$BulletLine(bullet.S));
+						},
+						detail.aO));
+			},
+			group.bh);
+		var _v0 = group.N;
+		if (_v0.$ === 15) {
+			var target = _v0.a.aH;
+			var modifier = _v0.a.aY;
+			if (!target.$) {
+				var damage = target.a.co;
+				if ((!_Utils_eq(modifier, $elm$core$Maybe$Nothing)) || A2(
+					$elm$core$Maybe$withDefault,
+					false,
+					A2(
+						$elm$core$Maybe$map,
+						function (d) {
+							return d.S === 'Damage breakdown:';
+						},
+						$elm$core$List$head(group.bh)))) {
+					var nonBreakdownDetails = A2(
+						$elm$core$List$concatMap,
+						function (detail) {
+							return A2(
+								$elm$core$List$cons,
+								A3(
+									$author$project$Main$viewLine,
+									players,
+									$elm$core$Maybe$Nothing,
+									$author$project$Replay$DetailLine(detail.S)),
+								A2(
+									$elm$core$List$map,
+									function (bullet) {
+										return A3(
+											$author$project$Main$viewLine,
+											players,
+											$elm$core$Maybe$Nothing,
+											$author$project$Replay$BulletLine(bullet.S));
+									},
+									detail.aO));
+						},
+						A2(
+							$elm$core$List$filter,
+							function (d) {
+								return d.S !== 'Damage breakdown:';
+							},
+							group.bh));
+					var forDamage = ' for ' + ($elm$core$String$fromInt(damage) + ' damage.');
+					var prefixIdx = $elm$core$List$head(
+						A2($elm$core$String$indexes, forDamage, group.S));
+					var breakdownLines = A2(
+						$elm$core$List$concatMap,
+						function (detail) {
+							return A2(
+								$elm$core$List$cons,
+								detail.S,
+								A2(
+									$elm$core$List$map,
+									function ($) {
+										return $.S;
+									},
+									detail.aO));
+						},
+						A2(
+							$elm$core$List$filter,
+							function (d) {
+								return d.S === 'Damage breakdown:';
+							},
+							group.bh));
+					var damageInfo = {aN: breakdownLines};
+					var attackPrefixRaw = function () {
+						if (!prefixIdx.$) {
+							var i = prefixIdx.a;
+							return A2($elm$core$String$left, i, group.S);
+						} else {
+							return group.S;
+						}
+					}();
+					return A2(
+						$elm$core$List$cons,
+						A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.9rem'),
+									A2($elm$html$Html$Attributes$style, 'color', '#2d3748'),
+									A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
+								]),
+							_Utils_ap(
+								A3($author$project$Main$viewInlineText, players, topHighlight, attackPrefixRaw),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(' for '),
+										A2($author$project$Main$viewDamageChip, damage, damageInfo)
+									]))),
+						nonBreakdownDetails);
+				} else {
 					return A2(
 						$elm$core$List$cons,
 						A3(
 							$author$project$Main$viewLine,
 							players,
-							$elm$core$Maybe$Nothing,
-							$author$project$Replay$DetailLine(detail.S)),
-						A2(
-							$elm$core$List$map,
-							function (bullet) {
-								return A3(
-									$author$project$Main$viewLine,
-									players,
-									$elm$core$Maybe$Nothing,
-									$author$project$Replay$BulletLine(bullet.S));
-							},
-							detail.aN));
-				},
-				group.bg));
+							topHighlight,
+							$author$project$Replay$TopLine(group.S)),
+						normalDetails);
+				}
+			} else {
+				return A2(
+					$elm$core$List$cons,
+					A3(
+						$author$project$Main$viewLine,
+						players,
+						topHighlight,
+						$author$project$Replay$TopLine(group.S)),
+					normalDetails);
+			}
+		} else {
+			return A2(
+				$elm$core$List$cons,
+				A3(
+					$author$project$Main$viewLine,
+					players,
+					topHighlight,
+					$author$project$Replay$TopLine(group.S)),
+				normalDetails);
+		}
 	});
 var $author$project$Main$FirstSection = {$: 3};
 var $author$project$Main$LastSection = {$: 6};
@@ -10285,7 +10490,7 @@ var $author$project$Main$viewSectionWithNav = F5(
 						ah: A2(
 							$author$project$Main$viewSectionBadge,
 							badgeColor,
-							'Turn ' + $elm$core$String$fromInt(turn.cR)),
+							'Turn ' + $elm$core$String$fromInt(turn.cS)),
 						ai: badgeColor + '40',
 						aj: A2(
 							$elm$core$List$concatMap,
@@ -10325,7 +10530,7 @@ var $author$project$Main$viewSectionWithNav = F5(
 					});
 			default:
 				var result = section.a;
-				var winnerColor = A2($author$project$Main$playerColor, players, result.b4);
+				var winnerColor = A2($author$project$Main$playerColor, players, result.b5);
 				return $author$project$Main$viewNavSection(
 					{
 						ah: A2($author$project$Main$viewSectionBadge, '#718096', 'Result'),
@@ -10343,7 +10548,7 @@ var $author$project$Main$viewSectionWithNav = F5(
 									]),
 								_List_fromArray(
 									[
-										$elm$html$Html$text(result.cZ)
+										$elm$html$Html$text(result.c_)
 									])),
 								A2(
 								$elm$html$Html$div,
@@ -10356,7 +10561,7 @@ var $author$project$Main$viewSectionWithNav = F5(
 									]),
 								_List_fromArray(
 									[
-										$elm$html$Html$text(result.b4 + ' wins.')
+										$elm$html$Html$text(result.b5 + ' wins.')
 									]))
 							]),
 						an: _List_Nil,
@@ -10377,7 +10582,7 @@ var $author$project$Main$viewReplay = F3(
 			return A5(
 				$author$project$Main$viewSectionWithNav,
 				cache,
-				replay.cY,
+				replay.cZ,
 				index > 0,
 				_Utils_cmp(index, total - 1) < 0,
 				s);
@@ -10616,12 +10821,12 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{
-		cB: $author$project$Main$init,
-		c7: function (_v0) {
+		cC: $author$project$Main$init,
+		c8: function (_v0) {
 			return $author$project$Main$onSwipe($author$project$Main$GotSwipe);
 		},
-		dd: $author$project$Main$update,
-		de: $author$project$Main$view
+		de: $author$project$Main$update,
+		df: $author$project$Main$view
 	});
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	A2(
@@ -10631,7 +10836,7 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 				$elm$json$Json$Decode$andThen,
 				function (replayUrl) {
 					return $elm$json$Json$Decode$succeed(
-						{bM: replayUrl, bS: sectionIndex});
+						{bN: replayUrl, bT: sectionIndex});
 				},
 				A2($elm$json$Json$Decode$field, 'replayUrl', $elm$json$Json$Decode$string));
 		},
