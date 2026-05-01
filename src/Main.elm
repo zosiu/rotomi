@@ -81,11 +81,17 @@ type alias MoveHighlight =
     }
 
 
+type alias DamageInfo =
+    { breakdownLines : List String
+    }
+
+
 type CardPopup
     = FetchingCard String
     | FetchingMove String String
     | ShowingCard String CardData
     | ShowingMove CardData String
+    | ShowingDamageInfo DamageInfo
     | CardNotFound String
 
 
@@ -131,6 +137,7 @@ type Msg
     | GotSwipe String
     | CardClicked String
     | MoveClicked String String
+    | DamageClicked DamageInfo
     | GotCardImage String (Result Http.Error String)
     | CloseCard
 
@@ -282,6 +289,14 @@ update msg model =
 
                                 Nothing ->
                                     ( Loaded url replay i (Just (CardNotFound cardId)) cache, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        DamageClicked info ->
+            case model of
+                Loaded url replay i _ cache ->
+                    ( Loaded url replay i (Just (ShowingDamageInfo info)) cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -963,14 +978,90 @@ viewActionGroup players cache group =
 
                 _ ->
                     Nothing
+
+        normalDetails =
+            List.concatMap
+                (\detail ->
+                    viewLine players Nothing (Replay.DetailLine detail.raw)
+                        :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
+                )
+                group.details
     in
-    viewLine players topHighlight (Replay.TopLine group.raw)
-        :: List.concatMap
-            (\detail ->
-                viewLine players Nothing (Replay.DetailLine detail.raw)
-                    :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
-            )
-            group.details
+    case group.action of
+        Action.UsedAttack { target, modifier } ->
+            case target of
+                Just { damage } ->
+                    if modifier /= Nothing || (List.head group.details |> Maybe.map (\d -> d.raw == "Damage breakdown:") |> Maybe.withDefault False) then
+                        let
+                            -- Split the raw line at "for X damage." to isolate the modifier sentence
+                            forDamage =
+                                " for " ++ String.fromInt damage ++ " damage."
+
+                            prefixIdx =
+                                String.indexes forDamage group.raw |> List.head
+
+                            attackPrefixRaw =
+                                case prefixIdx of
+                                    Just i ->
+                                        String.left i group.raw
+
+                                    Nothing ->
+                                        group.raw
+
+                            breakdownLines =
+                                group.details
+                                    |> List.filter (\d -> d.raw == "Damage breakdown:")
+                                    |> List.concatMap (\detail -> detail.raw :: List.map .raw detail.bullets)
+
+                            damageInfo =
+                                { breakdownLines = breakdownLines }
+
+                            nonBreakdownDetails =
+                                group.details
+                                    |> List.filter (\d -> d.raw /= "Damage breakdown:")
+                                    |> List.concatMap
+                                        (\detail ->
+                                            viewLine players Nothing (Replay.DetailLine detail.raw)
+                                                :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
+                                        )
+                        in
+                        div
+                            [ style "padding" "0.2rem 0"
+                            , style "font-size" "0.9rem"
+                            , style "color" "#2d3748"
+                            , style "line-height" "1.5"
+                            ]
+                            (viewInlineText players topHighlight attackPrefixRaw
+                                ++ [ text " for "
+                                   , viewDamageChip damage damageInfo
+                                   ]
+                            )
+                            :: nonBreakdownDetails
+
+                    else
+                        viewLine players topHighlight (Replay.TopLine group.raw) :: normalDetails
+
+                Nothing ->
+                    viewLine players topHighlight (Replay.TopLine group.raw) :: normalDetails
+
+        _ ->
+            viewLine players topHighlight (Replay.TopLine group.raw) :: normalDetails
+
+
+viewDamageChip : Int -> DamageInfo -> Html Msg
+viewDamageChip damage info =
+    span
+        [ onClick (DamageClicked info)
+        , style "cursor" "pointer"
+        , style "font-size" "0.8em"
+        , style "font-weight" "600"
+        , style "background" "#fed7d7"
+        , style "color" "#9b2c2c"
+        , style "padding" "0.1em 0.45em"
+        , style "border-radius" "999px"
+        , style "white-space" "nowrap"
+        ]
+        [ text (String.fromInt damage ++ " damage") ]
 
 
 viewSectionBadge : String -> String -> Html Msg
@@ -1163,6 +1254,9 @@ viewCardPopup popup =
 
             ShowingMove cardData moveName ->
                 viewMoveDetail cardData moveName
+
+            ShowingDamageInfo info ->
+                viewDamageDetail info
         ]
 
 
@@ -1299,6 +1393,33 @@ viewEnergyCost energyType =
         , style "white-space" "nowrap"
         ]
         [ text energyType ]
+
+
+viewDamageDetail : DamageInfo -> Html Msg
+viewDamageDetail info =
+    div
+        [ style "background" "white"
+        , style "border-radius" "12px"
+        , style "padding" "1.25rem 1.75rem"
+        , style "max-width" "360px"
+        , style "width" "90vw"
+        , style "cursor" "default"
+        , style "box-shadow" "0 8px 32px rgba(0,0,0,0.4)"
+        ]
+        [ div []
+            (List.map
+                (\line ->
+                    div
+                        [ style "font-size" "0.875rem"
+                        , style "color" "#2d3748"
+                        , style "padding" "0.15rem 0"
+                        , style "line-height" "1.5"
+                        ]
+                        [ text line ]
+                )
+                info.breakdownLines
+            )
+        ]
 
 
 segmentText : Maybe Replay.Players -> String -> List TextSegment
