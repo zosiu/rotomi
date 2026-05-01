@@ -858,18 +858,82 @@ sectionGroupCount section =
 viewReplay : Dict String CardData -> Replay.Replay -> Int -> Int -> Html Msg
 viewReplay cache replay sectionIndex groupIndex =
     let
+        players =
+            replay.players
+
         total =
             List.length replay.sections
 
-        section =
+        currentSection =
             replay.sections |> List.drop sectionIndex |> List.head
-    in
-    case section of
-        Nothing ->
-            text ""
 
-        Just s ->
-            viewSectionWithNav cache replay.players sectionIndex groupIndex total s
+        pastSections =
+            List.take sectionIndex replay.sections
+
+        -- Nav bar info for the current section
+        ( badge, extra, borderColor ) =
+            sectionNavInfo players currentSection
+
+        -- Current section: visible groups reversed (most recent at top)
+        currentContent =
+            case currentSection of
+                Nothing ->
+                    []
+
+                Just section ->
+                    case section of
+                        Replay.ResultSection result ->
+                            [ viewResultContent players result ]
+
+                        _ ->
+                            let
+                                groups =
+                                    Action.groupLines (sectionLines section)
+
+                                totalGroups =
+                                    List.length groups
+                            in
+                            List.take (groupIndex + 1) groups
+                                |> List.reverse
+                                |> List.indexedMap
+                                    (\i group ->
+                                        div
+                                            (if i > 0 then
+                                                [ style "opacity" "0.4" ]
+
+                                             else
+                                                []
+                                            )
+                                            (viewActionGroup players cache group)
+                                    )
+
+        -- Past sections: most recent first, each preceded by a divider
+        pastContent =
+            pastSections
+                |> List.reverse
+                |> List.concatMap
+                    (\section ->
+                        viewSectionDivider players section
+                            :: viewPastSectionGroups cache players section
+                    )
+
+        totalGroupsInCurrent =
+            currentSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 0
+
+        hasPrev =
+            groupIndex > 0 || sectionIndex > 0
+
+        hasNext =
+            groupIndex < totalGroupsInCurrent - 1 || sectionIndex < total - 1
+    in
+    viewNavSection
+        { badge = badge
+        , extra = extra
+        , borderColor = borderColor
+        , content = currentContent ++ pastContent
+        , hasPrev = hasPrev
+        , hasNext = hasNext
+        }
 
 
 playerColor : Maybe Replay.Players -> String -> String
@@ -889,115 +953,130 @@ playerColor players name =
             "#2d3748"
 
 
-viewSectionWithNav : Dict String CardData -> Maybe Replay.Players -> Int -> Int -> Int -> Replay.Section -> Html Msg
-viewSectionWithNav cache players sectionIndex groupIndex totalSections section =
-    let
-        renderLines badge extra borderColor lines =
-            let
-                groups =
-                    Action.groupLines lines
-
-                totalGroups =
-                    List.length groups
-
-                visibleContent =
-                    List.take (groupIndex + 1) groups
-                        |> List.reverse
-                        |> List.indexedMap
-                            (\i group ->
-                                div
-                                    (if i > 0 then
-                                        [ style "opacity" "0.4"
-                                        , style "pointer-events" "none"
-                                        ]
-
-                                     else
-                                        []
-                                    )
-                                    (viewActionGroup players cache group)
-                            )
-
-                hasPrev =
-                    groupIndex > 0 || sectionIndex > 0
-
-                hasNext =
-                    groupIndex < totalGroups - 1 || sectionIndex < totalSections - 1
-            in
-            viewNavSection
-                { badge = badge
-                , extra = extra
-                , borderColor = borderColor
-                , content = visibleContent
-                , hasPrev = hasPrev
-                , hasNext = hasNext
-                }
-    in
+sectionLines : Replay.Section -> List Replay.ReplayLine
+sectionLines section =
     case section of
         Replay.SetupSection lines ->
-            renderLines
-                (viewSectionBadge "#718096" "Setup")
-                []
-                "#71809640"
-                lines
+            lines
 
-        Replay.TurnSection turn lines ->
-            let
-                badgeColor =
-                    playerColor players turn.player
-            in
-            renderLines
-                (viewSectionBadge badgeColor ("Turn " ++ String.fromInt turn.number))
-                [ span
-                    [ style "font-weight" "600"
-                    , style "color" "#4a5568"
-                    , style "font-size" "0.95rem"
-                    ]
-                    [ text turn.player ]
-                ]
-                (badgeColor ++ "40")
-                lines
+        Replay.TurnSection _ lines ->
+            lines
 
         Replay.CheckupSection lines ->
-            renderLines
-                (viewSectionBadge "#b7791f" "Pokémon Checkup")
-                []
-                "#b7791f40"
-                lines
+            lines
 
+        Replay.ResultSection _ ->
+            []
+
+
+sectionNavInfo : Maybe Replay.Players -> Maybe Replay.Section -> ( Html Msg, List (Html Msg), String )
+sectionNavInfo players maybeSection =
+    case maybeSection of
+        Nothing ->
+            ( text "", [], "#71809640" )
+
+        Just section ->
+            case section of
+                Replay.SetupSection _ ->
+                    ( viewSectionBadge "#718096" "Setup", [], "#71809640" )
+
+                Replay.TurnSection turn _ ->
+                    let
+                        badgeColor =
+                            playerColor players turn.player
+                    in
+                    ( viewSectionBadge badgeColor ("Turn " ++ String.fromInt turn.number)
+                    , [ span
+                            [ style "font-weight" "600"
+                            , style "color" "#4a5568"
+                            , style "font-size" "0.95rem"
+                            ]
+                            [ text turn.player ]
+                      ]
+                    , badgeColor ++ "40"
+                    )
+
+                Replay.CheckupSection _ ->
+                    ( viewSectionBadge "#b7791f" "Pokémon Checkup", [], "#b7791f40" )
+
+                Replay.ResultSection _ ->
+                    ( viewSectionBadge "#718096" "Result", [], "#71809640" )
+
+
+viewResultContent : Maybe Replay.Players -> Replay.MatchResult -> Html Msg
+viewResultContent players result =
+    div []
+        [ div
+            [ style "font-size" "0.9rem"
+            , style "color" "#4a5568"
+            , style "padding" "0.2rem 0"
+            , style "line-height" "1.5"
+            ]
+            [ text result.reason ]
+        , div
+            [ style "font-size" "0.95rem"
+            , style "font-weight" "700"
+            , style "color" (playerColor players result.winner)
+            , style "padding" "0.2rem 0"
+            ]
+            [ text (result.winner ++ " wins.") ]
+        ]
+
+
+viewPastSectionGroups : Dict String CardData -> Maybe Replay.Players -> Replay.Section -> List (Html Msg)
+viewPastSectionGroups cache players section =
+    let
+        greyed children =
+            div [ style "opacity" "0.4" ] children
+    in
+    case section of
         Replay.ResultSection result ->
-            let
-                winnerColor =
-                    playerColor players result.winner
+            [ greyed [ viewResultContent players result ] ]
 
-                hasPrev =
-                    sectionIndex > 0
+        _ ->
+            Action.groupLines (sectionLines section)
+                |> List.reverse
+                |> List.map (\group -> greyed (viewActionGroup players cache group))
 
-                hasNext =
-                    sectionIndex < totalSections - 1
-            in
-            viewNavSection
-                { badge = viewSectionBadge "#718096" "Result"
-                , extra = []
-                , borderColor = "#71809640"
-                , content =
-                    [ div
-                        [ style "font-size" "0.9rem"
-                        , style "color" "#4a5568"
-                        , style "padding" "0.2rem 0"
-                        , style "line-height" "1.5"
-                        ]
-                        [ text result.reason ]
-                    , div
-                        [ style "font-size" "0.95rem"
-                        , style "font-weight" "700"
-                        , style "color" winnerColor
-                        , style "padding" "0.2rem 0"
-                        ]
-                        [ text (result.winner ++ " wins.") ]
-                    ]
-                , hasPrev = hasPrev
-                , hasNext = hasNext
-                }
+
+viewSectionDivider : Maybe Replay.Players -> Replay.Section -> Html Msg
+viewSectionDivider players section =
+    let
+        ( label, color ) =
+            case section of
+                Replay.SetupSection _ ->
+                    ( "Setup", "#718096" )
+
+                Replay.TurnSection turn _ ->
+                    ( "Turn " ++ String.fromInt turn.number ++ " · " ++ turn.player
+                    , playerColor players turn.player
+                    )
+
+                Replay.CheckupSection _ ->
+                    ( "Pokémon Checkup", "#b7791f" )
+
+                Replay.ResultSection _ ->
+                    ( "Result", "#718096" )
+    in
+    div
+        [ style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "0.5rem"
+        , style "margin" "0.75rem 0"
+        , style "opacity" "0.45"
+        ]
+        [ div [ style "flex" "1", style "height" "1px", style "background" "#cbd5e0" ] []
+        , span
+            [ style "font-size" "0.7rem"
+            , style "font-weight" "600"
+            , style "color" color
+            , style "white-space" "nowrap"
+            , style "letter-spacing" "0.05em"
+            , style "text-transform" "uppercase"
+            ]
+            [ text label ]
+        , div [ style "flex" "1", style "height" "1px", style "background" "#cbd5e0" ] []
+        ]
 
 
 viewNavSection :
