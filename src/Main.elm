@@ -276,8 +276,14 @@ update msg model =
 loadReplay : String -> Int -> String -> ( Model, Cmd Msg )
 loadReplay url requestedIndex content =
     let
+        -- Normalize Unicode curly apostrophes (U+2019 ' RIGHT SINGLE QUOTATION MARK)
+        -- to plain ASCII apostrophes. Some replay sources use smart quotes in player
+        -- possessives ("takeshi516's") which breaks the parsePokemonRef splitter.
+        normalized =
+            String.replace "\u{2019}" "'" content
+
         replay =
-            Replay.parse content
+            Replay.parse normalized
 
         index =
             min (max 0 requestedIndex) (max 0 (List.length replay.sections - 1))
@@ -802,11 +808,24 @@ navArrow visible msg symbol =
 
 viewActionGroup : Maybe Replay.Players -> Action.ActionGroup -> List (Html Msg)
 viewActionGroup players group =
-    viewLine players (Replay.TopLine group.raw)
+    let
+        topHighlights =
+            case group.action of
+                Action.UsedAttack { move } ->
+                    let
+                        cleaned =
+                            String.trim move
+                    in
+                    [ if String.endsWith "." cleaned then String.dropRight 1 cleaned else cleaned ]
+
+                _ ->
+                    []
+    in
+    viewLine players topHighlights (Replay.TopLine group.raw)
         :: List.concatMap
             (\detail ->
-                viewLine players (Replay.DetailLine detail.raw)
-                    :: List.map (\bullet -> viewLine players (Replay.BulletLine bullet.raw)) detail.bullets
+                viewLine players [] (Replay.DetailLine detail.raw)
+                    :: List.map (\bullet -> viewLine players [] (Replay.BulletLine bullet.raw)) detail.bullets
             )
             group.details
 
@@ -826,8 +845,8 @@ viewSectionBadge color label =
         [ text label ]
 
 
-viewLine : Maybe Replay.Players -> Replay.ReplayLine -> Html Msg
-viewLine players line =
+viewLine : Maybe Replay.Players -> List String -> Replay.ReplayLine -> Html Msg
+viewLine players highlights line =
     case line of
         Replay.TopLine content ->
             div
@@ -836,7 +855,7 @@ viewLine players line =
                 , style "color" "#2d3748"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText players content)
+                (viewInlineText players highlights content)
 
         Replay.DetailLine content ->
             div
@@ -845,7 +864,7 @@ viewLine players line =
                 , style "color" "#4a5568"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText players content)
+                (viewInlineText players highlights content)
 
         Replay.BulletLine content ->
             div
@@ -854,7 +873,7 @@ viewLine players line =
                 , style "color" "#718096"
                 , style "line-height" "1.4"
                 ]
-                (viewInlineText players content)
+                (viewInlineText players highlights content)
 
 
 
@@ -865,11 +884,14 @@ type TextSegment
     = PlainText String
     | CardRef String String
     | PlayerRef String String -- player name, css color
+    | MoveRef String -- ability / attack name
 
 
-viewInlineText : Maybe Replay.Players -> String -> List (Html Msg)
-viewInlineText players str =
-    List.map viewSegment (segmentText players str)
+viewInlineText : Maybe Replay.Players -> List String -> String -> List (Html Msg)
+viewInlineText players highlights str =
+    segmentText players str
+        |> applyHighlights highlights
+        |> List.map viewSegment
 
 
 viewSegment : TextSegment -> Html Msg
@@ -881,12 +903,12 @@ viewSegment seg =
         CardRef id name ->
             span
                 [ onClick (CardClicked id)
-                , style "font-family" "'Courier New', monospace"
-                , style "font-size" "0.78em"
-                , style "background" "#edf2f7"
-                , style "color" "#553c9a"
-                , style "padding" "0.1em 0.35em"
-                , style "border-radius" "3px"
+                , style "font-size" "0.8em"
+                , style "font-weight" "600"
+                , style "background" "#e2e8f0"
+                , style "color" "#4a5568"
+                , style "padding" "0.1em 0.45em"
+                , style "border-radius" "999px"
                 , style "white-space" "nowrap"
                 , style "cursor" "pointer"
                 ]
@@ -898,6 +920,18 @@ viewSegment seg =
                         name
                     )
                 ]
+
+        MoveRef name ->
+            span
+                [ style "font-size" "0.8em"
+                , style "font-weight" "600"
+                , style "background" "#e2e8f0"
+                , style "color" "#4a5568"
+                , style "padding" "0.1em 0.45em"
+                , style "border-radius" "999px"
+                , style "white-space" "nowrap"
+                ]
+                [ text name ]
 
         PlayerRef name color ->
             span
@@ -1055,6 +1089,86 @@ splitByPlayer playerName color str =
                                     [ PlainText first ]
                                 )
                                     ++ (PlayerRef playerName color :: interleave rest)
+                in
+                interleave parts
+
+
+applyHighlights : List String -> List TextSegment -> List TextSegment
+applyHighlights highlights segs =
+    case highlights of
+        [] ->
+            segs
+
+        _ ->
+            List.concatMap
+                (\seg ->
+                    case seg of
+                        PlainText str ->
+                            List.foldl
+                                (\phrase acc ->
+                                    List.concatMap
+                                        (\s ->
+                                            case s of
+                                                PlainText t ->
+                                                    splitByPhrase phrase t
+
+                                                other ->
+                                                    [ other ]
+                                        )
+                                        acc
+                                )
+                                [ PlainText str ]
+                                highlights
+
+                        other ->
+                            [ other ]
+                )
+                segs
+
+
+splitByPhrase : String -> String -> List TextSegment
+splitByPhrase phrase str =
+    if String.isEmpty phrase then
+        if String.isEmpty str then
+            []
+
+        else
+            [ PlainText str ]
+
+    else
+        case String.split phrase str of
+            [] ->
+                []
+
+            [ only ] ->
+                if String.isEmpty only then
+                    []
+
+                else
+                    [ PlainText only ]
+
+            parts ->
+                let
+                    interleave ps =
+                        case ps of
+                            [] ->
+                                []
+
+                            [ last ] ->
+                                if String.isEmpty last then
+                                    []
+
+                                else
+                                    [ PlainText last ]
+
+                            first :: rest ->
+                                (if String.isEmpty first then
+                                    []
+
+                                 else
+                                    [ PlainText first ]
+                                )
+                                    ++ (MoveRef phrase :: interleave rest)
                 in
                 interleave parts
 

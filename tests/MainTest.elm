@@ -176,6 +176,25 @@ suite =
                     update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com" 0)
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
+            , test "curly apostrophes (U+2019) are normalized to straight before parsing" <|
+                \_ ->
+                    let
+                        url =
+                            "https://example.com/replay.txt"
+
+                        -- Some replay sources use U+2019 RIGHT SINGLE QUOTATION MARK
+                        -- in player possessives on action lines (e.g. the defender in an
+                        -- attack line). Without normalization parsePokemonRef fails to split
+                        -- on "'s (" and the move field becomes the whole remainder string.
+                        curlyContent =
+                            "A's Turn\nA's (sv01_001) Bulbasaur used Tackle on B\u{2019}s (sv01_002) Ivysaur for 10 damage.\n"
+
+                        normalizedContent =
+                            "A's Turn\nA's (sv01_001) Bulbasaur used Tackle on B's (sv01_002) Ivysaur for 10 damage.\n"
+                    in
+                    update (GotReplay (Ok curlyContent)) (Loading url 0)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded url (Replay.parse normalizedContent) 0 Nothing Dict.empty)
             , test "deep-linked section index is restored on load" <|
                 \_ ->
                     let

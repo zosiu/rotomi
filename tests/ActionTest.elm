@@ -94,6 +94,21 @@ suite =
                                 , modifier = Just (Resistance "Fighting" 30)
                                 }
                             )
+            , test "parses two-word move name (Itchy Pollen) with target" <|
+                \_ ->
+                    parseAction "Walterlee78's (sv8-5_4) Budew used Itchy Pollen on zosiu's (sv3_207) Pidgey for 10 damage."
+                        |> Expect.equal
+                            (UsedAttack
+                                { attacker = { player = "Walterlee78", card = { id = "sv8-5_4", name = "Budew" } }
+                                , move = "Itchy Pollen"
+                                , target =
+                                    Just
+                                        { defender = { player = "zosiu", card = { id = "sv3_207", name = "Pidgey" } }
+                                        , damage = 10
+                                        }
+                                , modifier = Nothing
+                                }
+                            )
             ]
         , describe "PlayedPokemon"
             [ test "parses played to Active Spot" <|
