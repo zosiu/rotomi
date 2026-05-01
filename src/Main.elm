@@ -1419,6 +1419,12 @@ applyActionToBench red action bench =
         Action.Retreated { player, card } ->
             addToBench red player card bench
 
+        Action.Switched { player, from, to } ->
+            -- `from` leaves the bench to become active; `to` leaves active to join bench
+            bench
+                |> removeFromBench red player from.id
+                |> (if String.isEmpty to.id then identity else addToBench red player to)
+
         _ ->
             bench
 
@@ -1549,6 +1555,10 @@ applyActionToActive red action active =
 
         Action.MovedToActive { pokemon } ->
             setActive red pokemon.player pokemon.card active
+
+        Action.Switched { player, from } ->
+            -- `from` is the Pokémon coming from the bench to become the new active
+            setActive red player from active
 
         Action.Retreated { player, card } ->
             let

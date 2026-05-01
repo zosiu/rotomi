@@ -713,8 +713,8 @@ trySwitched raw =
         case String.split " was switched with " withoutSuffix of
             [ fromFull, toFull ] ->
                 case ( parsePokemonRef fromFull, parsePokemonRef toFull ) of
-                    ( Just fromRef, Just _ ) ->
-                        Just (Switched { player = fromRef.player, from = fromRef.card, to = { id = "", name = "" } })
+                    ( Just fromRef, Just toRef ) ->
+                        Just (Switched { player = fromRef.player, from = fromRef.card, to = toRef.card })
 
                     _ ->
                         Nothing
