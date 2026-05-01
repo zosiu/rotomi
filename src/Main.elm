@@ -7,6 +7,7 @@ import Html.Attributes exposing (placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
+import Action
 import Replay
 import Url
 
@@ -665,7 +666,7 @@ viewSectionWithNav players hasPrev hasNext section =
                 { badge = viewSectionBadge "#718096" "Setup"
                 , extra = []
                 , borderColor = "#71809640"
-                , content = List.map viewLine lines
+                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -686,7 +687,7 @@ viewSectionWithNav players hasPrev hasNext section =
                         [ text turn.player ]
                     ]
                 , borderColor = badgeColor ++ "40"
-                , content = List.map viewLine lines
+                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -696,7 +697,7 @@ viewSectionWithNav players hasPrev hasNext section =
                 { badge = viewSectionBadge "#b7791f" "Pokémon Checkup"
                 , extra = []
                 , borderColor = "#b7791f40"
-                , content = List.map viewLine lines
+                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -799,6 +800,17 @@ navArrow visible msg symbol =
         [ text symbol ]
 
 
+viewActionGroup : Maybe Replay.Players -> Action.ActionGroup -> List (Html Msg)
+viewActionGroup players group =
+    viewLine players (Replay.TopLine group.raw)
+        :: List.concatMap
+            (\detail ->
+                viewLine players (Replay.DetailLine detail.raw)
+                    :: List.map (\bullet -> viewLine players (Replay.BulletLine bullet.raw)) detail.bullets
+            )
+            group.details
+
+
 viewSectionBadge : String -> String -> Html Msg
 viewSectionBadge color label =
     span
@@ -814,8 +826,8 @@ viewSectionBadge color label =
         [ text label ]
 
 
-viewLine : Replay.ReplayLine -> Html Msg
-viewLine line =
+viewLine : Maybe Replay.Players -> Replay.ReplayLine -> Html Msg
+viewLine players line =
     case line of
         Replay.TopLine content ->
             div
@@ -824,7 +836,7 @@ viewLine line =
                 , style "color" "#2d3748"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText content)
+                (viewInlineText players content)
 
         Replay.DetailLine content ->
             div
@@ -833,7 +845,7 @@ viewLine line =
                 , style "color" "#4a5568"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText content)
+                (viewInlineText players content)
 
         Replay.BulletLine content ->
             div
@@ -842,7 +854,7 @@ viewLine line =
                 , style "color" "#718096"
                 , style "line-height" "1.4"
                 ]
-                (viewInlineText content)
+                (viewInlineText players content)
 
 
 
@@ -852,11 +864,12 @@ viewLine line =
 type TextSegment
     = PlainText String
     | CardRef String String
+    | PlayerRef String String -- player name, css color
 
 
-viewInlineText : String -> List (Html Msg)
-viewInlineText str =
-    List.map viewSegment (segmentText str)
+viewInlineText : Maybe Replay.Players -> String -> List (Html Msg)
+viewInlineText players str =
+    List.map viewSegment (segmentText players str)
 
 
 viewSegment : TextSegment -> Html Msg
@@ -885,6 +898,19 @@ viewSegment seg =
                         name
                     )
                 ]
+
+        PlayerRef name color ->
+            span
+                [ style "background" color
+                , style "color" "white"
+                , style "font-size" "0.78em"
+                , style "font-weight" "700"
+                , style "padding" "0.1em 0.45em"
+                , style "border-radius" "999px"
+                , style "white-space" "nowrap"
+                , style "vertical-align" "middle"
+                ]
+                [ text name ]
 
 
 viewCardPopup : CardPopup -> Html Msg
@@ -932,18 +958,18 @@ viewCardPopup popup =
         ]
 
 
-segmentText : String -> List TextSegment
-segmentText str =
+segmentText : Maybe Replay.Players -> String -> List TextSegment
+segmentText players str =
     case String.split "(" str of
         [] ->
             []
 
         first :: rest ->
-            PlainText first :: List.concatMap parseParen rest
+            segmentPlayers players first ++ List.concatMap (parseParen players) rest
 
 
-parseParen : String -> List TextSegment
-parseParen str =
+parseParen : Maybe Replay.Players -> String -> List TextSegment
+parseParen players str =
     case String.split ")" str of
         id :: remainderParts ->
             if isCardId id then
@@ -954,15 +980,83 @@ parseParen str =
                     ( name, rest ) =
                         extractCardName remainder
                 in
-                [ CardRef id name
-                , PlainText rest
-                ]
+                CardRef id name :: segmentPlayers players rest
 
             else
-                [ PlainText ("(" ++ str) ]
+                segmentPlayers players ("(" ++ str)
 
         [] ->
-            [ PlainText ("(" ++ str) ]
+            segmentPlayers players ("(" ++ str)
+
+
+segmentPlayers : Maybe Replay.Players -> String -> List TextSegment
+segmentPlayers maybePlayers str =
+    case maybePlayers of
+        Nothing ->
+            if String.isEmpty str then
+                []
+
+            else
+                [ PlainText str ]
+
+        Just players ->
+            splitByPlayer players.red "#c53030" str
+                |> List.concatMap
+                    (\seg ->
+                        case seg of
+                            PlainText s ->
+                                splitByPlayer players.blue "#2c5282" s
+
+                            other ->
+                                [ other ]
+                    )
+
+
+splitByPlayer : String -> String -> String -> List TextSegment
+splitByPlayer playerName color str =
+    if String.isEmpty playerName then
+        if String.isEmpty str then
+            []
+
+        else
+            [ PlainText str ]
+
+    else
+        case String.split playerName str of
+            [] ->
+                []
+
+            [ only ] ->
+                if String.isEmpty only then
+                    []
+
+                else
+                    [ PlainText only ]
+
+            parts ->
+                let
+                    interleave ps =
+                        case ps of
+                            [] ->
+                                []
+
+                            [ last ] ->
+                                if String.isEmpty last then
+                                    []
+
+                                else
+                                    [ PlainText last ]
+
+                            first :: rest ->
+                                (if String.isEmpty first then
+                                    []
+
+                                 else
+                                    [ PlainText first ]
+                                )
+                                    ++ (PlayerRef playerName color :: interleave rest)
+                in
+                interleave parts
 
 
 {-| Extract a human-readable card name from the text that follows a card ID.
