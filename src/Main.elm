@@ -1,24 +1,26 @@
 port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), init, main, update)
 
 import Browser
+import Browser.Dom
 import Dict exposing (Dict)
 import Html exposing (Html, button, div, h1, img, input, p, span, text)
-import Html.Attributes exposing (placeholder, src, style, type_, value)
+import Html.Attributes exposing (id, placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
+import Task
 import Action
 import Replay
 import Url
 
 
-port pushUrl : { url : String, index : Int } -> Cmd msg
+port pushUrl : { url : String, index : Int, groupIndex : Int } -> Cmd msg
 
 
 port onSwipe : (String -> msg) -> Sub msg
 
 
-init : { replayUrl : String, sectionIndex : Int } -> ( Model, Cmd Msg )
+init : { replayUrl : String, sectionIndex : Int, groupIndex : Int } -> ( Model, Cmd Msg )
 init flags =
     let
         url =
@@ -28,12 +30,12 @@ init flags =
         ( EnteringUrl "", Cmd.none )
 
     else
-        ( Loading url flags.sectionIndex
+        ( Loading url flags.sectionIndex flags.groupIndex
         , Http.get { url = url, expect = Http.expectString GotReplay }
         )
 
 
-main : Program { replayUrl : String, sectionIndex : Int } Model Msg
+main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int } Model Msg
 main =
     Browser.element
         { init = init
@@ -97,9 +99,9 @@ type CardPopup
 
 type Model
     = EnteringUrl String
-    | Loading String Int
-    | Retrying String Int
-    | Loaded String Replay.Replay Int (Maybe CardPopup) (Dict String CardData)
+    | Loading String Int Int
+    | Retrying String Int Int
+    | Loaded String Replay.Replay Int Int (Maybe CardPopup) (Dict String CardData)
     | Failed String String
 
 
@@ -109,13 +111,13 @@ currentUrl model =
         EnteringUrl url ->
             url
 
-        Loading url _ ->
+        Loading url _ _ ->
             url
 
-        Retrying url _ ->
+        Retrying url _ _ ->
             url
 
-        Loaded url _ _ _ _ ->
+        Loaded url _ _ _ _ _ ->
             url
 
         Failed url _ ->
@@ -140,6 +142,7 @@ type Msg
     | DamageClicked DamageInfo
     | GotCardImage String (Result Http.Error String)
     | CloseCard
+    | NoOp
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -157,29 +160,29 @@ update msg model =
                 ( model, Cmd.none )
 
             else
-                ( Loading url 0
+                ( Loading url 0 0
                 , Http.get { url = url, expect = Http.expectString GotReplay }
                 )
 
         GotReplay result ->
             case model of
-                Loading url idx ->
+                Loading url idx gIdx ->
                     case result of
                         Ok content ->
-                            loadReplay url idx content
+                            loadReplay url idx gIdx content
 
                         Err Http.NetworkError ->
-                            ( Retrying url idx
+                            ( Retrying url idx gIdx
                             , Http.get { url = proxyUrl url, expect = Http.expectString GotReplay }
                             )
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
 
-                Retrying url idx ->
+                Retrying url idx gIdx ->
                     case result of
                         Ok content ->
-                            loadReplay url idx content
+                            loadReplay url idx gIdx content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -189,9 +192,9 @@ update msg model =
 
         FirstSection ->
             case model of
-                Loaded url replay _ _ cache ->
-                    ( Loaded url replay 0 Nothing cache
-                    , pushUrl { url = url, index = 0 }
+                Loaded url replay _ _ _ cache ->
+                    ( Loaded url replay 0 0 Nothing cache
+                    , Cmd.batch [ pushUrl { url = url, index = 0, groupIndex = 0 }, scrollToTop ]
                     )
 
                 _ ->
@@ -199,41 +202,77 @@ update msg model =
 
         PrevSection ->
             case model of
-                Loaded url replay i _ cache ->
-                    let
-                        newIndex =
-                            max 0 (i - 1)
-                    in
-                    ( Loaded url replay newIndex Nothing cache
-                    , pushUrl { url = url, index = newIndex }
-                    )
+                Loaded url replay i g _ cache ->
+                    if g > 0 then
+                        ( Loaded url replay i (g - 1) Nothing cache
+                        , Cmd.batch [ pushUrl { url = url, index = i, groupIndex = g - 1 }, scrollToTop ]
+                        )
+
+                    else if i > 0 then
+                        let
+                            newI =
+                                i - 1
+
+                            prevSection =
+                                replay.sections |> List.drop newI |> List.head
+
+                            prevCount =
+                                prevSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 1
+                        in
+                        ( Loaded url replay newI (max 0 (prevCount - 1)) Nothing cache
+                        , Cmd.batch [ pushUrl { url = url, index = newI, groupIndex = max 0 (prevCount - 1) }, scrollToTop ]
+                        )
+
+                    else
+                        ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         NextSection ->
             case model of
-                Loaded url replay i _ cache ->
+                Loaded url replay i g _ cache ->
                     let
-                        newIndex =
-                            min (List.length replay.sections - 1) (i + 1)
+                        currentSection =
+                            replay.sections |> List.drop i |> List.head
+
+                        totalGroups =
+                            currentSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 1
+
+                        totalSections =
+                            List.length replay.sections
                     in
-                    ( Loaded url replay newIndex Nothing cache
-                    , pushUrl { url = url, index = newIndex }
-                    )
+                    if g < totalGroups - 1 then
+                        ( Loaded url replay i (g + 1) Nothing cache
+                        , Cmd.batch [ pushUrl { url = url, index = i, groupIndex = g + 1 }, scrollToTop ]
+                        )
+
+                    else if i < totalSections - 1 then
+                        ( Loaded url replay (i + 1) 0 Nothing cache
+                        , Cmd.batch [ pushUrl { url = url, index = i + 1, groupIndex = 0 }, scrollToTop ]
+                        )
+
+                    else
+                        ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         LastSection ->
             case model of
-                Loaded url replay _ _ cache ->
+                Loaded url replay _ _ _ cache ->
                     let
-                        newIndex =
+                        lastI =
                             List.length replay.sections - 1
+
+                        lastSection =
+                            replay.sections |> List.drop lastI |> List.head
+
+                        lastCount =
+                            lastSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 1
                     in
-                    ( Loaded url replay newIndex Nothing cache
-                    , pushUrl { url = url, index = newIndex }
+                    ( Loaded url replay lastI (max 0 (lastCount - 1)) Nothing cache
+                    , Cmd.batch [ pushUrl { url = url, index = lastI, groupIndex = max 0 (lastCount - 1) }, scrollToTop ]
                     )
 
                 _ ->
@@ -252,15 +291,15 @@ update msg model =
 
         CardClicked id ->
             case model of
-                Loaded url replay i _ cache ->
+                Loaded url replay i g _ cache ->
                     case Dict.get id cache of
                         Just cardData ->
-                            ( Loaded url replay i (Just (ShowingCard id cardData)) cache, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingCard id cardData)) cache, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl id of
                                 Just apiUrl ->
-                                    ( Loaded url replay i (Just (FetchingCard id)) cache
+                                    ( Loaded url replay i g (Just (FetchingCard id)) cache
                                     , Http.get
                                         { url = apiUrl
                                         , expect = Http.expectString (GotCardImage id)
@@ -268,42 +307,42 @@ update msg model =
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i (Just (CardNotFound id)) cache, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound id)) cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         MoveClicked cardId moveName ->
             case model of
-                Loaded url replay i _ cache ->
+                Loaded url replay i g _ cache ->
                     case Dict.get cardId cache of
                         Just cardData ->
-                            ( Loaded url replay i (Just (ShowingMove cardData moveName)) cache, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingMove cardData moveName)) cache, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl cardId of
                                 Just apiUrl ->
-                                    ( Loaded url replay i (Just (FetchingMove cardId moveName)) cache
+                                    ( Loaded url replay i g (Just (FetchingMove cardId moveName)) cache
                                     , Http.get { url = apiUrl, expect = Http.expectString (GotCardImage cardId) }
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i (Just (CardNotFound cardId)) cache, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound cardId)) cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         DamageClicked info ->
             case model of
-                Loaded url replay i _ cache ->
-                    ( Loaded url replay i (Just (ShowingDamageInfo info)) cache, Cmd.none )
+                Loaded url replay i g _ cache ->
+                    ( Loaded url replay i g (Just (ShowingDamageInfo info)) cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         GotCardImage id result ->
             case model of
-                Loaded url replay i currentPopup cache ->
+                Loaded url replay i g currentPopup cache ->
                     let
                         ( popup, newCache ) =
                             case result of
@@ -350,22 +389,37 @@ update msg model =
                                 Err _ ->
                                     ( CardNotFound id, cache )
                     in
-                    ( Loaded url replay i (Just popup) newCache, Cmd.none )
+                    ( Loaded url replay i g (Just popup) newCache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         CloseCard ->
             case model of
-                Loaded url replay i _ cache ->
-                    ( Loaded url replay i Nothing cache, Cmd.none )
+                Loaded url replay i g _ cache ->
+                    ( Loaded url replay i g Nothing cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
+        NoOp ->
+            ( model, Cmd.none )
 
-loadReplay : String -> Int -> String -> ( Model, Cmd Msg )
-loadReplay url requestedIndex content =
+
+scrollToBottom : Cmd Msg
+scrollToBottom =
+    Browser.Dom.setViewportOf "action-content" 0 999999
+        |> Task.attempt (\_ -> NoOp)
+
+
+scrollToTop : Cmd Msg
+scrollToTop =
+    Browser.Dom.setViewportOf "action-content" 0 0
+        |> Task.attempt (\_ -> NoOp)
+
+
+loadReplay : String -> Int -> Int -> String -> ( Model, Cmd Msg )
+loadReplay url requestedIndex requestedGroupIndex content =
     let
         -- Normalize Unicode curly apostrophes (U+2019 ' RIGHT SINGLE QUOTATION MARK)
         -- to plain ASCII apostrophes. Some replay sources use smart quotes in player
@@ -378,12 +432,22 @@ loadReplay url requestedIndex content =
 
         index =
             min (max 0 requestedIndex) (max 0 (List.length replay.sections - 1))
+
+        groupIndex =
+            let
+                section =
+                    replay.sections |> List.drop index |> List.head
+
+                maxGroup =
+                    section |> Maybe.map sectionGroupCount |> Maybe.withDefault 0 |> (\n -> max 0 (n - 1))
+            in
+            min (max 0 requestedGroupIndex) maxGroup
     in
     if List.isEmpty replay.sections then
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index Nothing Dict.empty, pushUrl { url = url, index = index } )
+        ( Loaded url replay index groupIndex Nothing Dict.empty, pushUrl { url = url, index = index, groupIndex = groupIndex } )
 
 
 proxyUrl : String -> String
@@ -601,20 +665,33 @@ view model =
         [ style "font-family" "system-ui, -apple-system, sans-serif"
         , style "max-width" "820px"
         , style "margin" "0 auto"
-        , style "padding" "2rem 1rem"
+        , style "padding" "0 1rem"
+        , style "padding-top" "2rem"
         , style "color" "#1a202c"
+        , style "height" "100%"
+        , style "display" "flex"
+        , style "flex-direction" "column"
+        , style "box-sizing" "border-box"
         ]
         [ h1
             [ style "font-size" "1.75rem"
             , style "font-weight" "700"
             , style "margin" "0 0 1.5rem"
             , style "color" "#2d3748"
+            , style "flex-shrink" "0"
             ]
             [ text "Rotomi" ]
-        , viewUrlBar model
-        , viewContent model
+        , div [ style "flex-shrink" "0" ] [ viewUrlBar model ]
+        , div
+            [ style "flex" "1"
+            , style "min-height" "0"
+            , style "display" "flex"
+            , style "flex-direction" "column"
+            , style "margin-top" "1.5rem"
+            ]
+            [ viewContent model ]
         , case model of
-            Loaded _ _ _ (Just popup) _ ->
+            Loaded _ _ _ _ (Just popup) _ ->
                 viewCardPopup popup
 
             _ ->
@@ -630,10 +707,10 @@ viewUrlBar model =
 
         isLoading =
             case model of
-                Loading _ _ ->
+                Loading _ _ _ ->
                     True
 
-                Retrying _ _ ->
+                Retrying _ _ _ ->
                     True
 
                 _ ->
@@ -741,42 +818,58 @@ viewContent model =
         EnteringUrl _ ->
             text ""
 
-        Loading _ _ ->
+        Loading _ _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Retrying _ _ ->
+        Retrying _ _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index _ cache ->
-            viewReplay cache replay index
+        Loaded _ replay index groupIndex _ cache ->
+            viewReplay cache replay index groupIndex
 
         Failed _ _ ->
             text ""
 
 
-viewReplay : Dict String CardData -> Replay.Replay -> Int -> Html Msg
-viewReplay cache replay index =
+sectionGroupCount : Replay.Section -> Int
+sectionGroupCount section =
+    case section of
+        Replay.SetupSection lines ->
+            List.length (Action.groupLines lines)
+
+        Replay.TurnSection _ lines ->
+            List.length (Action.groupLines lines)
+
+        Replay.CheckupSection lines ->
+            List.length (Action.groupLines lines)
+
+        Replay.ResultSection _ ->
+            1
+
+
+viewReplay : Dict String CardData -> Replay.Replay -> Int -> Int -> Html Msg
+viewReplay cache replay sectionIndex groupIndex =
     let
         total =
             List.length replay.sections
 
         section =
-            replay.sections |> List.drop index |> List.head
+            replay.sections |> List.drop sectionIndex |> List.head
     in
     case section of
         Nothing ->
             text ""
 
         Just s ->
-            viewSectionWithNav cache replay.players (index > 0) (index < total - 1) s
+            viewSectionWithNav cache replay.players sectionIndex groupIndex total s
 
 
 playerColor : Maybe Replay.Players -> String -> String
@@ -796,54 +889,91 @@ playerColor players name =
             "#2d3748"
 
 
-viewSectionWithNav : Dict String CardData -> Maybe Replay.Players -> Bool -> Bool -> Replay.Section -> Html Msg
-viewSectionWithNav cache players hasPrev hasNext section =
-    case section of
-        Replay.SetupSection lines ->
+viewSectionWithNav : Dict String CardData -> Maybe Replay.Players -> Int -> Int -> Int -> Replay.Section -> Html Msg
+viewSectionWithNav cache players sectionIndex groupIndex totalSections section =
+    let
+        renderLines badge extra borderColor lines =
+            let
+                groups =
+                    Action.groupLines lines
+
+                totalGroups =
+                    List.length groups
+
+                visibleContent =
+                    List.take (groupIndex + 1) groups
+                        |> List.reverse
+                        |> List.indexedMap
+                            (\i group ->
+                                div
+                                    (if i > 0 then
+                                        [ style "opacity" "0.4"
+                                        , style "pointer-events" "none"
+                                        ]
+
+                                     else
+                                        []
+                                    )
+                                    (viewActionGroup players cache group)
+                            )
+
+                hasPrev =
+                    groupIndex > 0 || sectionIndex > 0
+
+                hasNext =
+                    groupIndex < totalGroups - 1 || sectionIndex < totalSections - 1
+            in
             viewNavSection
-                { badge = viewSectionBadge "#718096" "Setup"
-                , extra = []
-                , borderColor = "#71809640"
-                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
+                { badge = badge
+                , extra = extra
+                , borderColor = borderColor
+                , content = visibleContent
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
+    in
+    case section of
+        Replay.SetupSection lines ->
+            renderLines
+                (viewSectionBadge "#718096" "Setup")
+                []
+                "#71809640"
+                lines
 
         Replay.TurnSection turn lines ->
             let
                 badgeColor =
                     playerColor players turn.player
             in
-            viewNavSection
-                { badge = viewSectionBadge badgeColor ("Turn " ++ String.fromInt turn.number)
-                , extra =
-                    [ span
-                        [ style "font-weight" "600"
-                        , style "color" "#4a5568"
-                        , style "font-size" "0.95rem"
-                        ]
-                        [ text turn.player ]
+            renderLines
+                (viewSectionBadge badgeColor ("Turn " ++ String.fromInt turn.number))
+                [ span
+                    [ style "font-weight" "600"
+                    , style "color" "#4a5568"
+                    , style "font-size" "0.95rem"
                     ]
-                , borderColor = badgeColor ++ "40"
-                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
-                , hasPrev = hasPrev
-                , hasNext = hasNext
-                }
+                    [ text turn.player ]
+                ]
+                (badgeColor ++ "40")
+                lines
 
         Replay.CheckupSection lines ->
-            viewNavSection
-                { badge = viewSectionBadge "#b7791f" "Pokémon Checkup"
-                , extra = []
-                , borderColor = "#b7791f40"
-                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
-                , hasPrev = hasPrev
-                , hasNext = hasNext
-                }
+            renderLines
+                (viewSectionBadge "#b7791f" "Pokémon Checkup")
+                []
+                "#b7791f40"
+                lines
 
         Replay.ResultSection result ->
             let
                 winnerColor =
                     playerColor players result.winner
+
+                hasPrev =
+                    sectionIndex > 0
+
+                hasNext =
+                    sectionIndex < totalSections - 1
             in
             viewNavSection
                 { badge = viewSectionBadge "#718096" "Result"
@@ -880,12 +1010,18 @@ viewNavSection :
     }
     -> Html Msg
 viewNavSection { badge, extra, borderColor, content, hasPrev, hasNext } =
-    div []
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "column"
+        , style "flex" "1"
+        , style "min-height" "0"
+        ]
         [ div
             [ style "display" "flex"
             , style "justify-content" "space-between"
             , style "align-items" "center"
             , style "margin-bottom" "0.5rem"
+            , style "flex-shrink" "0"
             ]
             [ div
                 [ style "display" "flex"
@@ -909,8 +1045,12 @@ viewNavSection { badge, extra, borderColor, content, hasPrev, hasNext } =
                 ]
             ]
         , div
-            [ style "border-left" ("3px solid " ++ borderColor)
+            [ id "action-content"
+            , style "border-left" ("3px solid " ++ borderColor)
             , style "padding-left" "0.75rem"
+            , style "overflow-y" "auto"
+            , style "flex" "1"
+            , style "min-height" "0"
             ]
             content
         ]
