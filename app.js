@@ -6193,6 +6193,29 @@ var $author$project$Main$ShowingCard = F2(
 	function (a, b) {
 		return {$: 1, a: a, b: b};
 	});
+var $author$project$Main$basicEnergyImageUrl = function (apiName) {
+	var key = A2($elm$core$String$startsWith, 'Basic ', apiName) ? A2($elm$core$String$dropLeft, 6, apiName) : apiName;
+	switch (key) {
+		case 'Grass Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv02/278');
+		case 'Water Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv02/279');
+		case 'Fire Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv03/230');
+		case 'Lightning Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv01/257');
+		case 'Fighting Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv01/258');
+		case 'Psychic Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv03.5/207');
+		case 'Darkness Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv06.5/098');
+		case 'Metal Energy':
+			return $elm$core$Maybe$Just('https://assets.tcgdex.net/en/sv/sv06.5/099');
+		default:
+			return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$dotifyFractional = function (s) {
 	var _v0 = A2($elm$core$String$split, '-5', s);
 	if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
@@ -6901,7 +6924,22 @@ var $author$project$Main$update = F2(
 									var imageUrl = _v14.a;
 									return A2($author$project$Main$ShowingCard, id, imageUrl);
 								} else {
-									return $author$project$Main$CardNotFound(id);
+									var _v15 = A2(
+										$elm$json$Json$Decode$decodeString,
+										A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
+										body);
+									if (!_v15.$) {
+										var apiName = _v15.a;
+										var _v16 = $author$project$Main$basicEnergyImageUrl(apiName);
+										if (!_v16.$) {
+											var fallbackUrl = _v16.a;
+											return A2($author$project$Main$ShowingCard, id, fallbackUrl);
+										} else {
+											return $author$project$Main$CardNotFound(id);
+										}
+									} else {
+										return $author$project$Main$CardNotFound(id);
+									}
 								}
 							} else {
 								return $author$project$Main$CardNotFound(id);
