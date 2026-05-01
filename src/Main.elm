@@ -1,6 +1,7 @@
 port module Main exposing (CardPopup(..), Model(..), Msg(..), init, main, update)
 
 import Browser
+import Dict exposing (Dict)
 import Html exposing (Html, button, div, h1, img, input, span, text)
 import Html.Attributes exposing (placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -55,7 +56,7 @@ type Model
     = EnteringUrl String
     | Loading String Int
     | Retrying String Int
-    | Loaded String Replay.Replay Int (Maybe CardPopup)
+    | Loaded String Replay.Replay Int (Maybe CardPopup) (Dict String String)
     | Failed String String
 
 
@@ -71,7 +72,7 @@ currentUrl model =
         Retrying url _ ->
             url
 
-        Loaded url _ _ _ ->
+        Loaded url _ _ _ _ ->
             url
 
         Failed url _ ->
@@ -143,8 +144,8 @@ update msg model =
 
         FirstSection ->
             case model of
-                Loaded url replay _ _ ->
-                    ( Loaded url replay 0 Nothing
+                Loaded url replay _ _ cache ->
+                    ( Loaded url replay 0 Nothing cache
                     , pushUrl { url = url, index = 0 }
                     )
 
@@ -153,12 +154,12 @@ update msg model =
 
         PrevSection ->
             case model of
-                Loaded url replay i _ ->
+                Loaded url replay i _ cache ->
                     let
                         newIndex =
                             max 0 (i - 1)
                     in
-                    ( Loaded url replay newIndex Nothing
+                    ( Loaded url replay newIndex Nothing cache
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -167,12 +168,12 @@ update msg model =
 
         NextSection ->
             case model of
-                Loaded url replay i _ ->
+                Loaded url replay i _ cache ->
                     let
                         newIndex =
                             min (List.length replay.sections - 1) (i + 1)
                     in
-                    ( Loaded url replay newIndex Nothing
+                    ( Loaded url replay newIndex Nothing cache
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -181,12 +182,12 @@ update msg model =
 
         LastSection ->
             case model of
-                Loaded url replay _ _ ->
+                Loaded url replay _ _ cache ->
                     let
                         newIndex =
                             List.length replay.sections - 1
                     in
-                    ( Loaded url replay newIndex Nothing
+                    ( Loaded url replay newIndex Nothing cache
                     , pushUrl { url = url, index = newIndex }
                     )
 
@@ -206,32 +207,38 @@ update msg model =
 
         CardClicked id ->
             case model of
-                Loaded url replay i _ ->
-                    case cardApiUrl id of
-                        Just apiUrl ->
-                            ( Loaded url replay i (Just (FetchingCard id))
-                            , Http.get
-                                { url = apiUrl
-                                , expect = Http.expectString (GotCardImage id)
-                                }
-                            )
+                Loaded url replay i _ cache ->
+                    case Dict.get id cache of
+                        Just imageUrl ->
+                            -- Cache hit: show immediately, no HTTP request needed
+                            ( Loaded url replay i (Just (ShowingCard id imageUrl)) cache, Cmd.none )
 
                         Nothing ->
-                            ( Loaded url replay i (Just (CardNotFound id)), Cmd.none )
+                            case cardApiUrl id of
+                                Just apiUrl ->
+                                    ( Loaded url replay i (Just (FetchingCard id)) cache
+                                    , Http.get
+                                        { url = apiUrl
+                                        , expect = Http.expectString (GotCardImage id)
+                                        }
+                                    )
+
+                                Nothing ->
+                                    ( Loaded url replay i (Just (CardNotFound id)) cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         GotCardImage id result ->
             case model of
-                Loaded url replay i _ ->
+                Loaded url replay i _ cache ->
                     let
-                        popup =
+                        ( popup, newCache ) =
                             case result of
                                 Ok body ->
                                     case Decode.decodeString (Decode.field "image" Decode.string) body of
                                         Ok imageUrl ->
-                                            ShowingCard id imageUrl
+                                            ( ShowingCard id imageUrl, Dict.insert id imageUrl cache )
 
                                         Err _ ->
                                             -- No image field — try the basic energy fallback,
@@ -240,26 +247,26 @@ update msg model =
                                                 Ok apiName ->
                                                     case basicEnergyImageUrl apiName of
                                                         Just fallbackUrl ->
-                                                            ShowingCard id fallbackUrl
+                                                            ( ShowingCard id fallbackUrl, Dict.insert id fallbackUrl cache )
 
                                                         Nothing ->
-                                                            CardNotFound id
+                                                            ( CardNotFound id, cache )
 
                                                 Err _ ->
-                                                    CardNotFound id
+                                                    ( CardNotFound id, cache )
 
                                 Err _ ->
-                                    CardNotFound id
+                                    ( CardNotFound id, cache )
                     in
-                    ( Loaded url replay i (Just popup), Cmd.none )
+                    ( Loaded url replay i (Just popup) newCache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         CloseCard ->
             case model of
-                Loaded url replay i _ ->
-                    ( Loaded url replay i Nothing, Cmd.none )
+                Loaded url replay i _ cache ->
+                    ( Loaded url replay i Nothing cache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -278,7 +285,7 @@ loadReplay url requestedIndex content =
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index Nothing, pushUrl { url = url, index = index } )
+        ( Loaded url replay index Nothing Dict.empty, pushUrl { url = url, index = index } )
 
 
 proxyUrl : String -> String
@@ -468,7 +475,7 @@ view model =
         , viewUrlBar model
         , viewContent model
         , case model of
-            Loaded _ _ _ (Just popup) ->
+            Loaded _ _ _ (Just popup) _ ->
                 viewCardPopup popup
 
             _ ->
@@ -609,7 +616,7 @@ viewContent model =
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index _ ->
+        Loaded _ replay index _ _ ->
             viewReplay replay index
 
         Failed _ _ ->
