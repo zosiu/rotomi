@@ -3,9 +3,14 @@ module MainTest exposing (suite)
 import Dict
 import Expect
 import Http
-import Main exposing (CardPopup(..), Model(..), Msg(..), init, update)
+import Main exposing (CardData, CardPopup(..), Model(..), Msg(..), init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
+
+
+cardDataWithImage : String -> CardData
+cardDataWithImage url =
+    { imageUrl = Just url, attacks = [], abilities = [] }
 
 
 suite : Test
@@ -324,16 +329,19 @@ suite =
                     in
                     update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 Nothing Dict.empty)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "swsh1-1" "https://assets.tcgdex.net/en/swsh/swsh1/1")) (Dict.fromList [ ( "swsh1-1", "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]))
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1"))) (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]))
             , test "GotCardImage with invalid JSON shows CardNotFound" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
+
+                        emptyCardData =
+                            { imageUrl = Nothing, attacks = [], abilities = [] }
                     in
                     update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 Nothing Dict.empty)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")) Dict.empty)
+                        |> Expect.equal (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")) (Dict.fromList [ ( "swsh1-1", emptyCardData ) ]))
             , test "GotCardImage with HTTP error shows CardNotFound" <|
                 \_ ->
                     let
@@ -352,6 +360,49 @@ suite =
                     update CloseCard (Loaded "url" replay 0 (Just (CardNotFound "swsh1-1")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 Nothing Dict.empty)
+            , test "MoveClicked on cache hit shows ShowingMove" <|
+                \_ ->
+                    let
+                        replay = Replay.parse "Setup\nSome setup.\n"
+                        ability = { abilityType = "Ability", name = "Recon Directive", effect = "Once during your turn..." }
+                        cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ] }
+                        cache = Dict.fromList [ ( "sv8-5_72_sph", cardData ) ]
+                    in
+                    update (MoveClicked "sv8-5_72_sph" "Recon Directive") (Loaded "url" replay 0 Nothing cache)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingMove cardData "Recon Directive")) cache)
+            , test "MoveClicked on cache miss shows FetchingMove" <|
+                \_ ->
+                    let
+                        replay = Replay.parse "Setup\nSome setup.\n"
+                    in
+                    update (MoveClicked "sv04_160" "Tackle") (Loaded "url" replay 0 Nothing Dict.empty)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty)
+            , test "GotCardImage when FetchingMove resolves to ShowingMove" <|
+                \_ ->
+                    let
+                        replay = Replay.parse "Setup\nSome setup.\n"
+                        json = "{\"image\":\"https://assets.tcgdex.net/en/sv/sv04/160\",\"attacks\":[{\"name\":\"Tackle\",\"cost\":[\"Colorless\"],\"damage\":10}],\"abilities\":[]}"
+                        expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [] }
+                    in
+                    update (GotCardImage "sv04_160" (Ok json)) (Loaded "url" replay 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingMove expectedData "Tackle")) (Dict.fromList [ ( "sv04_160", expectedData ) ]))
+            , test "GotCardImage stores attacks and abilities in cache" <|
+                \_ ->
+                    let
+                        replay = Replay.parse "Setup\nSome setup.\n"
+                        json = "{\"image\":\"https://example.com/img\",\"attacks\":[{\"name\":\"Scratch\",\"cost\":[\"Colorless\"],\"damage\":10}],\"abilities\":[{\"type\":\"Ability\",\"name\":\"Swift Run\",\"effect\":\"Once per turn.\"}]}"
+                        expectedData =
+                            { imageUrl = Just "https://example.com/img"
+                            , attacks = [ { name = "Scratch", cost = [ "Colorless" ], damage = "10", effect = "" } ]
+                            , abilities = [ { abilityType = "Ability", name = "Swift Run", effect = "Once per turn." } ]
+                            }
+                    in
+                    update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 Nothing Dict.empty)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "sv04_001" expectedData)) (Dict.fromList [ ( "sv04_001", expectedData ) ]))
             ]
         , describe "card image cache"
             [ test "CardClicked uses cache hit and shows card immediately" <|
@@ -364,11 +415,11 @@ suite =
                             "https://assets.tcgdex.net/en/sv/sv04/160"
 
                         cache =
-                            Dict.fromList [ ( "sv04_160", imageUrl ) ]
+                            Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
                     update (CardClicked "sv04_160") (Loaded "url" replay 0 Nothing cache)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "sv04_160" imageUrl)) cache)
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "sv04_160" (cardDataWithImage imageUrl))) cache)
             , test "CardClicked on cache miss shows FetchingCard" <|
                 \_ ->
                     let
@@ -388,7 +439,7 @@ suite =
                             "https://assets.tcgdex.net/en/sv/sv04/160"
 
                         cache =
-                            Dict.fromList [ ( "sv04_160", imageUrl ) ]
+                            Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
                     update NextSection (Loaded "url" replay 0 Nothing cache)
                         |> Tuple.first
@@ -406,12 +457,12 @@ suite =
                             "https://assets.tcgdex.net/en/swsh/swsh1/1"
 
                         priorCache =
-                            Dict.fromList [ ( "sv04_160", existingUrl ) ]
+                            Dict.fromList [ ( "sv04_160", cardDataWithImage existingUrl ) ]
 
                         expectedCache =
                             Dict.fromList
-                                [ ( "sv04_160", existingUrl )
-                                , ( "swsh1-1", newUrl )
+                                [ ( "sv04_160", cardDataWithImage existingUrl )
+                                , ( "swsh1-1", cardDataWithImage newUrl )
                                 ]
 
                         json =
@@ -419,7 +470,7 @@ suite =
                     in
                     update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 Nothing priorCache)
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "swsh1-1" newUrl)) expectedCache)
+                        |> Expect.equal (Loaded "url" replay 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage newUrl))) expectedCache)
             , test "GotCardImage network error does not populate the cache" <|
                 \_ ->
                     let
@@ -439,7 +490,7 @@ suite =
                             "https://assets.tcgdex.net/en/sv/sv04/160"
 
                         cache =
-                            Dict.fromList [ ( "sv04_160", imageUrl ) ]
+                            Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
                     update (CardClicked "sv04_160") (Loaded "url" replay 0 Nothing cache)
                         |> Tuple.second

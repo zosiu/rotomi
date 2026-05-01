@@ -1,8 +1,8 @@
-port module Main exposing (CardPopup(..), Model(..), Msg(..), init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), init, main, update)
 
 import Browser
 import Dict exposing (Dict)
-import Html exposing (Html, button, div, h1, img, input, span, text)
+import Html exposing (Html, button, div, h1, img, input, p, span, text)
 import Html.Attributes exposing (placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
@@ -47,9 +47,45 @@ main =
 -- MODEL
 
 
+type alias CardAttack =
+    { name : String
+    , cost : List String
+    , damage : String
+    , effect : String
+    }
+
+
+type alias CardAbility =
+    { abilityType : String
+    , name : String
+    , effect : String
+    }
+
+
+type alias CardData =
+    { imageUrl : Maybe String
+    , attacks : List CardAttack
+    , abilities : List CardAbility
+    }
+
+
+type MoveKind
+    = IsAbility
+    | IsAttack
+
+
+type alias MoveHighlight =
+    { phrase : String
+    , kind : Maybe MoveKind
+    , cardId : String
+    }
+
+
 type CardPopup
     = FetchingCard String
-    | ShowingCard String String
+    | FetchingMove String String
+    | ShowingCard String CardData
+    | ShowingMove CardData String
     | CardNotFound String
 
 
@@ -57,7 +93,7 @@ type Model
     = EnteringUrl String
     | Loading String Int
     | Retrying String Int
-    | Loaded String Replay.Replay Int (Maybe CardPopup) (Dict String String)
+    | Loaded String Replay.Replay Int (Maybe CardPopup) (Dict String CardData)
     | Failed String String
 
 
@@ -94,6 +130,7 @@ type Msg
     | LastSection
     | GotSwipe String
     | CardClicked String
+    | MoveClicked String String
     | GotCardImage String (Result Http.Error String)
     | CloseCard
 
@@ -210,9 +247,8 @@ update msg model =
             case model of
                 Loaded url replay i _ cache ->
                     case Dict.get id cache of
-                        Just imageUrl ->
-                            -- Cache hit: show immediately, no HTTP request needed
-                            ( Loaded url replay i (Just (ShowingCard id imageUrl)) cache, Cmd.none )
+                        Just cardData ->
+                            ( Loaded url replay i (Just (ShowingCard id cardData)) cache, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl id of
@@ -230,31 +266,71 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        GotCardImage id result ->
+        MoveClicked cardId moveName ->
             case model of
                 Loaded url replay i _ cache ->
+                    case Dict.get cardId cache of
+                        Just cardData ->
+                            ( Loaded url replay i (Just (ShowingMove cardData moveName)) cache, Cmd.none )
+
+                        Nothing ->
+                            case cardApiUrl cardId of
+                                Just apiUrl ->
+                                    ( Loaded url replay i (Just (FetchingMove cardId moveName)) cache
+                                    , Http.get { url = apiUrl, expect = Http.expectString (GotCardImage cardId) }
+                                    )
+
+                                Nothing ->
+                                    ( Loaded url replay i (Just (CardNotFound cardId)) cache, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotCardImage id result ->
+            case model of
+                Loaded url replay i currentPopup cache ->
                     let
                         ( popup, newCache ) =
                             case result of
                                 Ok body ->
-                                    case Decode.decodeString (Decode.field "image" Decode.string) body of
-                                        Ok imageUrl ->
-                                            ( ShowingCard id imageUrl, Dict.insert id imageUrl cache )
-
-                                        Err _ ->
-                                            -- No image field — try the basic energy fallback,
-                                            -- keyed on the API name (may or may not have "Basic " prefix).
-                                            case Decode.decodeString (Decode.field "name" Decode.string) body of
-                                                Ok apiName ->
-                                                    case basicEnergyImageUrl apiName of
-                                                        Just fallbackUrl ->
-                                                            ( ShowingCard id fallbackUrl, Dict.insert id fallbackUrl cache )
+                                    case decodeCardData body of
+                                        Just cardData ->
+                                            let
+                                                resolvedData =
+                                                    case cardData.imageUrl of
+                                                        Just _ ->
+                                                            cardData
 
                                                         Nothing ->
-                                                            ( CardNotFound id, cache )
+                                                            case Decode.decodeString (Decode.field "name" Decode.string) body of
+                                                                Ok apiName ->
+                                                                    case basicEnergyImageUrl apiName of
+                                                                        Just fallbackUrl ->
+                                                                            { cardData | imageUrl = Just fallbackUrl }
 
-                                                Err _ ->
-                                                    ( CardNotFound id, cache )
+                                                                        Nothing ->
+                                                                            cardData
+
+                                                                Err _ ->
+                                                                    cardData
+
+                                                nextPopup =
+                                                    case currentPopup of
+                                                        Just (FetchingMove _ moveName) ->
+                                                            ShowingMove resolvedData moveName
+
+                                                        _ ->
+                                                            case resolvedData.imageUrl of
+                                                                Just _ ->
+                                                                    ShowingCard id resolvedData
+
+                                                                Nothing ->
+                                                                    CardNotFound id
+                                            in
+                                            ( nextPopup, Dict.insert id resolvedData cache )
+
+                                        Nothing ->
+                                            ( CardNotFound id, cache )
 
                                 Err _ ->
                                     ( CardNotFound id, cache )
@@ -435,6 +511,47 @@ basicEnergyImageUrl apiName =
 
         _ ->
             Nothing
+
+
+decodeCardData : String -> Maybe CardData
+decodeCardData body =
+    let
+        attackDecoder =
+            Decode.map4 CardAttack
+                (Decode.field "name" Decode.string)
+                (Decode.oneOf
+                    [ Decode.field "cost" (Decode.list Decode.string)
+                    , Decode.succeed []
+                    ])
+                (Decode.oneOf
+                    [ Decode.field "damage" Decode.int |> Decode.map String.fromInt
+                    , Decode.field "damage" Decode.string
+                    , Decode.succeed ""
+                    ])
+                (Decode.oneOf
+                    [ Decode.field "effect" Decode.string
+                    , Decode.succeed ""
+                    ])
+
+        abilityDecoder =
+            Decode.map3 CardAbility
+                (Decode.field "type" Decode.string)
+                (Decode.field "name" Decode.string)
+                (Decode.field "effect" Decode.string)
+
+        cardDecoder =
+            Decode.map3 CardData
+                (Decode.maybe (Decode.field "image" Decode.string))
+                (Decode.oneOf
+                    [ Decode.field "attacks" (Decode.list attackDecoder)
+                    , Decode.succeed []
+                    ])
+                (Decode.oneOf
+                    [ Decode.field "abilities" (Decode.list abilityDecoder)
+                    , Decode.succeed []
+                    ])
+    in
+    Decode.decodeString cardDecoder body |> Result.toMaybe
 
 
 httpErrorToString : Http.Error -> String
@@ -623,15 +740,15 @@ viewContent model =
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index _ _ ->
-            viewReplay replay index
+        Loaded _ replay index _ cache ->
+            viewReplay cache replay index
 
         Failed _ _ ->
             text ""
 
 
-viewReplay : Replay.Replay -> Int -> Html Msg
-viewReplay replay index =
+viewReplay : Dict String CardData -> Replay.Replay -> Int -> Html Msg
+viewReplay cache replay index =
     let
         total =
             List.length replay.sections
@@ -644,7 +761,7 @@ viewReplay replay index =
             text ""
 
         Just s ->
-            viewSectionWithNav replay.players (index > 0) (index < total - 1) s
+            viewSectionWithNav cache replay.players (index > 0) (index < total - 1) s
 
 
 playerColor : Maybe Replay.Players -> String -> String
@@ -664,15 +781,15 @@ playerColor players name =
             "#2d3748"
 
 
-viewSectionWithNav : Maybe Replay.Players -> Bool -> Bool -> Replay.Section -> Html Msg
-viewSectionWithNav players hasPrev hasNext section =
+viewSectionWithNav : Dict String CardData -> Maybe Replay.Players -> Bool -> Bool -> Replay.Section -> Html Msg
+viewSectionWithNav cache players hasPrev hasNext section =
     case section of
         Replay.SetupSection lines ->
             viewNavSection
                 { badge = viewSectionBadge "#718096" "Setup"
                 , extra = []
                 , borderColor = "#71809640"
-                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
+                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -693,7 +810,7 @@ viewSectionWithNav players hasPrev hasNext section =
                         [ text turn.player ]
                     ]
                 , borderColor = badgeColor ++ "40"
-                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
+                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -703,7 +820,7 @@ viewSectionWithNav players hasPrev hasNext section =
                 { badge = viewSectionBadge "#b7791f" "Pokémon Checkup"
                 , extra = []
                 , borderColor = "#b7791f40"
-                , content = List.concatMap (viewActionGroup players) (Action.groupLines lines)
+                , content = List.concatMap (viewActionGroup players cache) (Action.groupLines lines)
                 , hasPrev = hasPrev
                 , hasNext = hasNext
                 }
@@ -806,26 +923,52 @@ navArrow visible msg symbol =
         [ text symbol ]
 
 
-viewActionGroup : Maybe Replay.Players -> Action.ActionGroup -> List (Html Msg)
-viewActionGroup players group =
+viewActionGroup : Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
+viewActionGroup players cache group =
     let
-        topHighlights =
+        topHighlight =
             case group.action of
-                Action.UsedAttack { move } ->
+                Action.UsedAttack { attacker, move } ->
                     let
                         cleaned =
-                            String.trim move
+                            let
+                                trimmed =
+                                    String.trim move
+                            in
+                            if String.endsWith "." trimmed then
+                                String.dropRight 1 trimmed
+
+                            else
+                                trimmed
+
+                        cardId =
+                            attacker.card.id
+
+                        kind =
+                            case Dict.get cardId cache of
+                                Just cardData ->
+                                    if List.any (\a -> a.name == cleaned) cardData.abilities then
+                                        Just IsAbility
+
+                                    else if List.any (\a -> a.name == cleaned) cardData.attacks then
+                                        Just IsAttack
+
+                                    else
+                                        Nothing
+
+                                Nothing ->
+                                    Nothing
                     in
-                    [ if String.endsWith "." cleaned then String.dropRight 1 cleaned else cleaned ]
+                    Just { phrase = cleaned, kind = kind, cardId = cardId }
 
                 _ ->
-                    []
+                    Nothing
     in
-    viewLine players topHighlights (Replay.TopLine group.raw)
+    viewLine players topHighlight (Replay.TopLine group.raw)
         :: List.concatMap
             (\detail ->
-                viewLine players [] (Replay.DetailLine detail.raw)
-                    :: List.map (\bullet -> viewLine players [] (Replay.BulletLine bullet.raw)) detail.bullets
+                viewLine players Nothing (Replay.DetailLine detail.raw)
+                    :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
             )
             group.details
 
@@ -845,8 +988,8 @@ viewSectionBadge color label =
         [ text label ]
 
 
-viewLine : Maybe Replay.Players -> List String -> Replay.ReplayLine -> Html Msg
-viewLine players highlights line =
+viewLine : Maybe Replay.Players -> Maybe MoveHighlight -> Replay.ReplayLine -> Html Msg
+viewLine players highlight line =
     case line of
         Replay.TopLine content ->
             div
@@ -855,7 +998,7 @@ viewLine players highlights line =
                 , style "color" "#2d3748"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText players highlights content)
+                (viewInlineText players highlight content)
 
         Replay.DetailLine content ->
             div
@@ -864,7 +1007,7 @@ viewLine players highlights line =
                 , style "color" "#4a5568"
                 , style "line-height" "1.5"
                 ]
-                (viewInlineText players highlights content)
+                (viewInlineText players highlight content)
 
         Replay.BulletLine content ->
             div
@@ -873,7 +1016,7 @@ viewLine players highlights line =
                 , style "color" "#718096"
                 , style "line-height" "1.4"
                 ]
-                (viewInlineText players highlights content)
+                (viewInlineText players highlight content)
 
 
 
@@ -884,13 +1027,13 @@ type TextSegment
     = PlainText String
     | CardRef String String
     | PlayerRef String String -- player name, css color
-    | MoveRef String -- ability / attack name
+    | MoveRef String (Maybe MoveKind) String -- name, kind, cardId
 
 
-viewInlineText : Maybe Replay.Players -> List String -> String -> List (Html Msg)
-viewInlineText players highlights str =
+viewInlineText : Maybe Replay.Players -> Maybe MoveHighlight -> String -> List (Html Msg)
+viewInlineText players highlight str =
     segmentText players str
-        |> applyHighlights highlights
+        |> applyHighlights highlight
         |> List.map viewSegment
 
 
@@ -921,15 +1064,30 @@ viewSegment seg =
                     )
                 ]
 
-        MoveRef name ->
+        MoveRef name kind cardId ->
             span
-                [ style "font-size" "0.8em"
+                [ onClick (MoveClicked cardId name)
+                , style "cursor" "pointer"
+                , style "font-size" "0.8em"
                 , style "font-weight" "600"
-                , style "background" "#e2e8f0"
-                , style "color" "#4a5568"
                 , style "padding" "0.1em 0.45em"
                 , style "border-radius" "999px"
                 , style "white-space" "nowrap"
+                , case kind of
+                    Just IsAbility ->
+                        style "background" "#9f7aea"
+
+                    Just IsAttack ->
+                        style "background" "#ed8936"
+
+                    Nothing ->
+                        style "background" "#e2e8f0"
+                , case kind of
+                    Nothing ->
+                        style "color" "#4a5568"
+
+                    _ ->
+                        style "color" "white"
                 ]
                 [ text name ]
 
@@ -969,6 +1127,14 @@ viewCardPopup popup =
                     ]
                     [ text "Loading…" ]
 
+            FetchingMove _ _ ->
+                div
+                    [ style "color" "white"
+                    , style "font-style" "italic"
+                    , style "font-size" "1rem"
+                    ]
+                    [ text "Loading…" ]
+
             CardNotFound id ->
                 div
                     [ style "background" "white"
@@ -979,17 +1145,160 @@ viewCardPopup popup =
                     ]
                     [ text ("Card not found: " ++ id) ]
 
-            ShowingCard _ imageUrl ->
-                img
-                    [ src (imageUrl ++ "/high.webp")
-                    , style "max-height" "80vh"
-                    , style "max-width" "90vw"
-                    , style "border-radius" "8px"
-                    , style "box-shadow" "0 8px 32px rgba(0,0,0,0.5)"
-                    , style "display" "block"
-                    ]
-                    []
+            ShowingCard _ cardData ->
+                case cardData.imageUrl of
+                    Just imageUrl ->
+                        img
+                            [ src (imageUrl ++ "/high.webp")
+                            , style "max-height" "80vh"
+                            , style "max-width" "90vw"
+                            , style "border-radius" "8px"
+                            , style "box-shadow" "0 8px 32px rgba(0,0,0,0.5)"
+                            , style "display" "block"
+                            ]
+                            []
+
+                    Nothing ->
+                        text ""
+
+            ShowingMove cardData moveName ->
+                viewMoveDetail cardData moveName
         ]
+
+
+viewMoveDetail : CardData -> String -> Html Msg
+viewMoveDetail cardData moveName =
+    let
+        maybeAbility =
+            List.head (List.filter (\a -> a.name == moveName) cardData.abilities)
+
+        maybeAttack =
+            List.head (List.filter (\a -> a.name == moveName) cardData.attacks)
+    in
+    div
+        [ style "background" "white"
+        , style "border-radius" "12px"
+        , style "padding" "1.5rem 2rem"
+        , style "max-width" "380px"
+        , style "width" "90vw"
+        , style "cursor" "default"
+        , style "box-shadow" "0 8px 32px rgba(0,0,0,0.4)"
+        ]
+        [ case maybeAbility of
+            Just ability ->
+                viewAbilityDetail ability
+
+            Nothing ->
+                case maybeAttack of
+                    Just attack ->
+                        viewAttackDetail attack
+
+                    Nothing ->
+                        div [ style "font-size" "1rem", style "color" "#2d3748" ]
+                            [ text moveName ]
+        ]
+
+
+viewAbilityDetail : CardAbility -> Html Msg
+viewAbilityDetail ability =
+    div []
+        [ div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "gap" "0.5rem"
+            , style "margin-bottom" "0.75rem"
+            ]
+            [ span
+                [ style "background" "#9f7aea"
+                , style "color" "white"
+                , style "font-size" "0.7rem"
+                , style "font-weight" "700"
+                , style "letter-spacing" "0.06em"
+                , style "text-transform" "uppercase"
+                , style "padding" "0.2rem 0.5rem"
+                , style "border-radius" "4px"
+                ]
+                [ text ability.abilityType ]
+            , span
+                [ style "font-size" "1rem"
+                , style "font-weight" "700"
+                , style "color" "#2d3748"
+                ]
+                [ text ability.name ]
+            ]
+        , p
+            [ style "font-size" "0.875rem"
+            , style "color" "#4a5568"
+            , style "line-height" "1.6"
+            , style "margin" "0"
+            ]
+            [ text ability.effect ]
+        ]
+
+
+viewAttackDetail : CardAttack -> Html Msg
+viewAttackDetail attack =
+    div []
+        [ div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "space-between"
+            , style "margin-bottom" "0.5rem"
+            ]
+            [ span
+                [ style "font-size" "1rem"
+                , style "font-weight" "700"
+                , style "color" "#2d3748"
+                ]
+                [ text attack.name ]
+            , if String.isEmpty attack.damage then
+                text ""
+
+              else
+                span
+                    [ style "font-size" "1.1rem"
+                    , style "font-weight" "800"
+                    , style "color" "#2d3748"
+                    ]
+                    [ text (attack.damage ++ " dmg") ]
+            ]
+        , if List.isEmpty attack.cost then
+            text ""
+
+          else
+            div
+                [ style "display" "flex"
+                , style "gap" "0.3rem"
+                , style "flex-wrap" "wrap"
+                , style "margin-bottom" "0.6rem"
+                ]
+                (List.map viewEnergyCost attack.cost)
+        , if String.isEmpty attack.effect then
+            text ""
+
+          else
+            p
+                [ style "font-size" "0.875rem"
+                , style "color" "#4a5568"
+                , style "line-height" "1.6"
+                , style "margin" "0"
+                ]
+                [ text attack.effect ]
+        ]
+
+
+viewEnergyCost : String -> Html Msg
+viewEnergyCost energyType =
+    span
+        [ style "font-size" "0.72em"
+        , style "font-weight" "600"
+        , style "background" "#e2e8f0"
+        , style "color" "#4a5568"
+        , style "padding" "0.15em 0.4em"
+        , style "border-radius" "999px"
+        , style "white-space" "nowrap"
+        ]
+        [ text energyType ]
 
 
 segmentText : Maybe Replay.Players -> String -> List TextSegment
@@ -1093,32 +1402,18 @@ splitByPlayer playerName color str =
                 interleave parts
 
 
-applyHighlights : List String -> List TextSegment -> List TextSegment
-applyHighlights highlights segs =
-    case highlights of
-        [] ->
+applyHighlights : Maybe MoveHighlight -> List TextSegment -> List TextSegment
+applyHighlights maybeHighlight segs =
+    case maybeHighlight of
+        Nothing ->
             segs
 
-        _ ->
+        Just highlight ->
             List.concatMap
                 (\seg ->
                     case seg of
                         PlainText str ->
-                            List.foldl
-                                (\phrase acc ->
-                                    List.concatMap
-                                        (\s ->
-                                            case s of
-                                                PlainText t ->
-                                                    splitByPhrase phrase t
-
-                                                other ->
-                                                    [ other ]
-                                        )
-                                        acc
-                                )
-                                [ PlainText str ]
-                                highlights
+                            splitByPhrase highlight str
 
                         other ->
                             [ other ]
@@ -1126,8 +1421,12 @@ applyHighlights highlights segs =
                 segs
 
 
-splitByPhrase : String -> String -> List TextSegment
-splitByPhrase phrase str =
+splitByPhrase : MoveHighlight -> String -> List TextSegment
+splitByPhrase highlight str =
+    let
+        phrase =
+            highlight.phrase
+    in
     if String.isEmpty phrase then
         if String.isEmpty str then
             []
@@ -1168,7 +1467,7 @@ splitByPhrase phrase str =
                                  else
                                     [ PlainText first ]
                                 )
-                                    ++ (MoveRef phrase :: interleave rest)
+                                    ++ (MoveRef phrase highlight.kind highlight.cardId :: interleave rest)
                 in
                 interleave parts
 
