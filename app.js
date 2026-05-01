@@ -519,11 +519,11 @@ function _Debug_crash_UNUSED(identifier, fact1, fact2, fact3, fact4)
 
 function _Debug_regionToString(region)
 {
-	if (region.a2.as === region.bj.as)
+	if (region.a3.an === region.bk.an)
 	{
-		return 'on line ' + region.a2.as;
+		return 'on line ' + region.a3.an;
 	}
-	return 'on lines ' + region.a2.as + ' through ' + region.bj.as;
+	return 'on lines ' + region.a3.an + ' through ' + region.bk.an;
 }
 
 
@@ -1861,9 +1861,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cC,
-		impl.de,
-		impl.c8,
+		impl.cD,
+		impl.df,
+		impl.c9,
 		function() { return function() {} }
 	);
 });
@@ -2727,9 +2727,9 @@ var _VirtualDom_mapEventTuple = F2(function(func, tuple)
 var _VirtualDom_mapEventRecord = F2(function(func, record)
 {
 	return {
-		K: func(record.K),
-		a3: record.a3,
-		a0: record.a0
+		N: func(record.N),
+		a4: record.a4,
+		a1: record.a1
 	}
 });
 
@@ -2997,11 +2997,11 @@ function _VirtualDom_makeCallback(eventNode, initialHandler)
 		// 3 = Custom
 
 		var value = result.a;
-		var message = !tag ? value : tag < 3 ? value.a : value.K;
-		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a3;
+		var message = !tag ? value : tag < 3 ? value.a : value.N;
+		var stopPropagation = tag == 1 ? value.b : tag == 3 && value.a4;
 		var currentEventNode = (
 			stopPropagation && event.stopPropagation(),
-			(tag == 2 ? value.b : tag == 3 && value.a0) && event.preventDefault(),
+			(tag == 2 ? value.b : tag == 3 && value.a1) && event.preventDefault(),
 			eventNode
 		);
 		var tagger;
@@ -3951,11 +3951,11 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cC,
-		impl.de,
-		impl.c8,
+		impl.cD,
+		impl.df,
+		impl.c9,
 		function(sendToApp, initialModel) {
-			var view = impl.df;
+			var view = impl.dg;
 			/**/
 			var domNode = args['node'];
 			//*/
@@ -3987,12 +3987,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cC,
-		impl.de,
-		impl.c8,
+		impl.cD,
+		impl.df,
+		impl.c9,
 		function(sendToApp, initialModel) {
-			var divertHrefToApp = impl.a1 && impl.a1(sendToApp)
-			var view = impl.df;
+			var divertHrefToApp = impl.a2 && impl.a2(sendToApp)
+			var view = impl.dg;
 			var title = _VirtualDom_doc.title;
 			var bodyNode = _VirtualDom_doc.body;
 			var currNode = _VirtualDom_virtualize(bodyNode);
@@ -4000,12 +4000,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.ch);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.ci);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.dc) && (_VirtualDom_doc.title = title = doc.dc);
+				(title !== doc.dd) && (_VirtualDom_doc.title = title = doc.dd);
 			});
 		}
 	);
@@ -4061,12 +4061,12 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.cT;
-	var onUrlRequest = impl.cU;
+	var onUrlChange = impl.cU;
+	var onUrlRequest = impl.cV;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
-		a1: function(sendToApp)
+		a2: function(sendToApp)
 		{
 			key.a = sendToApp;
 			_Browser_window.addEventListener('popstate', key);
@@ -4082,9 +4082,9 @@ function _Browser_application(impl)
 					var next = $elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.bJ === next.bJ
-							&& curr.bt === next.bt
-							&& curr.bG.a === next.bG.a
+							&& curr.bK === next.bK
+							&& curr.bu === next.bu
+							&& curr.bH.a === next.bH.a
 						)
 							? $elm$browser$Browser$Internal(next)
 							: $elm$browser$Browser$External(href)
@@ -4092,13 +4092,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		cC: function(flags)
+		cD: function(flags)
 		{
-			return A3(impl.cC, flags, _Browser_getUrl(), key);
+			return A3(impl.cD, flags, _Browser_getUrl(), key);
 		},
+		dg: impl.dg,
 		df: impl.df,
-		de: impl.de,
-		c8: impl.c8
+		c9: impl.c9
 	});
 }
 
@@ -4164,17 +4164,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { cA: 'hidden', ck: 'visibilitychange' }
+		? { cB: 'hidden', cl: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { cA: 'mozHidden', ck: 'mozvisibilitychange' }
+		? { cB: 'mozHidden', cl: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { cA: 'msHidden', ck: 'msvisibilitychange' }
+		? { cB: 'msHidden', cl: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { cA: 'webkitHidden', ck: 'webkitvisibilitychange' }
-		: { cA: 'hidden', ck: 'visibilitychange' };
+		? { cB: 'webkitHidden', cl: 'webkitvisibilitychange' }
+		: { cB: 'hidden', cl: 'visibilitychange' };
 }
 
 
@@ -4255,12 +4255,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		bS: _Browser_getScene(),
-		b2: {
-			b6: _Browser_window.pageXOffset,
-			b7: _Browser_window.pageYOffset,
-			b4: _Browser_doc.documentElement.clientWidth,
-			bs: _Browser_doc.documentElement.clientHeight
+		bT: _Browser_getScene(),
+		b3: {
+			b7: _Browser_window.pageXOffset,
+			b8: _Browser_window.pageYOffset,
+			b5: _Browser_doc.documentElement.clientWidth,
+			bt: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -4270,8 +4270,8 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		b4: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		bs: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		b5: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		bt: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -4294,15 +4294,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			bS: {
-				b4: node.scrollWidth,
-				bs: node.scrollHeight
+			bT: {
+				b5: node.scrollWidth,
+				bt: node.scrollHeight
 			},
-			b2: {
-				b6: node.scrollLeft,
-				b7: node.scrollTop,
-				b4: node.clientWidth,
-				bs: node.clientHeight
+			b3: {
+				b7: node.scrollLeft,
+				b8: node.scrollTop,
+				b5: node.clientWidth,
+				bt: node.clientHeight
 			}
 		};
 	});
@@ -4332,18 +4332,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			bS: _Browser_getScene(),
-			b2: {
-				b6: x,
-				b7: y,
-				b4: _Browser_doc.documentElement.clientWidth,
-				bs: _Browser_doc.documentElement.clientHeight
+			bT: _Browser_getScene(),
+			b3: {
+				b7: x,
+				b8: y,
+				b5: _Browser_doc.documentElement.clientWidth,
+				bt: _Browser_doc.documentElement.clientHeight
 			},
-			cu: {
-				b6: x + rect.left,
-				b7: y + rect.top,
-				b4: rect.width,
-				bs: rect.height
+			cv: {
+				b7: x + rect.left,
+				b8: y + rect.top,
+				b5: rect.width,
+				bt: rect.height
 			}
 		};
 	});
@@ -4388,25 +4388,25 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.am.a(response)));
+			callback(toTask(request.ak.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.am.b, xhr)); });
-		$elm$core$Maybe$isJust(request.b1) && _Http_track(router, xhr, request.b1.a);
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.ak.b, xhr)); });
+		$elm$core$Maybe$isJust(request.b2) && _Http_track(router, xhr, request.b2.a);
 
 		try {
-			xhr.open(request.cG, request.A, true);
+			xhr.open(request.cH, request.v, true);
 		} catch (e) {
-			return done($elm$http$Http$BadUrl_(request.A));
+			return done($elm$http$Http$BadUrl_(request.v));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.ch.a && xhr.setRequestHeader('Content-Type', request.ch.a);
-		xhr.send(request.ch.b);
+		request.ci.a && xhr.setRequestHeader('Content-Type', request.ci.a);
+		xhr.send(request.ci.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -4417,13 +4417,13 @@ var _Http_toTask = F3(function(router, toTask, request)
 
 function _Http_configureRequest(xhr, request)
 {
-	for (var headers = request.bq; headers.b; headers = headers.b) // WHILE_CONS
+	for (var headers = request.br; headers.b; headers = headers.b) // WHILE_CONS
 	{
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
-	xhr.timeout = request.db.a || 0;
-	xhr.responseType = request.am.d;
-	xhr.withCredentials = request.ca;
+	xhr.timeout = request.dc.a || 0;
+	xhr.responseType = request.ak.d;
+	xhr.withCredentials = request.cb;
 }
 
 
@@ -4444,10 +4444,10 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		A: xhr.responseURL,
-		c6: xhr.status,
-		c7: xhr.statusText,
-		bq: _Http_parseHeaders(xhr.getAllResponseHeaders())
+		v: xhr.responseURL,
+		c7: xhr.status,
+		c8: xhr.statusText,
+		br: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
 
@@ -4542,15 +4542,15 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
-			c5: event.loaded,
-			bW: event.total
+			c6: event.loaded,
+			bX: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
-			c$: event.loaded,
-			bW: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+			c0: event.loaded,
+			bX: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
 		}))));
 	});
 }
@@ -5078,7 +5078,7 @@ var $elm$url$Url$Http = 0;
 var $elm$url$Url$Https = 1;
 var $elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {bm: fragment, bt: host, bE: path, bG: port_, bJ: protocol, bK: query};
+		return {bn: fragment, bu: host, bF: path, bH: port_, bK: protocol, bL: query};
 	});
 var $elm$core$String$contains = _String_contains;
 var $elm$core$String$length = _String_length;
@@ -5364,9 +5364,9 @@ var $author$project$Main$EnteringUrl = function (a) {
 var $author$project$Main$GotReplay = function (a) {
 	return {$: 2, a: a};
 };
-var $author$project$Main$Loading = F2(
-	function (a, b) {
-		return {$: 1, a: a, b: b};
+var $author$project$Main$Loading = F3(
+	function (a, b, c) {
+		return {$: 1, a: a, b: b, c: c};
 	});
 var $elm$http$Http$BadStatus_ = F2(
 	function (a, b) {
@@ -5959,7 +5959,7 @@ var $elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return $elm$core$Result$Err(
-					$elm$http$Http$BadStatus(metadata.c6));
+					$elm$http$Http$BadStatus(metadata.c7));
 			default:
 				var body = response.b;
 				return A2(
@@ -5980,7 +5980,7 @@ var $elm$http$Http$Request = function (a) {
 };
 var $elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {bO: reqs, b_: subs};
+		return {bP: reqs, b$: subs};
 	});
 var $elm$http$Http$init = $elm$core$Task$succeed(
 	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
@@ -6024,7 +6024,7 @@ var $elm$http$Http$updateReqs = F3(
 					return A2(
 						$elm$core$Task$andThen,
 						function (pid) {
-							var _v4 = req.b1;
+							var _v4 = req.b2;
 							if (_v4.$ === 1) {
 								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -6054,7 +6054,7 @@ var $elm$http$Http$onEffects = F4(
 				return $elm$core$Task$succeed(
 					A2($elm$http$Http$State, reqs, subs));
 			},
-			A3($elm$http$Http$updateReqs, router, cmds, state.bO));
+			A3($elm$http$Http$updateReqs, router, cmds, state.bP));
 	});
 var $elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
@@ -6097,7 +6097,7 @@ var $elm$http$Http$onSelfMsg = F3(
 				A2(
 					$elm$core$List$filterMap,
 					A3($elm$http$Http$maybeSend, router, tracker, progress),
-					state.b_)));
+					state.b$)));
 	});
 var $elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -6111,14 +6111,14 @@ var $elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return $elm$http$Http$Request(
 				{
-					ca: r.ca,
-					ch: r.ch,
-					am: A2(_Http_mapExpect, func, r.am),
-					bq: r.bq,
-					cG: r.cG,
-					db: r.db,
-					b1: r.b1,
-					A: r.A
+					cb: r.cb,
+					ci: r.ci,
+					ak: A2(_Http_mapExpect, func, r.ak),
+					br: r.br,
+					cH: r.cH,
+					dc: r.dc,
+					b2: r.b2,
+					v: r.v
 				});
 		}
 	});
@@ -6141,25 +6141,25 @@ var $elm$http$Http$subscription = _Platform_leaf('Http');
 var $elm$http$Http$request = function (r) {
 	return $elm$http$Http$command(
 		$elm$http$Http$Request(
-			{ca: false, ch: r.ch, am: r.am, bq: r.bq, cG: r.cG, db: r.db, b1: r.b1, A: r.A}));
+			{cb: false, ci: r.ci, ak: r.ak, br: r.br, cH: r.cH, dc: r.dc, b2: r.b2, v: r.v}));
 };
 var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
-		{ch: $elm$http$Http$emptyBody, am: r.am, bq: _List_Nil, cG: 'GET', db: $elm$core$Maybe$Nothing, b1: $elm$core$Maybe$Nothing, A: r.A});
+		{ci: $elm$http$Http$emptyBody, ak: r.ak, br: _List_Nil, cH: 'GET', dc: $elm$core$Maybe$Nothing, b2: $elm$core$Maybe$Nothing, v: r.v});
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$String$trim = _String_trim;
 var $author$project$Main$init = function (flags) {
-	var url = $elm$core$String$trim(flags.bN);
+	var url = $elm$core$String$trim(flags.bO);
 	return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(
 		$author$project$Main$EnteringUrl(''),
 		$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-		A2($author$project$Main$Loading, url, flags.bT),
+		A3($author$project$Main$Loading, url, flags.bU, flags.B),
 		$elm$http$Http$get(
 			{
-				am: $elm$http$Http$expectString($author$project$Main$GotReplay),
-				A: url
+				ak: $elm$http$Http$expectString($author$project$Main$GotReplay),
+				v: url
 			}));
 };
 var $elm$json$Json$Decode$int = _Json_decodeInt;
@@ -6183,15 +6183,15 @@ var $author$project$Main$GotCardImage = F2(
 	function (a, b) {
 		return {$: 11, a: a, b: b};
 	});
-var $author$project$Main$Loaded = F5(
-	function (a, b, c, d, e) {
-		return {$: 3, a: a, b: b, c: c, d: d, e: e};
+var $author$project$Main$Loaded = F6(
+	function (a, b, c, d, e, f) {
+		return {$: 3, a: a, b: b, c: c, d: d, e: e, f: f};
 	});
 var $author$project$Main$NextSection = {$: 5};
 var $author$project$Main$PrevSection = {$: 4};
-var $author$project$Main$Retrying = F2(
-	function (a, b) {
-		return {$: 2, a: a, b: b};
+var $author$project$Main$Retrying = F3(
+	function (a, b, c) {
+		return {$: 2, a: a, b: b, c: c};
 	});
 var $author$project$Main$ShowingCard = F2(
 	function (a, b) {
@@ -6315,15 +6315,15 @@ var $author$project$Main$currentUrl = function (model) {
 };
 var $author$project$Main$CardAbility = F3(
 	function (abilityType, name, effect) {
-		return {a7: abilityType, al: effect, at: name};
+		return {a8: abilityType, aj: effect, ao: name};
 	});
 var $author$project$Main$CardAttack = F4(
 	function (name, cost, damage, effect) {
-		return {aQ: cost, co: damage, al: effect, at: name};
+		return {aO: cost, cp: damage, aj: effect, ao: name};
 	});
 var $author$project$Main$CardData = F3(
 	function (imageUrl, attacks, abilities) {
-		return {aK: abilities, aM: attacks, aq: imageUrl};
+		return {aF: abilities, aH: attacks, al: imageUrl};
 	});
 var $elm$json$Json$Decode$decodeString = _Json_runOnString;
 var $elm$json$Json$Decode$list = _Json_decodeList;
@@ -6408,6 +6408,36 @@ var $author$project$Main$decodeCardData = function (body) {
 	return $elm$core$Result$toMaybe(
 		A2($elm$json$Json$Decode$decodeString, cardDecoder, body));
 };
+var $elm$core$List$drop = F2(
+	function (n, list) {
+		drop:
+		while (true) {
+			if (n <= 0) {
+				return list;
+			} else {
+				if (!list.b) {
+					return list;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs;
+					n = $temp$n;
+					list = $temp$list;
+					continue drop;
+				}
+			}
+		}
+	});
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$httpErrorToString = function (err) {
 	switch (err.$) {
 		case 0:
@@ -6434,11 +6464,21 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (!maybe.$) {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
-var $author$project$Replay$emptyState = {W: $elm$core$Maybe$Nothing, I: _List_Nil, _: _List_Nil, ab: 0};
+var $author$project$Replay$emptyState = {Z: $elm$core$Maybe$Nothing, K: _List_Nil, F: _List_Nil, ac: 0};
 var $author$project$Replay$ResultSection = function (a) {
 	return {$: 3, a: a};
 };
@@ -6465,11 +6505,11 @@ var $author$project$Replay$parseMatchResult = function (text) {
 			var reasonWords = _v0.b;
 			return $elm$core$String$isEmpty(winner) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
 				{
-					c_: A2(
+					c$: A2(
 						$elm$core$String$join,
 						' ',
 						$elm$core$List$reverse(reasonWords)),
-					b5: winner
+					b6: winner
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6531,19 +6571,19 @@ var $author$project$Replay$buildSection = F2(
 		}
 	});
 var $author$project$Replay$finalizeSections = function (state) {
-	var _v0 = state.W;
+	var _v0 = state.Z;
 	if (_v0.$ === 1) {
-		return state._;
+		return state.F;
 	} else {
 		var kind = _v0.a;
 		return _Utils_ap(
-			state._,
+			state.F,
 			_List_fromArray(
 				[
 					A2(
 					$author$project$Replay$buildSection,
 					kind,
-					$elm$core$List$reverse(state.I))
+					$elm$core$List$reverse(state.K))
 				]));
 	}
 };
@@ -6618,8 +6658,8 @@ var $author$project$Replay$identifyPlayers = function (sections) {
 			var p2 = _v3.a;
 			return $elm$core$Maybe$Just(
 				{
-					bb: _Utils_eq(p1, red) ? p2 : p1,
-					bL: red
+					bc: _Utils_eq(p1, red) ? p2 : p1,
+					bM: red
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -6650,32 +6690,22 @@ var $author$project$Replay$classifyLine = function (line) {
 		A2($elm$core$String$dropLeft, 2, line)) : $author$project$Replay$TopLine(line));
 };
 var $author$project$Replay$commitSection = function (state) {
-	var _v0 = state.W;
+	var _v0 = state.Z;
 	if (_v0.$ === 1) {
-		return state._;
+		return state.F;
 	} else {
 		var kind = _v0.a;
 		return _Utils_ap(
-			state._,
+			state.F,
 			_List_fromArray(
 				[
 					A2(
 					$author$project$Replay$buildSection,
 					kind,
-					$elm$core$List$reverse(state.I))
+					$elm$core$List$reverse(state.K))
 				]));
 	}
 };
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (!maybe.$) {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
 var $author$project$Replay$parseTurnHeader = function (line) {
 	if (A2($elm$core$String$startsWith, 'Turn # ', line)) {
 		var _v0 = A2($elm$core$String$split, ' - ', line);
@@ -6687,7 +6717,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 				$elm$core$Maybe$map,
 				function (n) {
 					return {
-						aW: $elm$core$Maybe$Just(n),
+						aX: $elm$core$Maybe$Just(n),
 						b: A2($elm$core$String$dropRight, 7, playerPart)
 					};
 				},
@@ -6700,7 +6730,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 		if (A2($elm$core$String$endsWith, '\'s Turn', line) && (!A2($elm$core$String$contains, '.', line))) {
 			return $elm$core$Maybe$Just(
 				{
-					aW: $elm$core$Maybe$Nothing,
+					aX: $elm$core$Maybe$Nothing,
 					b: A2($elm$core$String$dropRight, 7, line)
 				});
 		} else {
@@ -6711,10 +6741,10 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 var $author$project$Replay$startSection = F2(
 	function (kind, state) {
 		return {
-			W: $elm$core$Maybe$Just(kind),
-			I: _List_Nil,
-			_: $author$project$Replay$commitSection(state),
-			ab: state.ab
+			Z: $elm$core$Maybe$Just(kind),
+			K: _List_Nil,
+			F: $author$project$Replay$commitSection(state),
+			ac: state.ac
 		};
 	});
 var $elm$core$Maybe$withDefault = F2(
@@ -6737,28 +6767,28 @@ var $author$project$Replay$processLine = F2(
 				var _v0 = $author$project$Replay$parseTurnHeader(line);
 				if (!_v0.$) {
 					var player = _v0.a.b;
-					var maybeNumber = _v0.a.aW;
-					var newCount = state.ab + 1;
+					var maybeNumber = _v0.a.aX;
+					var newCount = state.ac + 1;
 					var turn = {
-						cS: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
+						cT: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
 						b: player
 					};
 					return {
-						W: $elm$core$Maybe$Just(
+						Z: $elm$core$Maybe$Just(
 							$author$project$Replay$KindTurn(turn)),
-						I: _List_Nil,
-						_: $author$project$Replay$commitSection(state),
-						ab: newCount
+						K: _List_Nil,
+						F: $author$project$Replay$commitSection(state),
+						ac: newCount
 					};
 				} else {
 					return $elm$core$String$isEmpty(
 						$elm$core$String$trim(line)) ? state : _Utils_update(
 						state,
 						{
-							I: A2(
+							K: A2(
 								$elm$core$List$cons,
 								$author$project$Replay$classifyLine(line),
-								state.I)
+								state.K)
 						});
 				}
 			}
@@ -6783,8 +6813,8 @@ var $author$project$Replay$parse = function (raw) {
 					A2($elm$core$String$replace, '\u000D', ''),
 					$elm$core$String$lines(raw)))));
 	return {
-		cZ: $author$project$Replay$identifyPlayers(sections),
-		_: sections
+		c_: $author$project$Replay$identifyPlayers(sections),
+		F: sections
 	};
 };
 var $elm$json$Json$Encode$int = _Json_wrap;
@@ -6809,834 +6839,15 @@ var $author$project$Main$pushUrl = _Platform_outgoingPort(
 			_List_fromArray(
 				[
 					_Utils_Tuple2(
+					'groupIndex',
+					$elm$json$Json$Encode$int($.B)),
+					_Utils_Tuple2(
 					'index',
-					$elm$json$Json$Encode$int($.Z)),
+					$elm$json$Json$Encode$int($.L)),
 					_Utils_Tuple2(
 					'url',
-					$elm$json$Json$Encode$string($.A))
+					$elm$json$Json$Encode$string($.v))
 				]));
-	});
-var $author$project$Main$loadReplay = F3(
-	function (url, requestedIndex, content) {
-		var normalized = A3($elm$core$String$replace, '\u2019', '\'', content);
-		var replay = $author$project$Replay$parse(normalized);
-		var index = A2(
-			$elm$core$Basics$min,
-			A2($elm$core$Basics$max, 0, requestedIndex),
-			A2(
-				$elm$core$Basics$max,
-				0,
-				$elm$core$List$length(replay._) - 1));
-		return $elm$core$List$isEmpty(replay._) ? _Utils_Tuple2(
-			A2($author$project$Main$Failed, url, 'No replay content found — check the URL'),
-			$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-			A5($author$project$Main$Loaded, url, replay, index, $elm$core$Maybe$Nothing, $elm$core$Dict$empty),
-			$author$project$Main$pushUrl(
-				{Z: index, A: url}));
-	});
-var $elm$url$Url$percentEncode = _Url_percentEncode;
-var $author$project$Main$proxyUrl = function (url) {
-	return 'https://api.allorigins.win/raw?url=' + $elm$url$Url$percentEncode(url);
-};
-var $author$project$Main$update = F2(
-	function (msg, model) {
-		update:
-		while (true) {
-			switch (msg.$) {
-				case 0:
-					var url = msg.a;
-					return _Utils_Tuple2(
-						$author$project$Main$EnteringUrl(url),
-						$elm$core$Platform$Cmd$none);
-				case 1:
-					var url = $elm$core$String$trim(
-						$author$project$Main$currentUrl(model));
-					return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-						A2($author$project$Main$Loading, url, 0),
-						$elm$http$Http$get(
-							{
-								am: $elm$http$Http$expectString($author$project$Main$GotReplay),
-								A: url
-							}));
-				case 2:
-					var result = msg.a;
-					switch (model.$) {
-						case 1:
-							var url = model.a;
-							var idx = model.b;
-							if (!result.$) {
-								var content = result.a;
-								return A3($author$project$Main$loadReplay, url, idx, content);
-							} else {
-								if (result.a.$ === 2) {
-									var _v3 = result.a;
-									return _Utils_Tuple2(
-										A2($author$project$Main$Retrying, url, idx),
-										$elm$http$Http$get(
-											{
-												am: $elm$http$Http$expectString($author$project$Main$GotReplay),
-												A: $author$project$Main$proxyUrl(url)
-											}));
-								} else {
-									var err = result.a;
-									return _Utils_Tuple2(
-										A2(
-											$author$project$Main$Failed,
-											url,
-											$author$project$Main$httpErrorToString(err)),
-										$elm$core$Platform$Cmd$none);
-								}
-							}
-						case 2:
-							var url = model.a;
-							var idx = model.b;
-							if (!result.$) {
-								var content = result.a;
-								return A3($author$project$Main$loadReplay, url, idx, content);
-							} else {
-								var err = result.a;
-								return _Utils_Tuple2(
-									A2(
-										$author$project$Main$Failed,
-										url,
-										$author$project$Main$httpErrorToString(err)),
-									$elm$core$Platform$Cmd$none);
-							}
-						default:
-							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 3:
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var cache = model.e;
-						return _Utils_Tuple2(
-							A5($author$project$Main$Loaded, url, replay, 0, $elm$core$Maybe$Nothing, cache),
-							$author$project$Main$pushUrl(
-								{Z: 0, A: url}));
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 4:
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						var newIndex = A2($elm$core$Basics$max, 0, i - 1);
-						return _Utils_Tuple2(
-							A5($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing, cache),
-							$author$project$Main$pushUrl(
-								{Z: newIndex, A: url}));
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 5:
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						var newIndex = A2(
-							$elm$core$Basics$min,
-							$elm$core$List$length(replay._) - 1,
-							i + 1);
-						return _Utils_Tuple2(
-							A5($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing, cache),
-							$author$project$Main$pushUrl(
-								{Z: newIndex, A: url}));
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 6:
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var cache = model.e;
-						var newIndex = $elm$core$List$length(replay._) - 1;
-						return _Utils_Tuple2(
-							A5($author$project$Main$Loaded, url, replay, newIndex, $elm$core$Maybe$Nothing, cache),
-							$author$project$Main$pushUrl(
-								{Z: newIndex, A: url}));
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 7:
-					var direction = msg.a;
-					switch (direction) {
-						case 'left':
-							var $temp$msg = $author$project$Main$NextSection,
-								$temp$model = model;
-							msg = $temp$msg;
-							model = $temp$model;
-							continue update;
-						case 'right':
-							var $temp$msg = $author$project$Main$PrevSection,
-								$temp$model = model;
-							msg = $temp$msg;
-							model = $temp$model;
-							continue update;
-						default:
-							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 8:
-					var id = msg.a;
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						var _v11 = A2($elm$core$Dict$get, id, cache);
-						if (!_v11.$) {
-							var cardData = _v11.a;
-							return _Utils_Tuple2(
-								A5(
-									$author$project$Main$Loaded,
-									url,
-									replay,
-									i,
-									$elm$core$Maybe$Just(
-										A2($author$project$Main$ShowingCard, id, cardData)),
-									cache),
-								$elm$core$Platform$Cmd$none);
-						} else {
-							var _v12 = $author$project$Main$cardApiUrl(id);
-							if (!_v12.$) {
-								var apiUrl = _v12.a;
-								return _Utils_Tuple2(
-									A5(
-										$author$project$Main$Loaded,
-										url,
-										replay,
-										i,
-										$elm$core$Maybe$Just(
-											$author$project$Main$FetchingCard(id)),
-										cache),
-									$elm$http$Http$get(
-										{
-											am: $elm$http$Http$expectString(
-												$author$project$Main$GotCardImage(id)),
-											A: apiUrl
-										}));
-							} else {
-								return _Utils_Tuple2(
-									A5(
-										$author$project$Main$Loaded,
-										url,
-										replay,
-										i,
-										$elm$core$Maybe$Just(
-											$author$project$Main$CardNotFound(id)),
-										cache),
-									$elm$core$Platform$Cmd$none);
-							}
-						}
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 9:
-					var cardId = msg.a;
-					var moveName = msg.b;
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						var _v14 = A2($elm$core$Dict$get, cardId, cache);
-						if (!_v14.$) {
-							var cardData = _v14.a;
-							return _Utils_Tuple2(
-								A5(
-									$author$project$Main$Loaded,
-									url,
-									replay,
-									i,
-									$elm$core$Maybe$Just(
-										A2($author$project$Main$ShowingMove, cardData, moveName)),
-									cache),
-								$elm$core$Platform$Cmd$none);
-						} else {
-							var _v15 = $author$project$Main$cardApiUrl(cardId);
-							if (!_v15.$) {
-								var apiUrl = _v15.a;
-								return _Utils_Tuple2(
-									A5(
-										$author$project$Main$Loaded,
-										url,
-										replay,
-										i,
-										$elm$core$Maybe$Just(
-											A2($author$project$Main$FetchingMove, cardId, moveName)),
-										cache),
-									$elm$http$Http$get(
-										{
-											am: $elm$http$Http$expectString(
-												$author$project$Main$GotCardImage(cardId)),
-											A: apiUrl
-										}));
-							} else {
-								return _Utils_Tuple2(
-									A5(
-										$author$project$Main$Loaded,
-										url,
-										replay,
-										i,
-										$elm$core$Maybe$Just(
-											$author$project$Main$CardNotFound(cardId)),
-										cache),
-									$elm$core$Platform$Cmd$none);
-							}
-						}
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 10:
-					var info = msg.a;
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						return _Utils_Tuple2(
-							A5(
-								$author$project$Main$Loaded,
-								url,
-								replay,
-								i,
-								$elm$core$Maybe$Just(
-									$author$project$Main$ShowingDamageInfo(info)),
-								cache),
-							$elm$core$Platform$Cmd$none);
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				case 11:
-					var id = msg.a;
-					var result = msg.b;
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var currentPopup = model.d;
-						var cache = model.e;
-						var _v18 = function () {
-							if (!result.$) {
-								var body = result.a;
-								var _v20 = $author$project$Main$decodeCardData(body);
-								if (!_v20.$) {
-									var cardData = _v20.a;
-									var resolvedData = function () {
-										var _v24 = cardData.aq;
-										if (!_v24.$) {
-											return cardData;
-										} else {
-											var _v25 = A2(
-												$elm$json$Json$Decode$decodeString,
-												A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
-												body);
-											if (!_v25.$) {
-												var apiName = _v25.a;
-												var _v26 = $author$project$Main$basicEnergyImageUrl(apiName);
-												if (!_v26.$) {
-													var fallbackUrl = _v26.a;
-													return _Utils_update(
-														cardData,
-														{
-															aq: $elm$core$Maybe$Just(fallbackUrl)
-														});
-												} else {
-													return cardData;
-												}
-											} else {
-												return cardData;
-											}
-										}
-									}();
-									var nextPopup = function () {
-										if ((!currentPopup.$) && (currentPopup.a.$ === 1)) {
-											var _v22 = currentPopup.a;
-											var moveName = _v22.b;
-											return A2($author$project$Main$ShowingMove, resolvedData, moveName);
-										} else {
-											var _v23 = resolvedData.aq;
-											if (!_v23.$) {
-												return A2($author$project$Main$ShowingCard, id, resolvedData);
-											} else {
-												return $author$project$Main$CardNotFound(id);
-											}
-										}
-									}();
-									return _Utils_Tuple2(
-										nextPopup,
-										A3($elm$core$Dict$insert, id, resolvedData, cache));
-								} else {
-									return _Utils_Tuple2(
-										$author$project$Main$CardNotFound(id),
-										cache);
-								}
-							} else {
-								return _Utils_Tuple2(
-									$author$project$Main$CardNotFound(id),
-									cache);
-							}
-						}();
-						var popup = _v18.a;
-						var newCache = _v18.b;
-						return _Utils_Tuple2(
-							A5(
-								$author$project$Main$Loaded,
-								url,
-								replay,
-								i,
-								$elm$core$Maybe$Just(popup),
-								newCache),
-							$elm$core$Platform$Cmd$none);
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-				default:
-					if (model.$ === 3) {
-						var url = model.a;
-						var replay = model.b;
-						var i = model.c;
-						var cache = model.e;
-						return _Utils_Tuple2(
-							A5($author$project$Main$Loaded, url, replay, i, $elm$core$Maybe$Nothing, cache),
-							$elm$core$Platform$Cmd$none);
-					} else {
-						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-					}
-			}
-		}
-	});
-var $elm$html$Html$div = _VirtualDom_node('div');
-var $elm$html$Html$h1 = _VirtualDom_node('h1');
-var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
-var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
-var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$CloseCard = {$: 12};
-var $elm$html$Html$img = _VirtualDom_node('img');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 0, a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
-var $elm$html$Html$Attributes$src = function (url) {
-	return A2(
-		$elm$html$Html$Attributes$stringProperty,
-		'src',
-		_VirtualDom_noJavaScriptOrHtmlUri(url));
-};
-var $author$project$Main$viewDamageDetail = function (info) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'background', 'white'),
-				A2($elm$html$Html$Attributes$style, 'border-radius', '12px'),
-				A2($elm$html$Html$Attributes$style, 'padding', '1.25rem 1.75rem'),
-				A2($elm$html$Html$Attributes$style, 'max-width', '360px'),
-				A2($elm$html$Html$Attributes$style, 'width', '90vw'),
-				A2($elm$html$Html$Attributes$style, 'cursor', 'default'),
-				A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)')
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_Nil,
-				A2(
-					$elm$core$List$map,
-					function (line) {
-						return A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
-									A2($elm$html$Html$Attributes$style, 'color', '#2d3748'),
-									A2($elm$html$Html$Attributes$style, 'padding', '0.15rem 0'),
-									A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text(line)
-								]));
-					},
-					info.aN))
-			]));
-};
-var $elm$core$List$filter = F2(
-	function (isGood, list) {
-		return A3(
-			$elm$core$List$foldr,
-			F2(
-				function (x, xs) {
-					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
-				}),
-			_List_Nil,
-			list);
-	});
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
-};
-var $elm$html$Html$p = _VirtualDom_node('p');
-var $elm$html$Html$span = _VirtualDom_node('span');
-var $author$project$Main$viewAbilityDetail = function (ability) {
-	return A2(
-		$elm$html$Html$div,
-		_List_Nil,
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-						A2($elm$html$Html$Attributes$style, 'gap', '0.5rem'),
-						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.75rem')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'background', '#9f7aea'),
-								A2($elm$html$Html$Attributes$style, 'color', 'white'),
-								A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
-								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-								A2($elm$html$Html$Attributes$style, 'letter-spacing', '0.06em'),
-								A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase'),
-								A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0.5rem'),
-								A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(ability.a7)
-							])),
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
-								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(ability.at)
-							]))
-					])),
-				A2(
-				$elm$html$Html$p,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
-						A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-						A2($elm$html$Html$Attributes$style, 'line-height', '1.6'),
-						A2($elm$html$Html$Attributes$style, 'margin', '0')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text(ability.al)
-					]))
-			]));
-};
-var $author$project$Main$viewEnergyCost = function (energyType) {
-	return A2(
-		$elm$html$Html$span,
-		_List_fromArray(
-			[
-				A2($elm$html$Html$Attributes$style, 'font-size', '0.72em'),
-				A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
-				A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
-				A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-				A2($elm$html$Html$Attributes$style, 'padding', '0.15em 0.4em'),
-				A2($elm$html$Html$Attributes$style, 'border-radius', '999px'),
-				A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap')
-			]),
-		_List_fromArray(
-			[
-				$elm$html$Html$text(energyType)
-			]));
-};
-var $author$project$Main$viewAttackDetail = function (attack) {
-	return A2(
-		$elm$html$Html$div,
-		_List_Nil,
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-						A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
-						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.5rem')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
-								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(attack.at)
-							])),
-						$elm$core$String$isEmpty(attack.co) ? $elm$html$Html$text('') : A2(
-						$elm$html$Html$span,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'font-size', '1.1rem'),
-								A2($elm$html$Html$Attributes$style, 'font-weight', '800'),
-								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
-							]),
-						_List_fromArray(
-							[
-								$elm$html$Html$text(attack.co + ' dmg')
-							]))
-					])),
-				$elm$core$List$isEmpty(attack.aQ) ? $elm$html$Html$text('') : A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'gap', '0.3rem'),
-						A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
-						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.6rem')
-					]),
-				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aQ)),
-				$elm$core$String$isEmpty(attack.al) ? $elm$html$Html$text('') : A2(
-				$elm$html$Html$p,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
-						A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-						A2($elm$html$Html$Attributes$style, 'line-height', '1.6'),
-						A2($elm$html$Html$Attributes$style, 'margin', '0')
-					]),
-				_List_fromArray(
-					[
-						$elm$html$Html$text(attack.al)
-					]))
-			]));
-};
-var $author$project$Main$viewMoveDetail = F2(
-	function (cardData, moveName) {
-		var maybeAttack = $elm$core$List$head(
-			A2(
-				$elm$core$List$filter,
-				function (a) {
-					return _Utils_eq(a.at, moveName);
-				},
-				cardData.aM));
-		var maybeAbility = $elm$core$List$head(
-			A2(
-				$elm$core$List$filter,
-				function (a) {
-					return _Utils_eq(a.at, moveName);
-				},
-				cardData.aK));
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					A2($elm$html$Html$Attributes$style, 'background', 'white'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '12px'),
-					A2($elm$html$Html$Attributes$style, 'padding', '1.5rem 2rem'),
-					A2($elm$html$Html$Attributes$style, 'max-width', '380px'),
-					A2($elm$html$Html$Attributes$style, 'width', '90vw'),
-					A2($elm$html$Html$Attributes$style, 'cursor', 'default'),
-					A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)')
-				]),
-			_List_fromArray(
-				[
-					function () {
-					if (!maybeAbility.$) {
-						var ability = maybeAbility.a;
-						return $author$project$Main$viewAbilityDetail(ability);
-					} else {
-						if (!maybeAttack.$) {
-							var attack = maybeAttack.a;
-							return $author$project$Main$viewAttackDetail(attack);
-						} else {
-							return A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
-										A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text(moveName)
-									]));
-						}
-					}
-				}()
-				]));
-	});
-var $author$project$Main$viewCardPopup = function (popup) {
-	return A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Events$onClick($author$project$Main$CloseCard),
-				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
-				A2($elm$html$Html$Attributes$style, 'inset', '0'),
-				A2($elm$html$Html$Attributes$style, 'background', 'rgba(0,0,0,0.6)'),
-				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-				A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-				A2($elm$html$Html$Attributes$style, 'z-index', '1000'),
-				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer')
-			]),
-		_List_fromArray(
-			[
-				function () {
-				switch (popup.$) {
-					case 0:
-						return A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'color', 'white'),
-									A2($elm$html$Html$Attributes$style, 'font-style', 'italic'),
-									A2($elm$html$Html$Attributes$style, 'font-size', '1rem')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Loading…')
-								]));
-					case 1:
-						return A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'color', 'white'),
-									A2($elm$html$Html$Attributes$style, 'font-style', 'italic'),
-									A2($elm$html$Html$Attributes$style, 'font-size', '1rem')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Loading…')
-								]));
-					case 5:
-						var id = popup.a;
-						return A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'background', 'white'),
-									A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
-									A2($elm$html$Html$Attributes$style, 'padding', '1.5rem 2rem'),
-									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-									A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('Card not found: ' + id)
-								]));
-					case 2:
-						var cardData = popup.b;
-						var _v1 = cardData.aq;
-						if (!_v1.$) {
-							var imageUrl = _v1.a;
-							return A2(
-								$elm$html$Html$img,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$src(imageUrl + '/high.webp'),
-										A2($elm$html$Html$Attributes$style, 'max-height', '80vh'),
-										A2($elm$html$Html$Attributes$style, 'max-width', '90vw'),
-										A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
-										A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.5)'),
-										A2($elm$html$Html$Attributes$style, 'display', 'block')
-									]),
-								_List_Nil);
-						} else {
-							return $elm$html$Html$text('');
-						}
-					case 3:
-						var cardData = popup.a;
-						var moveName = popup.b;
-						return A2($author$project$Main$viewMoveDetail, cardData, moveName);
-					default:
-						var info = popup.a;
-						return $author$project$Main$viewDamageDetail(info);
-				}
-			}()
-			]));
-};
-var $elm$core$List$drop = F2(
-	function (n, list) {
-		drop:
-		while (true) {
-			if (n <= 0) {
-				return list;
-			} else {
-				if (!list.b) {
-					return list;
-				} else {
-					var x = list.a;
-					var xs = list.b;
-					var $temp$n = n - 1,
-						$temp$list = xs;
-					n = $temp$n;
-					list = $temp$list;
-					continue drop;
-				}
-			}
-		}
-	});
-var $elm$core$List$append = F2(
-	function (xs, ys) {
-		if (!ys.b) {
-			return xs;
-		} else {
-			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
-		}
-	});
-var $elm$core$List$concat = function (lists) {
-	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
-};
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
 	});
 var $author$project$Action$UnknownAction = function (a) {
 	return {$: 47, a: a};
@@ -7749,7 +6960,7 @@ var $author$project$Action$parseCardRef = function (str) {
 			var name = $author$project$Action$extractFirstName(
 				$elm$core$String$trimLeft(remainder));
 			return $author$project$Action$isCardId(rawId) ? $elm$core$Maybe$Just(
-				{aA: rawId, at: name}) : $elm$core$Maybe$Nothing;
+				{av: rawId, ao: name}) : $elm$core$Maybe$Nothing;
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7783,7 +6994,7 @@ var $author$project$Action$tryAttached = function (raw) {
 						var pokemon = {d: pCard, b: player};
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Attached(
-								{cD: itemCard, b: player, aD: pos, aH: pokemon}));
+								{cE: itemCard, b: player, ay: pos, aC: pokemon}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7873,7 +7084,7 @@ var $author$project$Action$parsePokemonRef = function (str) {
 					A2($elm$core$String$join, ')', nameParts)));
 			return $author$project$Action$isCardId(rawId) ? $elm$core$Maybe$Just(
 				{
-					d: {aA: rawId, at: name},
+					d: {av: rawId, ao: name},
 					b: player
 				}) : $elm$core$Maybe$Nothing;
 		} else {
@@ -7898,7 +7109,7 @@ var $author$project$Action$tryCardDiscardedFrom = function (raw) {
 				var pokemon = _v2.b.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$CardDiscardedFrom(
-						{d: card, z: pokemon}));
+						{d: card, A: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7923,7 +7134,7 @@ var $author$project$Action$tryChoseOption = function (raw) {
 			return $elm$core$Maybe$Just(
 				$author$project$Action$ChoseOption(
 					{
-						cW: $elm$core$String$trimRight(option),
+						cX: $elm$core$String$trimRight(option),
 						b: player
 					}));
 		} else {
@@ -7950,7 +7161,7 @@ var $author$project$Action$tryCoinFlipChoice = function (raw) {
 					A2($elm$core$String$split, ' for', choicePart)));
 			return $elm$core$Maybe$Just(
 				$author$project$Action$CoinFlipChoice(
-					{cm: choice, b: player}));
+					{cn: choice, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7987,8 +7198,8 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$CoinFlipResult(
 						{
-							bl: 1,
-							br: (outcome === 'heads') ? 1 : 0,
+							bm: 1,
+							bs: (outcome === 'heads') ? 1 : 0,
 							b: player
 						}));
 			} else {
@@ -8010,7 +7221,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 						var heads = _v4.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$CoinFlipResult(
-								{bl: flipped, br: heads, b: player}));
+								{bm: flipped, bs: heads, b: player}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -8058,7 +7269,7 @@ var $author$project$Action$tryConditionApplied = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionApplied(
-						{be: condition, z: pokemon}));
+						{bf: condition, A: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8089,7 +7300,7 @@ var $author$project$Action$tryConditionRemoved = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionRemoved(
-						{be: condition, z: pokemon}));
+						{bf: condition, A: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8113,7 +7324,7 @@ var $author$project$Action$tryDamagePrevented = function (raw) {
 			$elm$core$Maybe$map,
 			function (card) {
 				return $author$project$Action$DamagePrevented(
-					{z: card});
+					{A: card});
 			},
 			$author$project$Action$parseCardRef(inner));
 	} else {
@@ -8228,7 +7439,7 @@ var $author$project$Action$tryDrewCard = function (raw) {
 				var card = _v2.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$DrewCard(
-						{cc: andPlayed, d: card, b: player}));
+						{cd: andPlayed, d: card, b: player}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -8282,7 +7493,7 @@ var $author$project$Action$tryEffectBlocked = function (raw) {
 				$elm$core$Maybe$map,
 				function (card) {
 					return $author$project$Action$EffectBlocked(
-						{aC: move, z: card});
+						{ax: move, A: card});
 				},
 				$author$project$Action$parseCardRef(pokemonPart));
 		} else {
@@ -8320,7 +7531,7 @@ var $author$project$Action$tryEvolved = function (raw) {
 						var to = _v5.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Evolved(
-								{aS: from, b: player, aD: pos, a6: to}));
+								{aR: from, b: player, ay: pos, a7: to}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -8348,7 +7559,7 @@ var $author$project$Action$tryGoDecision = function (raw) {
 			var first = A2($elm$core$String$startsWith, 'first', choice);
 			return $elm$core$Maybe$Just(
 				$author$project$Action$GoDecision(
-					{cz: first, b: player}));
+					{cA: first, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -8367,7 +7578,7 @@ var $author$project$Action$tryKnockedOut = function (raw) {
 			var pokemon = _v0.a;
 			return $elm$core$Maybe$Just(
 				$author$project$Action$KnockedOut(
-					{z: pokemon}));
+					{A: pokemon}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -8414,7 +7625,7 @@ var $author$project$Action$tryMovedDamageCounters = function (raw) {
 							var toRef = _v7.b.a;
 							return $elm$core$Maybe$Just(
 								$author$project$Action$MovedDamageCounters(
-									{l: n, aS: fromRef, b: mover, a6: toRef}));
+									{l: n, aR: fromRef, b: mover, a7: toRef}));
 						} else {
 							return $elm$core$Maybe$Nothing;
 						}
@@ -8442,7 +7653,7 @@ var $author$project$Action$tryMovedToActive = function (raw) {
 		$elm$core$Maybe$map,
 		function (pokemon) {
 			return $author$project$Action$MovedToActive(
-				{z: pokemon});
+				{A: pokemon});
 		},
 		$author$project$Action$parsePokemonRef(
 			A2($elm$core$String$dropRight, 27, raw))) : $elm$core$Maybe$Nothing;
@@ -8473,7 +7684,7 @@ var $author$project$Action$tryMovedToDiscard = function (raw) {
 					var n = _v4.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MovedToDiscard(
-							{l: n, cJ: mover, cY: ownerName}));
+							{l: n, cK: mover, cZ: ownerName}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -8566,7 +7777,7 @@ var $author$project$Action$tryMulliganBonus = function (raw) {
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MulliganBonus(
 							{
-								cg: A3(
+								ch: A3(
 									$elm$core$String$replace,
 									'.',
 									'',
@@ -8679,7 +7890,7 @@ var $author$project$Action$tryPlacedDamageCounters = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PlacedDamageCounters(
-								{l: n, b: mover, z: pokemon});
+								{l: n, b: mover, A: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -8710,7 +7921,7 @@ var $author$project$Action$tryPlayedPokemon = function (raw) {
 					$elm$core$Maybe$map,
 					function (card) {
 						return $author$project$Action$PlayedPokemon(
-							{d: card, b: player, aD: 0});
+							{d: card, b: player, ay: 0});
 					},
 					$author$project$Action$parseCardRef(rest));
 			} else {
@@ -8727,7 +7938,7 @@ var $author$project$Action$tryPlayedPokemon = function (raw) {
 						$elm$core$Maybe$map,
 						function (card) {
 							return $author$project$Action$PlayedPokemon(
-								{d: card, b: player, aD: 1});
+								{d: card, b: player, ay: 1});
 						},
 						$author$project$Action$parseCardRef(rest));
 				} else {
@@ -8814,7 +8025,7 @@ var $author$project$Action$tryPoisonCheckupDamage = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PoisonCheckupDamage(
-								{cn: n, z: pokemon});
+								{co: n, A: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -9032,7 +8243,7 @@ var $author$project$Action$trySpecialConditionImmune = function (raw) {
 		$elm$core$Maybe$map,
 		function (card) {
 			return $author$project$Action$SpecialConditionImmune(
-				{z: card});
+				{A: card});
 		},
 		$author$project$Action$parseCardRef(raw)) : $elm$core$Maybe$Nothing;
 };
@@ -9055,9 +8266,9 @@ var $author$project$Action$trySwitched = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$Switched(
 						{
-							aS: fromRef.d,
+							aR: fromRef.d,
 							b: fromRef.b,
-							a6: {aA: '', at: ''}
+							a7: {av: '', ao: ''}
 						}));
 			} else {
 				return $elm$core$Maybe$Nothing;
@@ -9110,7 +8321,7 @@ var $author$project$Action$tryTookDamage = function (raw) {
 					var amount = _v3.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$TookDamage(
-							{cb: amount, z: pokemon}));
+							{cc: amount, A: pokemon}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -9299,16 +8510,16 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 						return $elm$core$Maybe$Just(
 							$author$project$Action$UsedAttack(
 								{
-									aL: attacker,
-									aY: modifier,
-									aC: move,
-									aH: $elm$core$Maybe$Just(
-										{co: damage, cr: defender})
+									aG: attacker,
+									aZ: modifier,
+									ax: move,
+									aC: $elm$core$Maybe$Just(
+										{cp: damage, cs: defender})
 								}));
 					} else {
 						return $elm$core$Maybe$Just(
 							$author$project$Action$UsedAttack(
-								{aL: attacker, aY: $elm$core$Maybe$Nothing, aC: rest, aH: $elm$core$Maybe$Nothing}));
+								{aG: attacker, aZ: $elm$core$Maybe$Nothing, ax: rest, aC: $elm$core$Maybe$Nothing}));
 					}
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -9317,10 +8528,10 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 				return $elm$core$Maybe$Just(
 					$author$project$Action$UsedAttack(
 						{
-							aL: attacker,
-							aY: $elm$core$Maybe$Nothing,
-							aC: $elm$core$String$trimRight(rest),
-							aH: $elm$core$Maybe$Nothing
+							aG: attacker,
+							aZ: $elm$core$Maybe$Nothing,
+							ax: $elm$core$String$trimRight(rest),
+							aC: $elm$core$Maybe$Nothing
 						}));
 			}
 		} else {
@@ -9344,7 +8555,7 @@ var $author$project$Action$tryUsedStadium = function (raw) {
 				A3($elm$core$String$replace, '.', '', nameDot));
 			return $elm$core$String$isEmpty(name) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
 				$author$project$Action$UsedStadium(
-					{at: name, b: player}));
+					{ao: name, b: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -9507,8 +8718,8 @@ var $author$project$Action$collectBullets = F2(
 					$temp$acc = A2(
 					$elm$core$List$cons,
 					{
-						N: $author$project$Action$parseAction(raw),
-						S: raw
+						Q: $author$project$Action$parseAction(raw),
+						V: raw
 					},
 					acc);
 				lines = $temp$lines;
@@ -9542,9 +8753,9 @@ var $author$project$Action$collectDetails = F2(
 						var bullets = _v1.a;
 						var remaining = _v1.b;
 						var detail = {
-							N: $author$project$Action$parseAction(raw),
-							aO: bullets,
-							S: raw
+							Q: $author$project$Action$parseAction(raw),
+							aL: bullets,
+							V: raw
 						};
 						var $temp$lines = remaining,
 							$temp$acc = A2($elm$core$List$cons, detail, acc);
@@ -9555,9 +8766,9 @@ var $author$project$Action$collectDetails = F2(
 						var raw = lines.a.a;
 						var rest = lines.b;
 						var detail = {
-							N: $author$project$Action$parseAction(raw),
-							aO: _List_Nil,
-							S: raw
+							Q: $author$project$Action$parseAction(raw),
+							aL: _List_Nil,
+							V: raw
 						};
 						var $temp$lines = rest,
 							$temp$acc = A2($elm$core$List$cons, detail, acc);
@@ -9585,9 +8796,9 @@ var $author$project$Action$groupHelp = F2(
 						$temp$acc = A2(
 						$elm$core$List$cons,
 						{
-							N: $author$project$Action$parseAction(raw),
-							bh: details,
-							S: raw
+							Q: $author$project$Action$parseAction(raw),
+							bi: details,
+							V: raw
 						},
 						acc);
 					lines = $temp$lines;
@@ -9607,14 +8818,1080 @@ var $author$project$Action$groupHelp = F2(
 var $author$project$Action$groupLines = function (lines) {
 	return A2($author$project$Action$groupHelp, lines, _List_Nil);
 };
+var $author$project$Main$sectionGroupCount = function (section) {
+	switch (section.$) {
+		case 0:
+			var lines = section.a;
+			return $elm$core$List$length(
+				$author$project$Action$groupLines(lines));
+		case 1:
+			var lines = section.b;
+			return $elm$core$List$length(
+				$author$project$Action$groupLines(lines));
+		case 2:
+			var lines = section.a;
+			return $elm$core$List$length(
+				$author$project$Action$groupLines(lines));
+		default:
+			return 1;
+	}
+};
+var $author$project$Main$loadReplay = F4(
+	function (url, requestedIndex, requestedGroupIndex, content) {
+		var normalized = A3($elm$core$String$replace, '\u2019', '\'', content);
+		var replay = $author$project$Replay$parse(normalized);
+		var index = A2(
+			$elm$core$Basics$min,
+			A2($elm$core$Basics$max, 0, requestedIndex),
+			A2(
+				$elm$core$Basics$max,
+				0,
+				$elm$core$List$length(replay.F) - 1));
+		var groupIndex = function () {
+			var section = $elm$core$List$head(
+				A2($elm$core$List$drop, index, replay.F));
+			var maxGroup = function (n) {
+				return A2($elm$core$Basics$max, 0, n - 1);
+			}(
+				A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Maybe$map, $author$project$Main$sectionGroupCount, section)));
+			return A2(
+				$elm$core$Basics$min,
+				A2($elm$core$Basics$max, 0, requestedGroupIndex),
+				maxGroup);
+		}();
+		return $elm$core$List$isEmpty(replay.F) ? _Utils_Tuple2(
+			A2($author$project$Main$Failed, url, 'No replay content found — check the URL'),
+			$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+			A6($author$project$Main$Loaded, url, replay, index, groupIndex, $elm$core$Maybe$Nothing, $elm$core$Dict$empty),
+			$author$project$Main$pushUrl(
+				{B: groupIndex, L: index, v: url}));
+	});
+var $elm$url$Url$percentEncode = _Url_percentEncode;
+var $author$project$Main$proxyUrl = function (url) {
+	return 'https://api.allorigins.win/raw?url=' + $elm$url$Url$percentEncode(url);
+};
+var $author$project$Main$NoOp = {$: 13};
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
+	});
+var $elm$core$Task$onError = _Scheduler_onError;
+var $elm$core$Task$attempt = F2(
+	function (resultToMessage, task) {
+		return $elm$core$Task$command(
+			A2(
+				$elm$core$Task$onError,
+				A2(
+					$elm$core$Basics$composeL,
+					A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+					$elm$core$Result$Err),
+				A2(
+					$elm$core$Task$andThen,
+					A2(
+						$elm$core$Basics$composeL,
+						A2($elm$core$Basics$composeL, $elm$core$Task$succeed, resultToMessage),
+						$elm$core$Result$Ok),
+					task)));
+	});
+var $elm$browser$Browser$Dom$setViewportOf = _Browser_setViewportOf;
+var $author$project$Main$scrollToTop = A2(
+	$elm$core$Task$attempt,
+	function (_v0) {
+		return $author$project$Main$NoOp;
+	},
+	A3($elm$browser$Browser$Dom$setViewportOf, 'action-content', 0, 0));
+var $author$project$Main$update = F2(
+	function (msg, model) {
+		update:
+		while (true) {
+			switch (msg.$) {
+				case 0:
+					var url = msg.a;
+					return _Utils_Tuple2(
+						$author$project$Main$EnteringUrl(url),
+						$elm$core$Platform$Cmd$none);
+				case 1:
+					var url = $elm$core$String$trim(
+						$author$project$Main$currentUrl(model));
+					return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
+						A3($author$project$Main$Loading, url, 0, 0),
+						$elm$http$Http$get(
+							{
+								ak: $elm$http$Http$expectString($author$project$Main$GotReplay),
+								v: url
+							}));
+				case 2:
+					var result = msg.a;
+					switch (model.$) {
+						case 1:
+							var url = model.a;
+							var idx = model.b;
+							var gIdx = model.c;
+							if (!result.$) {
+								var content = result.a;
+								return A4($author$project$Main$loadReplay, url, idx, gIdx, content);
+							} else {
+								if (result.a.$ === 2) {
+									var _v3 = result.a;
+									return _Utils_Tuple2(
+										A3($author$project$Main$Retrying, url, idx, gIdx),
+										$elm$http$Http$get(
+											{
+												ak: $elm$http$Http$expectString($author$project$Main$GotReplay),
+												v: $author$project$Main$proxyUrl(url)
+											}));
+								} else {
+									var err = result.a;
+									return _Utils_Tuple2(
+										A2(
+											$author$project$Main$Failed,
+											url,
+											$author$project$Main$httpErrorToString(err)),
+										$elm$core$Platform$Cmd$none);
+								}
+							}
+						case 2:
+							var url = model.a;
+							var idx = model.b;
+							var gIdx = model.c;
+							if (!result.$) {
+								var content = result.a;
+								return A4($author$project$Main$loadReplay, url, idx, gIdx, content);
+							} else {
+								var err = result.a;
+								return _Utils_Tuple2(
+									A2(
+										$author$project$Main$Failed,
+										url,
+										$author$project$Main$httpErrorToString(err)),
+									$elm$core$Platform$Cmd$none);
+							}
+						default:
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 3:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var cache = model.f;
+						return _Utils_Tuple2(
+							A6($author$project$Main$Loaded, url, replay, 0, 0, $elm$core$Maybe$Nothing, cache),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										$author$project$Main$pushUrl(
+										{B: 0, L: 0, v: url}),
+										$author$project$Main$scrollToTop
+									])));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 4:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						if (g > 0) {
+							return _Utils_Tuple2(
+								A6($author$project$Main$Loaded, url, replay, i, g - 1, $elm$core$Maybe$Nothing, cache),
+								$elm$core$Platform$Cmd$batch(
+									_List_fromArray(
+										[
+											$author$project$Main$pushUrl(
+											{B: g - 1, L: i, v: url}),
+											$author$project$Main$scrollToTop
+										])));
+						} else {
+							if (i > 0) {
+								var newI = i - 1;
+								var prevSection = $elm$core$List$head(
+									A2($elm$core$List$drop, newI, replay.F));
+								var prevCount = A2(
+									$elm$core$Maybe$withDefault,
+									1,
+									A2($elm$core$Maybe$map, $author$project$Main$sectionGroupCount, prevSection));
+								return _Utils_Tuple2(
+									A6(
+										$author$project$Main$Loaded,
+										url,
+										replay,
+										newI,
+										A2($elm$core$Basics$max, 0, prevCount - 1),
+										$elm$core$Maybe$Nothing,
+										cache),
+									$elm$core$Platform$Cmd$batch(
+										_List_fromArray(
+											[
+												$author$project$Main$pushUrl(
+												{
+													B: A2($elm$core$Basics$max, 0, prevCount - 1),
+													L: newI,
+													v: url
+												}),
+												$author$project$Main$scrollToTop
+											])));
+							} else {
+								return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+							}
+						}
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 5:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						var totalSections = $elm$core$List$length(replay.F);
+						var currentSection = $elm$core$List$head(
+							A2($elm$core$List$drop, i, replay.F));
+						var totalGroups = A2(
+							$elm$core$Maybe$withDefault,
+							1,
+							A2($elm$core$Maybe$map, $author$project$Main$sectionGroupCount, currentSection));
+						return (_Utils_cmp(g, totalGroups - 1) < 0) ? _Utils_Tuple2(
+							A6($author$project$Main$Loaded, url, replay, i, g + 1, $elm$core$Maybe$Nothing, cache),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										$author$project$Main$pushUrl(
+										{B: g + 1, L: i, v: url}),
+										$author$project$Main$scrollToTop
+									]))) : ((_Utils_cmp(i, totalSections - 1) < 0) ? _Utils_Tuple2(
+							A6($author$project$Main$Loaded, url, replay, i + 1, 0, $elm$core$Maybe$Nothing, cache),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										$author$project$Main$pushUrl(
+										{B: 0, L: i + 1, v: url}),
+										$author$project$Main$scrollToTop
+									]))) : _Utils_Tuple2(model, $elm$core$Platform$Cmd$none));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 6:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var cache = model.f;
+						var lastI = $elm$core$List$length(replay.F) - 1;
+						var lastSection = $elm$core$List$head(
+							A2($elm$core$List$drop, lastI, replay.F));
+						var lastCount = A2(
+							$elm$core$Maybe$withDefault,
+							1,
+							A2($elm$core$Maybe$map, $author$project$Main$sectionGroupCount, lastSection));
+						return _Utils_Tuple2(
+							A6(
+								$author$project$Main$Loaded,
+								url,
+								replay,
+								lastI,
+								A2($elm$core$Basics$max, 0, lastCount - 1),
+								$elm$core$Maybe$Nothing,
+								cache),
+							$elm$core$Platform$Cmd$batch(
+								_List_fromArray(
+									[
+										$author$project$Main$pushUrl(
+										{
+											B: A2($elm$core$Basics$max, 0, lastCount - 1),
+											L: lastI,
+											v: url
+										}),
+										$author$project$Main$scrollToTop
+									])));
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 7:
+					var direction = msg.a;
+					switch (direction) {
+						case 'left':
+							var $temp$msg = $author$project$Main$NextSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						case 'right':
+							var $temp$msg = $author$project$Main$PrevSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						default:
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 8:
+					var id = msg.a;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						var _v11 = A2($elm$core$Dict$get, id, cache);
+						if (!_v11.$) {
+							var cardData = _v11.a;
+							return _Utils_Tuple2(
+								A6(
+									$author$project$Main$Loaded,
+									url,
+									replay,
+									i,
+									g,
+									$elm$core$Maybe$Just(
+										A2($author$project$Main$ShowingCard, id, cardData)),
+									cache),
+								$elm$core$Platform$Cmd$none);
+						} else {
+							var _v12 = $author$project$Main$cardApiUrl(id);
+							if (!_v12.$) {
+								var apiUrl = _v12.a;
+								return _Utils_Tuple2(
+									A6(
+										$author$project$Main$Loaded,
+										url,
+										replay,
+										i,
+										g,
+										$elm$core$Maybe$Just(
+											$author$project$Main$FetchingCard(id)),
+										cache),
+									$elm$http$Http$get(
+										{
+											ak: $elm$http$Http$expectString(
+												$author$project$Main$GotCardImage(id)),
+											v: apiUrl
+										}));
+							} else {
+								return _Utils_Tuple2(
+									A6(
+										$author$project$Main$Loaded,
+										url,
+										replay,
+										i,
+										g,
+										$elm$core$Maybe$Just(
+											$author$project$Main$CardNotFound(id)),
+										cache),
+									$elm$core$Platform$Cmd$none);
+							}
+						}
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 9:
+					var cardId = msg.a;
+					var moveName = msg.b;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						var _v14 = A2($elm$core$Dict$get, cardId, cache);
+						if (!_v14.$) {
+							var cardData = _v14.a;
+							return _Utils_Tuple2(
+								A6(
+									$author$project$Main$Loaded,
+									url,
+									replay,
+									i,
+									g,
+									$elm$core$Maybe$Just(
+										A2($author$project$Main$ShowingMove, cardData, moveName)),
+									cache),
+								$elm$core$Platform$Cmd$none);
+						} else {
+							var _v15 = $author$project$Main$cardApiUrl(cardId);
+							if (!_v15.$) {
+								var apiUrl = _v15.a;
+								return _Utils_Tuple2(
+									A6(
+										$author$project$Main$Loaded,
+										url,
+										replay,
+										i,
+										g,
+										$elm$core$Maybe$Just(
+											A2($author$project$Main$FetchingMove, cardId, moveName)),
+										cache),
+									$elm$http$Http$get(
+										{
+											ak: $elm$http$Http$expectString(
+												$author$project$Main$GotCardImage(cardId)),
+											v: apiUrl
+										}));
+							} else {
+								return _Utils_Tuple2(
+									A6(
+										$author$project$Main$Loaded,
+										url,
+										replay,
+										i,
+										g,
+										$elm$core$Maybe$Just(
+											$author$project$Main$CardNotFound(cardId)),
+										cache),
+									$elm$core$Platform$Cmd$none);
+							}
+						}
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 10:
+					var info = msg.a;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						return _Utils_Tuple2(
+							A6(
+								$author$project$Main$Loaded,
+								url,
+								replay,
+								i,
+								g,
+								$elm$core$Maybe$Just(
+									$author$project$Main$ShowingDamageInfo(info)),
+								cache),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 11:
+					var id = msg.a;
+					var result = msg.b;
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var currentPopup = model.e;
+						var cache = model.f;
+						var _v18 = function () {
+							if (!result.$) {
+								var body = result.a;
+								var _v20 = $author$project$Main$decodeCardData(body);
+								if (!_v20.$) {
+									var cardData = _v20.a;
+									var resolvedData = function () {
+										var _v24 = cardData.al;
+										if (!_v24.$) {
+											return cardData;
+										} else {
+											var _v25 = A2(
+												$elm$json$Json$Decode$decodeString,
+												A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
+												body);
+											if (!_v25.$) {
+												var apiName = _v25.a;
+												var _v26 = $author$project$Main$basicEnergyImageUrl(apiName);
+												if (!_v26.$) {
+													var fallbackUrl = _v26.a;
+													return _Utils_update(
+														cardData,
+														{
+															al: $elm$core$Maybe$Just(fallbackUrl)
+														});
+												} else {
+													return cardData;
+												}
+											} else {
+												return cardData;
+											}
+										}
+									}();
+									var nextPopup = function () {
+										if ((!currentPopup.$) && (currentPopup.a.$ === 1)) {
+											var _v22 = currentPopup.a;
+											var moveName = _v22.b;
+											return A2($author$project$Main$ShowingMove, resolvedData, moveName);
+										} else {
+											var _v23 = resolvedData.al;
+											if (!_v23.$) {
+												return A2($author$project$Main$ShowingCard, id, resolvedData);
+											} else {
+												return $author$project$Main$CardNotFound(id);
+											}
+										}
+									}();
+									return _Utils_Tuple2(
+										nextPopup,
+										A3($elm$core$Dict$insert, id, resolvedData, cache));
+								} else {
+									return _Utils_Tuple2(
+										$author$project$Main$CardNotFound(id),
+										cache);
+								}
+							} else {
+								return _Utils_Tuple2(
+									$author$project$Main$CardNotFound(id),
+									cache);
+							}
+						}();
+						var popup = _v18.a;
+						var newCache = _v18.b;
+						return _Utils_Tuple2(
+							A6(
+								$author$project$Main$Loaded,
+								url,
+								replay,
+								i,
+								g,
+								$elm$core$Maybe$Just(popup),
+								newCache),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 12:
+					if (model.$ === 3) {
+						var url = model.a;
+						var replay = model.b;
+						var i = model.c;
+						var g = model.d;
+						var cache = model.f;
+						return _Utils_Tuple2(
+							A6($author$project$Main$Loaded, url, replay, i, g, $elm$core$Maybe$Nothing, cache),
+							$elm$core$Platform$Cmd$none);
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				default:
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			}
+		}
+	});
+var $elm$html$Html$div = _VirtualDom_node('div');
+var $elm$html$Html$h1 = _VirtualDom_node('h1');
+var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
+var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
+var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
+var $author$project$Main$CloseCard = {$: 12};
+var $elm$html$Html$img = _VirtualDom_node('img');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 0, a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$src = function (url) {
+	return A2(
+		$elm$html$Html$Attributes$stringProperty,
+		'src',
+		_VirtualDom_noJavaScriptOrHtmlUri(url));
+};
+var $author$project$Main$viewDamageDetail = function (info) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'background', 'white'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '12px'),
+				A2($elm$html$Html$Attributes$style, 'padding', '1.25rem 1.75rem'),
+				A2($elm$html$Html$Attributes$style, 'max-width', '360px'),
+				A2($elm$html$Html$Attributes$style, 'width', '90vw'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'default'),
+				A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_Nil,
+				A2(
+					$elm$core$List$map,
+					function (line) {
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
+									A2($elm$html$Html$Attributes$style, 'color', '#2d3748'),
+									A2($elm$html$Html$Attributes$style, 'padding', '0.15rem 0'),
+									A2($elm$html$Html$Attributes$style, 'line-height', '1.5')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(line)
+								]));
+					},
+					info.aK))
+			]));
+};
+var $elm$core$List$filter = F2(
+	function (isGood, list) {
+		return A3(
+			$elm$core$List$foldr,
+			F2(
+				function (x, xs) {
+					return isGood(x) ? A2($elm$core$List$cons, x, xs) : xs;
+				}),
+			_List_Nil,
+			list);
+	});
+var $elm$html$Html$p = _VirtualDom_node('p');
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $author$project$Main$viewAbilityDetail = function (ability) {
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+						A2($elm$html$Html$Attributes$style, 'gap', '0.5rem'),
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.75rem')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'background', '#9f7aea'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white'),
+								A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+								A2($elm$html$Html$Attributes$style, 'letter-spacing', '0.06em'),
+								A2($elm$html$Html$Attributes$style, 'text-transform', 'uppercase'),
+								A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0.5rem'),
+								A2($elm$html$Html$Attributes$style, 'border-radius', '4px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(ability.a8)
+							])),
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(ability.ao)
+							]))
+					])),
+				A2(
+				$elm$html$Html$p,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
+						A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+						A2($elm$html$Html$Attributes$style, 'line-height', '1.6'),
+						A2($elm$html$Html$Attributes$style, 'margin', '0')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(ability.aj)
+					]))
+			]));
+};
+var $author$project$Main$viewEnergyCost = function (energyType) {
+	return A2(
+		$elm$html$Html$span,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'font-size', '0.72em'),
+				A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
+				A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
+				A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+				A2($elm$html$Html$Attributes$style, 'padding', '0.15em 0.4em'),
+				A2($elm$html$Html$Attributes$style, 'border-radius', '999px'),
+				A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap')
+			]),
+		_List_fromArray(
+			[
+				$elm$html$Html$text(energyType)
+			]));
+};
+var $author$project$Main$viewAttackDetail = function (attack) {
+	return A2(
+		$elm$html$Html$div,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+						A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.5rem')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(attack.ao)
+							])),
+						$elm$core$String$isEmpty(attack.cp) ? $elm$html$Html$text('') : A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'font-size', '1.1rem'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', '800'),
+								A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(attack.cp + ' dmg')
+							]))
+					])),
+				$elm$core$List$isEmpty(attack.aO) ? $elm$html$Html$text('') : A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'gap', '0.3rem'),
+						A2($elm$html$Html$Attributes$style, 'flex-wrap', 'wrap'),
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.6rem')
+					]),
+				A2($elm$core$List$map, $author$project$Main$viewEnergyCost, attack.aO)),
+				$elm$core$String$isEmpty(attack.aj) ? $elm$html$Html$text('') : A2(
+				$elm$html$Html$p,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'font-size', '0.875rem'),
+						A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+						A2($elm$html$Html$Attributes$style, 'line-height', '1.6'),
+						A2($elm$html$Html$Attributes$style, 'margin', '0')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text(attack.aj)
+					]))
+			]));
+};
+var $author$project$Main$viewMoveDetail = F2(
+	function (cardData, moveName) {
+		var maybeAttack = $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (a) {
+					return _Utils_eq(a.ao, moveName);
+				},
+				cardData.aH));
+		var maybeAbility = $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (a) {
+					return _Utils_eq(a.ao, moveName);
+				},
+				cardData.aF));
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'background', 'white'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '12px'),
+					A2($elm$html$Html$Attributes$style, 'padding', '1.5rem 2rem'),
+					A2($elm$html$Html$Attributes$style, 'max-width', '380px'),
+					A2($elm$html$Html$Attributes$style, 'width', '90vw'),
+					A2($elm$html$Html$Attributes$style, 'cursor', 'default'),
+					A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.4)')
+				]),
+			_List_fromArray(
+				[
+					function () {
+					if (!maybeAbility.$) {
+						var ability = maybeAbility.a;
+						return $author$project$Main$viewAbilityDetail(ability);
+					} else {
+						if (!maybeAttack.$) {
+							var attack = maybeAttack.a;
+							return $author$project$Main$viewAttackDetail(attack);
+						} else {
+							return A2(
+								$elm$html$Html$div,
+								_List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'font-size', '1rem'),
+										A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
+									]),
+								_List_fromArray(
+									[
+										$elm$html$Html$text(moveName)
+									]));
+						}
+					}
+				}()
+				]));
+	});
+var $author$project$Main$viewCardPopup = function (popup) {
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onClick($author$project$Main$CloseCard),
+				A2($elm$html$Html$Attributes$style, 'position', 'fixed'),
+				A2($elm$html$Html$Attributes$style, 'inset', '0'),
+				A2($elm$html$Html$Attributes$style, 'background', 'rgba(0,0,0,0.6)'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+				A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+				A2($elm$html$Html$Attributes$style, 'z-index', '1000'),
+				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer')
+			]),
+		_List_fromArray(
+			[
+				function () {
+				switch (popup.$) {
+					case 0:
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'color', 'white'),
+									A2($elm$html$Html$Attributes$style, 'font-style', 'italic'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '1rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Loading…')
+								]));
+					case 1:
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'color', 'white'),
+									A2($elm$html$Html$Attributes$style, 'font-style', 'italic'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '1rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Loading…')
+								]));
+					case 5:
+						var id = popup.a;
+						return A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'background', 'white'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+									A2($elm$html$Html$Attributes$style, 'padding', '1.5rem 2rem'),
+									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('Card not found: ' + id)
+								]));
+					case 2:
+						var cardData = popup.b;
+						var _v1 = cardData.al;
+						if (!_v1.$) {
+							var imageUrl = _v1.a;
+							return A2(
+								$elm$html$Html$img,
+								_List_fromArray(
+									[
+										$elm$html$Html$Attributes$src(imageUrl + '/high.webp'),
+										A2($elm$html$Html$Attributes$style, 'max-height', '80vh'),
+										A2($elm$html$Html$Attributes$style, 'max-width', '90vw'),
+										A2($elm$html$Html$Attributes$style, 'border-radius', '8px'),
+										A2($elm$html$Html$Attributes$style, 'box-shadow', '0 8px 32px rgba(0,0,0,0.5)'),
+										A2($elm$html$Html$Attributes$style, 'display', 'block')
+									]),
+								_List_Nil);
+						} else {
+							return $elm$html$Html$text('');
+						}
+					case 3:
+						var cardData = popup.a;
+						var moveName = popup.b;
+						return A2($author$project$Main$viewMoveDetail, cardData, moveName);
+					default:
+						var info = popup.a;
+						return $author$project$Main$viewDamageDetail(info);
+				}
+			}()
+			]));
+};
 var $author$project$Main$playerColor = F2(
 	function (players, name) {
 		if (!players.$) {
 			var p = players.a;
-			return _Utils_eq(name, p.bL) ? '#c53030' : (_Utils_eq(name, p.bb) ? '#2c5282' : '#2d3748');
+			return _Utils_eq(name, p.bM) ? '#c53030' : (_Utils_eq(name, p.bc) ? '#2c5282' : '#2d3748');
 		} else {
 			return '#2d3748';
 		}
+	});
+var $elm$core$List$takeReverse = F3(
+	function (n, list, kept) {
+		takeReverse:
+		while (true) {
+			if (n <= 0) {
+				return kept;
+			} else {
+				if (!list.b) {
+					return kept;
+				} else {
+					var x = list.a;
+					var xs = list.b;
+					var $temp$n = n - 1,
+						$temp$list = xs,
+						$temp$kept = A2($elm$core$List$cons, x, kept);
+					n = $temp$n;
+					list = $temp$list;
+					kept = $temp$kept;
+					continue takeReverse;
+				}
+			}
+		}
+	});
+var $elm$core$List$takeTailRec = F2(
+	function (n, list) {
+		return $elm$core$List$reverse(
+			A3($elm$core$List$takeReverse, n, list, _List_Nil));
+	});
+var $elm$core$List$takeFast = F3(
+	function (ctr, n, list) {
+		if (n <= 0) {
+			return _List_Nil;
+		} else {
+			var _v0 = _Utils_Tuple2(n, list);
+			_v0$1:
+			while (true) {
+				_v0$5:
+				while (true) {
+					if (!_v0.b.b) {
+						return list;
+					} else {
+						if (_v0.b.b.b) {
+							switch (_v0.a) {
+								case 1:
+									break _v0$1;
+								case 2:
+									var _v2 = _v0.b;
+									var x = _v2.a;
+									var _v3 = _v2.b;
+									var y = _v3.a;
+									return _List_fromArray(
+										[x, y]);
+								case 3:
+									if (_v0.b.b.b.b) {
+										var _v4 = _v0.b;
+										var x = _v4.a;
+										var _v5 = _v4.b;
+										var y = _v5.a;
+										var _v6 = _v5.b;
+										var z = _v6.a;
+										return _List_fromArray(
+											[x, y, z]);
+									} else {
+										break _v0$5;
+									}
+								default:
+									if (_v0.b.b.b.b && _v0.b.b.b.b.b) {
+										var _v7 = _v0.b;
+										var x = _v7.a;
+										var _v8 = _v7.b;
+										var y = _v8.a;
+										var _v9 = _v8.b;
+										var z = _v9.a;
+										var _v10 = _v9.b;
+										var w = _v10.a;
+										var tl = _v10.b;
+										return (ctr > 1000) ? A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A2($elm$core$List$takeTailRec, n - 4, tl))))) : A2(
+											$elm$core$List$cons,
+											x,
+											A2(
+												$elm$core$List$cons,
+												y,
+												A2(
+													$elm$core$List$cons,
+													z,
+													A2(
+														$elm$core$List$cons,
+														w,
+														A3($elm$core$List$takeFast, ctr + 1, n - 4, tl)))));
+									} else {
+										break _v0$5;
+									}
+							}
+						} else {
+							if (_v0.a === 1) {
+								break _v0$1;
+							} else {
+								break _v0$5;
+							}
+						}
+					}
+				}
+				return list;
+			}
+			var _v1 = _v0.b;
+			var x = _v1.a;
+			return _List_fromArray(
+				[x]);
+		}
+	});
+var $elm$core$List$take = F2(
+	function (n, list) {
+		return A3($elm$core$List$takeFast, 0, n, list);
 	});
 var $author$project$Main$IsAbility = 0;
 var $author$project$Main$IsAttack = 1;
@@ -9638,6 +9915,22 @@ var $elm$core$List$any = F2(
 				}
 			}
 		}
+	});
+var $elm$core$List$append = F2(
+	function (xs, ys) {
+		if (!ys.b) {
+			return xs;
+		} else {
+			return A3($elm$core$List$foldr, $elm$core$List$cons, ys, xs);
+		}
+	});
+var $elm$core$List$concat = function (lists) {
+	return A3($elm$core$List$foldr, $elm$core$List$append, _List_Nil, lists);
+};
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
 	});
 var $elm$core$Basics$neq = _Utils_notEqual;
 var $author$project$Main$DamageClicked = function (a) {
@@ -9675,7 +9968,7 @@ var $author$project$Main$PlainText = function (a) {
 };
 var $author$project$Main$splitByPhrase = F2(
 	function (highlight, str) {
-		var phrase = highlight.a$;
+		var phrase = highlight.a0;
 		if ($elm$core$String$isEmpty(phrase)) {
 			return $elm$core$String$isEmpty(str) ? _List_Nil : _List_fromArray(
 				[
@@ -9714,7 +10007,7 @@ var $author$project$Main$splitByPhrase = F2(
 										]),
 									A2(
 										$elm$core$List$cons,
-										A3($author$project$Main$MoveRef, phrase, highlight.aV, highlight.aP),
+										A3($author$project$Main$MoveRef, phrase, highlight.aW, highlight.aM),
 										interleave(rest)));
 							}
 						}
@@ -9971,14 +10264,14 @@ var $author$project$Main$segmentPlayers = F2(
 				function (seg) {
 					if (!seg.$) {
 						var s = seg.a;
-						return A3($author$project$Main$splitByPlayer, players.bb, '#2c5282', s);
+						return A3($author$project$Main$splitByPlayer, players.bc, '#2c5282', s);
 					} else {
 						var other = seg;
 						return _List_fromArray(
 							[other]);
 					}
 				},
-				A3($author$project$Main$splitByPlayer, players.bL, '#c53030', str));
+				A3($author$project$Main$splitByPlayer, players.bM, '#c53030', str));
 		}
 	});
 var $author$project$Main$parseParen = F2(
@@ -10171,15 +10464,15 @@ var $author$project$Main$viewLine = F3(
 var $author$project$Main$viewActionGroup = F3(
 	function (players, cache, group) {
 		var topHighlight = function () {
-			var _v3 = group.N;
+			var _v3 = group.Q;
 			if (_v3.$ === 15) {
-				var attacker = _v3.a.aL;
-				var move = _v3.a.aC;
+				var attacker = _v3.a.aG;
+				var move = _v3.a.ax;
 				var cleaned = function () {
 					var trimmed = $elm$core$String$trim(move);
 					return A2($elm$core$String$endsWith, '.', trimmed) ? A2($elm$core$String$dropRight, 1, trimmed) : trimmed;
 				}();
-				var cardId = attacker.d.aA;
+				var cardId = attacker.d.av;
 				var kind = function () {
 					var _v4 = A2($elm$core$Dict$get, cardId, cache);
 					if (!_v4.$) {
@@ -10187,20 +10480,20 @@ var $author$project$Main$viewActionGroup = F3(
 						return A2(
 							$elm$core$List$any,
 							function (a) {
-								return _Utils_eq(a.at, cleaned);
+								return _Utils_eq(a.ao, cleaned);
 							},
-							cardData.aK) ? $elm$core$Maybe$Just(0) : (A2(
+							cardData.aF) ? $elm$core$Maybe$Just(0) : (A2(
 							$elm$core$List$any,
 							function (a) {
-								return _Utils_eq(a.at, cleaned);
+								return _Utils_eq(a.ao, cleaned);
 							},
-							cardData.aM) ? $elm$core$Maybe$Just(1) : $elm$core$Maybe$Nothing);
+							cardData.aH) ? $elm$core$Maybe$Just(1) : $elm$core$Maybe$Nothing);
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
 				}();
 				return $elm$core$Maybe$Just(
-					{aP: cardId, aV: kind, a$: cleaned});
+					{aM: cardId, aW: kind, a0: cleaned});
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -10214,7 +10507,7 @@ var $author$project$Main$viewActionGroup = F3(
 						$author$project$Main$viewLine,
 						players,
 						$elm$core$Maybe$Nothing,
-						$author$project$Replay$DetailLine(detail.S)),
+						$author$project$Replay$DetailLine(detail.V)),
 					A2(
 						$elm$core$List$map,
 						function (bullet) {
@@ -10222,26 +10515,26 @@ var $author$project$Main$viewActionGroup = F3(
 								$author$project$Main$viewLine,
 								players,
 								$elm$core$Maybe$Nothing,
-								$author$project$Replay$BulletLine(bullet.S));
+								$author$project$Replay$BulletLine(bullet.V));
 						},
-						detail.aO));
+						detail.aL));
 			},
-			group.bh);
-		var _v0 = group.N;
+			group.bi);
+		var _v0 = group.Q;
 		if (_v0.$ === 15) {
-			var target = _v0.a.aH;
-			var modifier = _v0.a.aY;
+			var target = _v0.a.aC;
+			var modifier = _v0.a.aZ;
 			if (!target.$) {
-				var damage = target.a.co;
+				var damage = target.a.cp;
 				if ((!_Utils_eq(modifier, $elm$core$Maybe$Nothing)) || A2(
 					$elm$core$Maybe$withDefault,
 					false,
 					A2(
 						$elm$core$Maybe$map,
 						function (d) {
-							return d.S === 'Damage breakdown:';
+							return d.V === 'Damage breakdown:';
 						},
-						$elm$core$List$head(group.bh)))) {
+						$elm$core$List$head(group.bi)))) {
 					var nonBreakdownDetails = A2(
 						$elm$core$List$concatMap,
 						function (detail) {
@@ -10251,7 +10544,7 @@ var $author$project$Main$viewActionGroup = F3(
 									$author$project$Main$viewLine,
 									players,
 									$elm$core$Maybe$Nothing,
-									$author$project$Replay$DetailLine(detail.S)),
+									$author$project$Replay$DetailLine(detail.V)),
 								A2(
 									$elm$core$List$map,
 									function (bullet) {
@@ -10259,45 +10552,45 @@ var $author$project$Main$viewActionGroup = F3(
 											$author$project$Main$viewLine,
 											players,
 											$elm$core$Maybe$Nothing,
-											$author$project$Replay$BulletLine(bullet.S));
+											$author$project$Replay$BulletLine(bullet.V));
 									},
-									detail.aO));
+									detail.aL));
 						},
 						A2(
 							$elm$core$List$filter,
 							function (d) {
-								return d.S !== 'Damage breakdown:';
+								return d.V !== 'Damage breakdown:';
 							},
-							group.bh));
+							group.bi));
 					var forDamage = ' for ' + ($elm$core$String$fromInt(damage) + ' damage.');
 					var prefixIdx = $elm$core$List$head(
-						A2($elm$core$String$indexes, forDamage, group.S));
+						A2($elm$core$String$indexes, forDamage, group.V));
 					var breakdownLines = A2(
 						$elm$core$List$concatMap,
 						function (detail) {
 							return A2(
 								$elm$core$List$cons,
-								detail.S,
+								detail.V,
 								A2(
 									$elm$core$List$map,
 									function ($) {
-										return $.S;
+										return $.V;
 									},
-									detail.aO));
+									detail.aL));
 						},
 						A2(
 							$elm$core$List$filter,
 							function (d) {
-								return d.S === 'Damage breakdown:';
+								return d.V === 'Damage breakdown:';
 							},
-							group.bh));
-					var damageInfo = {aN: breakdownLines};
+							group.bi));
+					var damageInfo = {aK: breakdownLines};
 					var attackPrefixRaw = function () {
 						if (!prefixIdx.$) {
 							var i = prefixIdx.a;
-							return A2($elm$core$String$left, i, group.S);
+							return A2($elm$core$String$left, i, group.V);
 						} else {
-							return group.S;
+							return group.V;
 						}
 					}();
 					return A2(
@@ -10326,7 +10619,7 @@ var $author$project$Main$viewActionGroup = F3(
 							$author$project$Main$viewLine,
 							players,
 							topHighlight,
-							$author$project$Replay$TopLine(group.S)),
+							$author$project$Replay$TopLine(group.V)),
 						normalDetails);
 				}
 			} else {
@@ -10336,7 +10629,7 @@ var $author$project$Main$viewActionGroup = F3(
 						$author$project$Main$viewLine,
 						players,
 						topHighlight,
-						$author$project$Replay$TopLine(group.S)),
+						$author$project$Replay$TopLine(group.V)),
 					normalDetails);
 			}
 		} else {
@@ -10346,12 +10639,13 @@ var $author$project$Main$viewActionGroup = F3(
 					$author$project$Main$viewLine,
 					players,
 					topHighlight,
-					$author$project$Replay$TopLine(group.S)),
+					$author$project$Replay$TopLine(group.V)),
 				normalDetails);
 		}
 	});
 var $author$project$Main$FirstSection = {$: 3};
 var $author$project$Main$LastSection = {$: 6};
+var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $author$project$Main$navArrow = F3(
 	function (visible, msg, symbol) {
@@ -10378,15 +10672,21 @@ var $author$project$Main$navArrow = F3(
 				]));
 	});
 var $author$project$Main$viewNavSection = function (_v0) {
-	var badge = _v0.ah;
-	var extra = _v0.an;
-	var borderColor = _v0.ai;
-	var content = _v0.aj;
-	var hasPrev = _v0.ap;
-	var hasNext = _v0.ao;
+	var badge = _v0.aI;
+	var extra = _v0.aQ;
+	var borderColor = _v0.aJ;
+	var content = _v0.aN;
+	var hasPrev = _v0.aU;
+	var hasNext = _v0.aT;
 	return A2(
 		$elm$html$Html$div,
-		_List_Nil,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+				A2($elm$html$Html$Attributes$style, 'flex', '1'),
+				A2($elm$html$Html$Attributes$style, 'min-height', '0')
+			]),
 		_List_fromArray(
 			[
 				A2(
@@ -10396,7 +10696,8 @@ var $author$project$Main$viewNavSection = function (_v0) {
 						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 						A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
 						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.5rem')
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '0.5rem'),
+						A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
 					]),
 				_List_fromArray(
 					[
@@ -10438,8 +10739,12 @@ var $author$project$Main$viewNavSection = function (_v0) {
 				$elm$html$Html$div,
 				_List_fromArray(
 					[
+						$elm$html$Html$Attributes$id('action-content'),
 						A2($elm$html$Html$Attributes$style, 'border-left', '3px solid ' + borderColor),
-						A2($elm$html$Html$Attributes$style, 'padding-left', '0.75rem')
+						A2($elm$html$Html$Attributes$style, 'padding-left', '0.75rem'),
+						A2($elm$html$Html$Attributes$style, 'overflow-y', 'auto'),
+						A2($elm$html$Html$Attributes$style, 'flex', '1'),
+						A2($elm$html$Html$Attributes$style, 'min-height', '0')
 					]),
 				content)
 			]));
@@ -10464,78 +10769,86 @@ var $author$project$Main$viewSectionBadge = F2(
 					$elm$html$Html$text(label)
 				]));
 	});
-var $author$project$Main$viewSectionWithNav = F5(
-	function (cache, players, hasPrev, hasNext, section) {
+var $author$project$Main$viewSectionWithNav = F6(
+	function (cache, players, sectionIndex, groupIndex, totalSections, section) {
+		var renderLines = F4(
+			function (badge, extra, borderColor, lines) {
+				var hasPrev = (groupIndex > 0) || (sectionIndex > 0);
+				var groups = $author$project$Action$groupLines(lines);
+				var totalGroups = $elm$core$List$length(groups);
+				var hasNext = (_Utils_cmp(groupIndex, totalGroups - 1) < 0) || (_Utils_cmp(sectionIndex, totalSections - 1) < 0);
+				var visibleContent = A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, group) {
+							return A2(
+								$elm$html$Html$div,
+								(i > 0) ? _List_fromArray(
+									[
+										A2($elm$html$Html$Attributes$style, 'opacity', '0.4'),
+										A2($elm$html$Html$Attributes$style, 'pointer-events', 'none')
+									]) : _List_Nil,
+								A3($author$project$Main$viewActionGroup, players, cache, group));
+						}),
+					$elm$core$List$reverse(
+						A2($elm$core$List$take, groupIndex + 1, groups)));
+				return $author$project$Main$viewNavSection(
+					{aI: badge, aJ: borderColor, aN: visibleContent, aQ: extra, aT: hasNext, aU: hasPrev});
+			});
 		switch (section.$) {
 			case 0:
 				var lines = section.a;
-				return $author$project$Main$viewNavSection(
-					{
-						ah: A2($author$project$Main$viewSectionBadge, '#718096', 'Setup'),
-						ai: '#71809640',
-						aj: A2(
-							$elm$core$List$concatMap,
-							A2($author$project$Main$viewActionGroup, players, cache),
-							$author$project$Action$groupLines(lines)),
-						an: _List_Nil,
-						ao: hasNext,
-						ap: hasPrev
-					});
+				return A4(
+					renderLines,
+					A2($author$project$Main$viewSectionBadge, '#718096', 'Setup'),
+					_List_Nil,
+					'#71809640',
+					lines);
 			case 1:
 				var turn = section.a;
 				var lines = section.b;
 				var badgeColor = A2($author$project$Main$playerColor, players, turn.b);
-				return $author$project$Main$viewNavSection(
-					{
-						ah: A2(
-							$author$project$Main$viewSectionBadge,
-							badgeColor,
-							'Turn ' + $elm$core$String$fromInt(turn.cS)),
-						ai: badgeColor + '40',
-						aj: A2(
-							$elm$core$List$concatMap,
-							A2($author$project$Main$viewActionGroup, players, cache),
-							$author$project$Action$groupLines(lines)),
-						an: _List_fromArray(
-							[
-								A2(
-								$elm$html$Html$span,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
-										A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
-										A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text(turn.b)
-									]))
-							]),
-						ao: hasNext,
-						ap: hasPrev
-					});
+				return A4(
+					renderLines,
+					A2(
+						$author$project$Main$viewSectionBadge,
+						badgeColor,
+						'Turn ' + $elm$core$String$fromInt(turn.cT)),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$span,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
+									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.95rem')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text(turn.b)
+								]))
+						]),
+					badgeColor + '40',
+					lines);
 			case 2:
 				var lines = section.a;
-				return $author$project$Main$viewNavSection(
-					{
-						ah: A2($author$project$Main$viewSectionBadge, '#b7791f', 'Pokémon Checkup'),
-						ai: '#b7791f40',
-						aj: A2(
-							$elm$core$List$concatMap,
-							A2($author$project$Main$viewActionGroup, players, cache),
-							$author$project$Action$groupLines(lines)),
-						an: _List_Nil,
-						ao: hasNext,
-						ap: hasPrev
-					});
+				return A4(
+					renderLines,
+					A2($author$project$Main$viewSectionBadge, '#b7791f', 'Pokémon Checkup'),
+					_List_Nil,
+					'#b7791f40',
+					lines);
 			default:
 				var result = section.a;
-				var winnerColor = A2($author$project$Main$playerColor, players, result.b5);
+				var winnerColor = A2($author$project$Main$playerColor, players, result.b6);
+				var hasPrev = sectionIndex > 0;
+				var hasNext = _Utils_cmp(sectionIndex, totalSections - 1) < 0;
 				return $author$project$Main$viewNavSection(
 					{
-						ah: A2($author$project$Main$viewSectionBadge, '#718096', 'Result'),
-						ai: '#71809640',
-						aj: _List_fromArray(
+						aI: A2($author$project$Main$viewSectionBadge, '#718096', 'Result'),
+						aJ: '#71809640',
+						aN: _List_fromArray(
 							[
 								A2(
 								$elm$html$Html$div,
@@ -10548,7 +10861,7 @@ var $author$project$Main$viewSectionWithNav = F5(
 									]),
 								_List_fromArray(
 									[
-										$elm$html$Html$text(result.c_)
+										$elm$html$Html$text(result.c$)
 									])),
 								A2(
 								$elm$html$Html$div,
@@ -10561,31 +10874,25 @@ var $author$project$Main$viewSectionWithNav = F5(
 									]),
 								_List_fromArray(
 									[
-										$elm$html$Html$text(result.b5 + ' wins.')
+										$elm$html$Html$text(result.b6 + ' wins.')
 									]))
 							]),
-						an: _List_Nil,
-						ao: hasNext,
-						ap: hasPrev
+						aQ: _List_Nil,
+						aT: hasNext,
+						aU: hasPrev
 					});
 		}
 	});
-var $author$project$Main$viewReplay = F3(
-	function (cache, replay, index) {
-		var total = $elm$core$List$length(replay._);
+var $author$project$Main$viewReplay = F4(
+	function (cache, replay, sectionIndex, groupIndex) {
+		var total = $elm$core$List$length(replay.F);
 		var section = $elm$core$List$head(
-			A2($elm$core$List$drop, index, replay._));
+			A2($elm$core$List$drop, sectionIndex, replay.F));
 		if (section.$ === 1) {
 			return $elm$html$Html$text('');
 		} else {
 			var s = section.a;
-			return A5(
-				$author$project$Main$viewSectionWithNav,
-				cache,
-				replay.cZ,
-				index > 0,
-				_Utils_cmp(index, total - 1) < 0,
-				s);
+			return A6($author$project$Main$viewSectionWithNav, cache, replay.c_, sectionIndex, groupIndex, total, s);
 		}
 	});
 var $author$project$Main$viewContent = function (model) {
@@ -10619,8 +10926,9 @@ var $author$project$Main$viewContent = function (model) {
 		case 3:
 			var replay = model.b;
 			var index = model.c;
-			var cache = model.e;
-			return A3($author$project$Main$viewReplay, cache, replay, index);
+			var groupIndex = model.d;
+			var cache = model.f;
+			return A4($author$project$Main$viewReplay, cache, replay, index, groupIndex);
 		default:
 			return $elm$html$Html$text('');
 	}
@@ -10789,8 +11097,13 @@ var $author$project$Main$view = function (model) {
 				A2($elm$html$Html$Attributes$style, 'font-family', 'system-ui, -apple-system, sans-serif'),
 				A2($elm$html$Html$Attributes$style, 'max-width', '820px'),
 				A2($elm$html$Html$Attributes$style, 'margin', '0 auto'),
-				A2($elm$html$Html$Attributes$style, 'padding', '2rem 1rem'),
-				A2($elm$html$Html$Attributes$style, 'color', '#1a202c')
+				A2($elm$html$Html$Attributes$style, 'padding', '0 1rem'),
+				A2($elm$html$Html$Attributes$style, 'padding-top', '2rem'),
+				A2($elm$html$Html$Attributes$style, 'color', '#1a202c'),
+				A2($elm$html$Html$Attributes$style, 'height', '100%'),
+				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+				A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
 			]),
 		_List_fromArray(
 			[
@@ -10801,17 +11114,40 @@ var $author$project$Main$view = function (model) {
 						A2($elm$html$Html$Attributes$style, 'font-size', '1.75rem'),
 						A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
 						A2($elm$html$Html$Attributes$style, 'margin', '0 0 1.5rem'),
-						A2($elm$html$Html$Attributes$style, 'color', '#2d3748')
+						A2($elm$html$Html$Attributes$style, 'color', '#2d3748'),
+						A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
 					]),
 				_List_fromArray(
 					[
 						$elm$html$Html$text('Rotomi')
 					])),
-				$author$project$Main$viewUrlBar(model),
-				$author$project$Main$viewContent(model),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+					]),
+				_List_fromArray(
+					[
+						$author$project$Main$viewUrlBar(model)
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'flex', '1'),
+						A2($elm$html$Html$Attributes$style, 'min-height', '0'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+						A2($elm$html$Html$Attributes$style, 'margin-top', '1.5rem')
+					]),
+				_List_fromArray(
+					[
+						$author$project$Main$viewContent(model)
+					])),
 				function () {
-				if ((model.$ === 3) && (!model.d.$)) {
-					var popup = model.d.a;
+				if ((model.$ === 3) && (!model.e.$)) {
+					var popup = model.e.a;
 					return $author$project$Main$viewCardPopup(popup);
 				} else {
 					return $elm$html$Html$text('');
@@ -10821,12 +11157,12 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{
-		cC: $author$project$Main$init,
-		c8: function (_v0) {
+		cD: $author$project$Main$init,
+		c9: function (_v0) {
 			return $author$project$Main$onSwipe($author$project$Main$GotSwipe);
 		},
-		de: $author$project$Main$update,
-		df: $author$project$Main$view
+		df: $author$project$Main$update,
+		dg: $author$project$Main$view
 	});
 _Platform_export({'Main':{'init':$author$project$Main$main(
 	A2(
@@ -10835,8 +11171,13 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 			return A2(
 				$elm$json$Json$Decode$andThen,
 				function (replayUrl) {
-					return $elm$json$Json$Decode$succeed(
-						{bN: replayUrl, bT: sectionIndex});
+					return A2(
+						$elm$json$Json$Decode$andThen,
+						function (groupIndex) {
+							return $elm$json$Json$Decode$succeed(
+								{B: groupIndex, bO: replayUrl, bU: sectionIndex});
+						},
+						A2($elm$json$Json$Decode$field, 'groupIndex', $elm$json$Json$Decode$int));
 				},
 				A2($elm$json$Json$Decode$field, 'replayUrl', $elm$json$Json$Decode$string));
 		},

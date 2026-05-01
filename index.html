@@ -5,11 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rotomi</title>
     <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
       body {
         font-family: sans-serif;
-        max-width: 600px;
-        margin: 2rem auto;
-        padding: 0 1rem;
+      }
+      #app {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
       }
       .controls {
         display: flex;
@@ -33,10 +40,11 @@
         flags: {
           replayUrl: readReplayUrl(window.location.search),
           sectionIndex: readSectionIndex(window.location.search),
+          groupIndex: readGroupIndex(window.location.search),
         },
       });
-      app.ports.pushUrl.subscribe(function ({ url, index }) {
-        history.pushState({}, "", buildShareUrl(url, index) || window.location.pathname);
+      app.ports.pushUrl.subscribe(function ({ url, index, groupIndex }) {
+        history.pushState({}, "", buildShareUrl(url, index, groupIndex) || window.location.pathname);
       });
 
       var touchStartX = 0;
