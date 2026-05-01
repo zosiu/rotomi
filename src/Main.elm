@@ -1,9 +1,9 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
 import Dict exposing (Dict)
-import Html exposing (Html, button, div, h1, img, input, p, span, text)
+import Html exposing (Html, button, div, img, input, p, span, text)
 import Html.Attributes exposing (id, placeholder, src, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
@@ -85,6 +85,42 @@ type alias MoveHighlight =
 
 type alias DamageInfo =
     { breakdownLines : List String
+    }
+
+
+type alias HandState =
+    { red : List (Maybe Action.CardRef)
+    , blue : List (Maybe Action.CardRef)
+    }
+
+
+emptyHand : HandState
+emptyHand =
+    { red = [], blue = [] }
+
+
+type alias BenchState =
+    { red : List Action.CardRef
+    , blue : List Action.CardRef
+    }
+
+
+emptyBench : BenchState
+emptyBench =
+    { red = [], blue = [] }
+
+
+{-| The card that was played in the current action group, plus cards
+discarded as part of the effect and cards drawn as a result of it.
+-}
+type alias CurrentPlay =
+    { player : String
+    -- Nothing = prize-taking action (no single card played)
+    , card : Maybe Action.CardRef
+    -- Nothing = unknown card (show a placeholder back)
+    , discarded : List (Maybe Action.CardRef)
+    , shuffled : List (Maybe Action.CardRef)
+    , drawn : List (Maybe Action.CardRef)
     }
 
 
@@ -194,7 +230,11 @@ update msg model =
             case model of
                 Loaded url replay _ _ _ cache ->
                     ( Loaded url replay 0 0 Nothing cache
-                    , Cmd.batch [ pushUrl { url = url, index = 0, groupIndex = 0 }, scrollToTop ]
+                    , Cmd.batch
+                        [ pushUrl { url = url, index = 0, groupIndex = 0 }
+                        , scrollToTop
+                        , fetchHandCards replay.players replay 0 0 cache
+                        ]
                     )
 
                 _ ->
@@ -205,7 +245,11 @@ update msg model =
                 Loaded url replay i g _ cache ->
                     if g > 0 then
                         ( Loaded url replay i (g - 1) Nothing cache
-                        , Cmd.batch [ pushUrl { url = url, index = i, groupIndex = g - 1 }, scrollToTop ]
+                        , Cmd.batch
+                            [ pushUrl { url = url, index = i, groupIndex = g - 1 }
+                            , scrollToTop
+                            , fetchHandCards replay.players replay i (g - 1) cache
+                            ]
                         )
 
                     else if i > 0 then
@@ -218,9 +262,16 @@ update msg model =
 
                             prevCount =
                                 prevSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 1
+
+                            newG =
+                                max 0 (prevCount - 1)
                         in
-                        ( Loaded url replay newI (max 0 (prevCount - 1)) Nothing cache
-                        , Cmd.batch [ pushUrl { url = url, index = newI, groupIndex = max 0 (prevCount - 1) }, scrollToTop ]
+                        ( Loaded url replay newI newG Nothing cache
+                        , Cmd.batch
+                            [ pushUrl { url = url, index = newI, groupIndex = newG }
+                            , scrollToTop
+                            , fetchHandCards replay.players replay newI newG cache
+                            ]
                         )
 
                     else
@@ -244,12 +295,20 @@ update msg model =
                     in
                     if g < totalGroups - 1 then
                         ( Loaded url replay i (g + 1) Nothing cache
-                        , Cmd.batch [ pushUrl { url = url, index = i, groupIndex = g + 1 }, scrollToTop ]
+                        , Cmd.batch
+                            [ pushUrl { url = url, index = i, groupIndex = g + 1 }
+                            , scrollToTop
+                            , fetchHandCards replay.players replay i (g + 1) cache
+                            ]
                         )
 
                     else if i < totalSections - 1 then
                         ( Loaded url replay (i + 1) 0 Nothing cache
-                        , Cmd.batch [ pushUrl { url = url, index = i + 1, groupIndex = 0 }, scrollToTop ]
+                        , Cmd.batch
+                            [ pushUrl { url = url, index = i + 1, groupIndex = 0 }
+                            , scrollToTop
+                            , fetchHandCards replay.players replay (i + 1) 0 cache
+                            ]
                         )
 
                     else
@@ -270,9 +329,16 @@ update msg model =
 
                         lastCount =
                             lastSection |> Maybe.map sectionGroupCount |> Maybe.withDefault 1
+
+                        lastG =
+                            max 0 (lastCount - 1)
                     in
-                    ( Loaded url replay lastI (max 0 (lastCount - 1)) Nothing cache
-                    , Cmd.batch [ pushUrl { url = url, index = lastI, groupIndex = max 0 (lastCount - 1) }, scrollToTop ]
+                    ( Loaded url replay lastI lastG Nothing cache
+                    , Cmd.batch
+                        [ pushUrl { url = url, index = lastI, groupIndex = lastG }
+                        , scrollToTop
+                        , fetchHandCards replay.players replay lastI lastG cache
+                        ]
                     )
 
                 _ ->
@@ -344,7 +410,21 @@ update msg model =
             case model of
                 Loaded url replay i g currentPopup cache ->
                     let
-                        ( popup, newCache ) =
+                        -- True only when the user explicitly requested this card
+                        -- (by clicking a pill / card thumbnail), so we should open a popup.
+                        -- Background hand-prefetch requests must NOT disturb the popup state.
+                        isUserFetch =
+                            case currentPopup of
+                                Just (FetchingCard fetchId) ->
+                                    fetchId == id
+
+                                Just (FetchingMove _ _) ->
+                                    True
+
+                                _ ->
+                                    False
+
+                        ( nextPopup, newCache ) =
                             case result of
                                 Ok body ->
                                     case decodeCardData body of
@@ -368,28 +448,32 @@ update msg model =
                                                                 Err _ ->
                                                                     cardData
 
-                                                nextPopup =
-                                                    case currentPopup of
-                                                        Just (FetchingMove _ moveName) ->
-                                                            ShowingMove resolvedData moveName
+                                                popup =
+                                                    if isUserFetch then
+                                                        case currentPopup of
+                                                            Just (FetchingMove _ moveName) ->
+                                                                Just (ShowingMove resolvedData moveName)
 
-                                                        _ ->
-                                                            case resolvedData.imageUrl of
-                                                                Just _ ->
-                                                                    ShowingCard id resolvedData
+                                                            _ ->
+                                                                case resolvedData.imageUrl of
+                                                                    Just _ ->
+                                                                        Just (ShowingCard id resolvedData)
 
-                                                                Nothing ->
-                                                                    CardNotFound id
+                                                                    Nothing ->
+                                                                        Just (CardNotFound id)
+
+                                                    else
+                                                        currentPopup
                                             in
-                                            ( nextPopup, Dict.insert id resolvedData cache )
+                                            ( popup, Dict.insert id resolvedData cache )
 
                                         Nothing ->
-                                            ( CardNotFound id, cache )
+                                            ( if isUserFetch then Just (CardNotFound id) else currentPopup, cache )
 
                                 Err _ ->
-                                    ( CardNotFound id, cache )
+                                    ( if isUserFetch then Just (CardNotFound id) else currentPopup, cache )
                     in
-                    ( Loaded url replay i g (Just popup) newCache, Cmd.none )
+                    ( Loaded url replay i g nextPopup newCache, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -447,7 +531,97 @@ loadReplay url requestedIndex requestedGroupIndex content =
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index groupIndex Nothing Dict.empty, pushUrl { url = url, index = index, groupIndex = groupIndex } )
+        ( Loaded url replay index groupIndex Nothing Dict.empty
+        , Cmd.batch
+            [ pushUrl { url = url, index = index, groupIndex = groupIndex }
+            , fetchHandCards replay.players replay index groupIndex Dict.empty
+            ]
+        )
+
+
+{-| Issue HTTP fetches for any known hand cards that are not yet in the cache.
+Safe to call on every navigation — already-cached cards are skipped.
+-}
+fetchHandCards : Maybe Replay.Players -> Replay.Replay -> Int -> Int -> Dict String CardData -> Cmd Msg
+fetchHandCards maybePlayers replay si gi cache =
+    case maybePlayers of
+        Nothing ->
+            Cmd.none
+
+        Just players ->
+            let
+                hand =
+                    computeHand players replay si gi
+
+                handRefs =
+                    List.filterMap identity hand.red ++ List.filterMap identity hand.blue
+
+                bench =
+                    computeBench players replay si gi
+
+                activeSpots =
+                    computeActive players replay si gi
+
+                benchRefs =
+                    bench.red ++ bench.blue
+
+                activeRefs =
+                    List.filterMap identity [ activeSpots.red, activeSpots.blue ]
+
+                stadiumRef =
+                    computeStadium players replay si gi
+                        |> Maybe.map .card
+                        |> Maybe.map List.singleton
+                        |> Maybe.withDefault []
+
+                -- Also fetch the played card + all known panel cards so images load without a click
+                playRefs =
+                    getCurrentGroup replay si gi
+                        |> Maybe.andThen currentPlayFromGroup
+                        |> Maybe.map
+                            (\play ->
+                                (case play.card of
+                                    Just c ->
+                                        [ c ]
+
+                                    Nothing ->
+                                        []
+                                )
+                                    ++ List.filterMap identity play.discarded
+                                    ++ List.filterMap identity play.shuffled
+                                    ++ List.filterMap identity play.drawn
+                            )
+                        |> Maybe.withDefault []
+
+                -- Unique IDs not already in cache
+                knownIds =
+                    (handRefs ++ benchRefs ++ activeRefs ++ stadiumRef ++ playRefs)
+                        |> List.map .id
+                        |> List.foldl
+                            (\id acc ->
+                                if List.member id acc then
+                                    acc
+
+                                else
+                                    id :: acc
+                            )
+                            []
+                        |> List.filter (\id -> not (Dict.member id cache))
+            in
+            Cmd.batch
+                (List.filterMap
+                    (\id ->
+                        cardApiUrl id
+                            |> Maybe.map
+                                (\apiUrl ->
+                                    Http.get
+                                        { url = apiUrl
+                                        , expect = Http.expectString (GotCardImage id)
+                                        }
+                                )
+                    )
+                    knownIds
+                )
 
 
 proxyUrl : String -> String
@@ -656,6 +830,1562 @@ httpErrorToString err =
 
 
 
+-- HAND STATE
+
+
+addCard : String -> String -> Maybe Action.CardRef -> HandState -> HandState
+addCard red player card hand =
+    if player == red then
+        { hand | red = hand.red ++ [ card ] }
+    else
+        { hand | blue = hand.blue ++ [ card ] }
+
+
+addUnknowns : String -> String -> Int -> HandState -> HandState
+addUnknowns red player n hand =
+    List.foldl (\_ h -> addCard red player Nothing h) hand (List.repeat n ())
+
+
+addKnownCards : String -> String -> List Action.CardRef -> HandState -> HandState
+addKnownCards red player cards hand =
+    List.foldl (\c h -> addCard red player (Just c) h) hand cards
+
+
+removeById : String -> String -> String -> HandState -> HandState
+removeById red player cardId hand =
+    let
+        remove list =
+            case list of
+                [] ->
+                    []
+
+                x :: rest ->
+                    case x of
+                        Just c ->
+                            if c.id == cardId then
+                                rest
+                            else
+                                x :: remove rest
+
+                        Nothing ->
+                            x :: remove rest
+
+        removeFallback list =
+            -- If no known card matched, remove the first unknown slot
+            case list of
+                [] ->
+                    []
+
+                x :: rest ->
+                    case x of
+                        Nothing ->
+                            rest
+
+                        Just _ ->
+                            x :: removeFallback rest
+
+        attempt list =
+            let
+                reduced =
+                    remove list
+            in
+            if List.length reduced < List.length list then
+                reduced
+            else
+                removeFallback list
+    in
+    if player == red then
+        { hand | red = attempt hand.red }
+    else
+        { hand | blue = attempt hand.blue }
+
+
+removeN : String -> String -> Int -> HandState -> HandState
+removeN red player n hand =
+    let
+        dropLast count list =
+            List.take (max 0 (List.length list - count)) list
+    in
+    if player == red then
+        { hand | red = dropLast n hand.red }
+    else
+        { hand | blue = dropLast n hand.blue }
+
+
+setHand : String -> String -> List (Maybe Action.CardRef) -> HandState -> HandState
+setHand red player cards hand =
+    if player == red then
+        { hand | red = cards }
+    else
+        { hand | blue = cards }
+
+
+bulletCardList : Action.ActionGroup -> List Action.CardRef
+bulletCardList group =
+    group.details
+        |> List.concatMap .bullets
+        |> List.filterMap
+            (\b ->
+                case b.action of
+                    Action.CardList cards ->
+                        Just cards
+
+                    _ ->
+                        Nothing
+            )
+        |> List.concat
+
+
+detailCardList : Action.DetailAction -> List Action.CardRef
+detailCardList detail =
+    detail.bullets
+        |> List.filterMap
+            (\b ->
+                case b.action of
+                    Action.CardList cards ->
+                        Just cards
+
+                    _ ->
+                        Nothing
+            )
+        |> List.concat
+
+
+{-| Cards listed as top-level detail actions (BulletLines attached directly
+under a TopLine, e.g. the card list under a DrewAndPlayed action).
+-}
+groupTopDetailCardList : Action.ActionGroup -> List Action.CardRef
+groupTopDetailCardList group =
+    group.details
+        |> List.filterMap
+            (\d ->
+                case d.action of
+                    Action.CardList cards ->
+                        Just cards
+
+                    _ ->
+                        Nothing
+            )
+        |> List.concat
+
+
+{-| Remove the first occurrence of each card (matched by id) from a hand side.
+Used to strip drawn cards out of the hand display when showing them in the
+played panel instead.
+-}
+removeKnownFromHandSide : List Action.CardRef -> List (Maybe Action.CardRef) -> List (Maybe Action.CardRef)
+removeKnownFromHandSide toRemove handSide =
+    List.foldl
+        (\ref acc ->
+            let
+                go remaining =
+                    case remaining of
+                        [] ->
+                            []
+
+                        (Just c :: rest) ->
+                            if c.id == ref.id then
+                                rest
+
+                            else
+                                Just c :: go rest
+
+                        (Nothing :: rest) ->
+                            Nothing :: go rest
+            in
+            go acc
+        )
+        handSide
+        toRemove
+
+
+applyTopAction : String -> HandState -> Action.ActionGroup -> HandState
+applyTopAction red hand group =
+    case group.action of
+        Action.OpeningDraw { player, count } ->
+            let
+                known =
+                    bulletCardList group
+            in
+            if List.isEmpty known then
+                addUnknowns red player count hand
+            else
+                setHand red player (List.map Just known) hand
+
+        Action.MulliganTaken { player } ->
+            -- The player shuffles their hand back and silently redraws 7 cards;
+            -- no new OpeningDraw line appears in the log, so we fill with 7 unknowns.
+            setHand red player (List.repeat 7 Nothing) hand
+
+        Action.MulliganBonus { player, count } ->
+            addUnknowns red player count hand
+
+        Action.Drew { player, card } ->
+            addCard red player card hand
+
+        Action.DrewCount { player, count } ->
+            addUnknowns red player count hand
+
+        Action.DrewCard { player, card, andPlayed } ->
+            case andPlayed of
+                Nothing ->
+                    addCard red player (Just card) hand
+
+                Just _ ->
+                    hand
+
+        Action.CardAddedToHand { card, player } ->
+            addCard red player card hand
+
+        Action.MovedToHand { player, card, count } ->
+            case card of
+                Just c ->
+                    addCard red player (Just c) hand
+
+                Nothing ->
+                    addUnknowns red player (Maybe.withDefault 1 count) hand
+
+        Action.TookPrize _ ->
+            -- Each prize taken is always followed by a separate "A card was added to
+            -- X's hand." / "(id) Card was added to X's hand." TopLine group, so we
+            -- let those CardAddedToHand groups do the hand update instead of adding
+            -- unknowns here (which would double-count).
+            hand
+
+        Action.PlayedPokemon { player, card } ->
+            removeById red player card.id hand
+
+        Action.PlayedStadium { player, card } ->
+            removeById red player card.id hand
+
+        Action.PlayedTrainer { player, card } ->
+            removeById red player card.id hand
+
+        Action.Attached { player, item } ->
+            removeById red player item.id hand
+
+        Action.Evolved { player, to } ->
+            removeById red player to.id hand
+
+        Action.Discarded { player, count } ->
+            removeN red player count hand
+
+        Action.DiscardedCard { player, card } ->
+            removeById red player card.id hand
+
+        Action.ShuffledInto { player, card, count } ->
+            case card of
+                Just c ->
+                    removeById red player c.id hand
+
+                Nothing ->
+                    removeN red player (Maybe.withDefault 1 count) hand
+
+        Action.PutOnTop { player, card } ->
+            removeById red player card.id hand
+
+        Action.PutOnBottom { player, card, count } ->
+            case card of
+                Just c ->
+                    removeById red player c.id hand
+
+                Nothing ->
+                    removeN red player (Maybe.withDefault 1 count) hand
+
+        _ ->
+            hand
+
+
+applyDetailAction : String -> HandState -> Action.DetailAction -> HandState
+applyDetailAction red hand detail =
+    case detail.action of
+        Action.DrewCount { player, count } ->
+            let
+                known =
+                    detailCardList detail
+            in
+            if List.isEmpty known then
+                addUnknowns red player count hand
+            else
+                addKnownCards red player known hand
+
+        Action.Drew { player, card } ->
+            addCard red player card hand
+
+        Action.DrewCard { player, card, andPlayed } ->
+            case andPlayed of
+                Nothing ->
+                    addCard red player (Just card) hand
+
+                Just _ ->
+                    hand
+
+        Action.CardAddedToHand { card, player } ->
+            addCard red player card hand
+
+        Action.MovedToHand { player, card, count } ->
+            case card of
+                Just c ->
+                    addCard red player (Just c) hand
+
+                Nothing ->
+                    addUnknowns red player (Maybe.withDefault 1 count) hand
+
+        Action.Attached { player, item } ->
+            removeById red player item.id hand
+
+        Action.DiscardedCard { player, card } ->
+            removeById red player card.id hand
+
+        Action.Discarded { player, count } ->
+            removeN red player count hand
+
+        Action.ShuffledInto { player, card, count } ->
+            case card of
+                Just c ->
+                    removeById red player c.id hand
+
+                Nothing ->
+                    removeN red player (Maybe.withDefault 1 count) hand
+
+        Action.PlayedPokemon { player, card } ->
+            removeById red player card.id hand
+
+        Action.PlayedTrainer { player, card } ->
+            removeById red player card.id hand
+
+        _ ->
+            hand
+
+
+applyGroupToHand : String -> HandState -> Action.ActionGroup -> HandState
+applyGroupToHand red hand group =
+    let
+        hand1 =
+            applyTopAction red hand group
+    in
+    List.foldl (\detail h -> applyDetailAction red h detail) hand1 group.details
+
+
+collectAllGroups : Replay.Replay -> Int -> Int -> List Action.ActionGroup
+collectAllGroups replay sectionIndex groupIndex =
+    replay.sections
+        |> List.indexedMap
+            (\si section ->
+                let
+                    groups =
+                        Action.groupLines (sectionLines section)
+                in
+                if si < sectionIndex then
+                    groups
+
+                else if si == sectionIndex then
+                    List.take (groupIndex + 1) groups
+
+                else
+                    []
+            )
+        |> List.concat
+
+
+computeHand : Replay.Players -> Replay.Replay -> Int -> Int -> HandState
+computeHand players replay sectionIndex groupIndex =
+    List.foldl (\group h -> applyGroupToHand players.red h group) emptyHand
+        (collectAllGroups replay sectionIndex groupIndex)
+
+
+-- PILE STATE
+
+
+type alias PileState =
+    { deckRed : Int
+    , deckBlue : Int
+    , discardRed : Int
+    , discardBlue : Int
+    , prizesRed : Int
+    , prizesBlue : Int
+    }
+
+
+emptyPiles : PileState
+emptyPiles =
+    { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 6, prizesBlue = 6 }
+
+
+pilesDeckDelta : String -> String -> Int -> PileState -> PileState
+pilesDeckDelta red player delta piles =
+    if player == red then
+        { piles | deckRed = piles.deckRed + delta }
+
+    else
+        { piles | deckBlue = piles.deckBlue + delta }
+
+
+pilesPrizeDelta : String -> String -> Int -> PileState -> PileState
+pilesPrizeDelta red player delta piles =
+    if player == red then
+        { piles | prizesRed = piles.prizesRed + delta }
+
+    else
+        { piles | prizesBlue = piles.prizesBlue + delta }
+
+
+pilesDiscardDelta : String -> String -> Int -> PileState -> PileState
+pilesDiscardDelta red player delta piles =
+    if player == red then
+        { piles | discardRed = piles.discardRed + delta }
+
+    else
+        { piles | discardBlue = piles.discardBlue + delta }
+
+
+applyActionToPiles : String -> Action.Action -> PileState -> PileState
+applyActionToPiles red action piles =
+    case action of
+        Action.OpeningDraw { player, count } ->
+            pilesDeckDelta red player -count piles
+
+        Action.MulliganBonus { player, count } ->
+            pilesDeckDelta red player -count piles
+
+        Action.Drew { player } ->
+            pilesDeckDelta red player -1 piles
+
+        Action.DrewCount { player, count } ->
+            pilesDeckDelta red player -count piles
+
+        Action.DrewCard { player } ->
+            pilesDeckDelta red player -1 piles
+
+        Action.DrewAndPlayed { player, count } ->
+            pilesDeckDelta red player -count piles
+
+        Action.ShuffledInto { player, card, count } ->
+            pilesDeckDelta red player
+                (case card of
+                    Just _ ->
+                        1
+
+                    Nothing ->
+                        Maybe.withDefault 1 count
+                )
+                piles
+
+        Action.PutOnTop { player } ->
+            pilesDeckDelta red player 1 piles
+
+        Action.PutOnBottom { player, card, count } ->
+            pilesDeckDelta red player
+                (case card of
+                    Just _ ->
+                        1
+
+                    Nothing ->
+                        Maybe.withDefault 1 count
+                )
+                piles
+
+        Action.PlayedTrainer { player } ->
+            pilesDiscardDelta red player 1 piles
+
+        Action.CardDiscardedFrom { pokemon } ->
+            pilesDiscardDelta red pokemon.player 1 piles
+
+        Action.Discarded { player, count } ->
+            pilesDiscardDelta red player count piles
+
+        Action.DiscardedCard { player } ->
+            pilesDiscardDelta red player 1 piles
+
+        Action.TookPrize { player, count } ->
+            pilesPrizeDelta red player -count piles
+
+        _ ->
+            piles
+
+
+applyGroupToPiles : String -> PileState -> Action.ActionGroup -> PileState
+applyGroupToPiles red piles group =
+    let
+        piles1 =
+            applyActionToPiles red group.action piles
+    in
+    List.foldl
+        (\detail p ->
+            List.foldl
+                (\bullet bp -> applyActionToPiles red bullet.action bp)
+                (applyActionToPiles red detail.action p)
+                detail.bullets
+        )
+        piles1
+        group.details
+
+
+computePiles : Replay.Players -> Replay.Replay -> Int -> Int -> PileState
+computePiles players replay sectionIndex groupIndex =
+    List.foldl (\group p -> applyGroupToPiles players.red p group) emptyPiles
+        (collectAllGroups replay sectionIndex groupIndex)
+
+
+-- BENCH STATE
+
+
+addToBench : String -> String -> Action.CardRef -> BenchState -> BenchState
+addToBench red player card bench =
+    if player == red then
+        { bench | red = bench.red ++ [ card ] }
+
+    else
+        { bench | blue = bench.blue ++ [ card ] }
+
+
+removeFromBench : String -> String -> String -> BenchState -> BenchState
+removeFromBench red player cardId bench =
+    let
+        removeFirst list =
+            case list of
+                [] ->
+                    []
+
+                x :: rest ->
+                    if x.id == cardId then
+                        rest
+
+                    else
+                        x :: removeFirst rest
+    in
+    if player == red then
+        { bench | red = removeFirst bench.red }
+
+    else
+        { bench | blue = removeFirst bench.blue }
+
+
+replaceOnBench : String -> String -> String -> Action.CardRef -> BenchState -> BenchState
+replaceOnBench red player fromId to bench =
+    let
+        replaceFirst list =
+            case list of
+                [] ->
+                    []
+
+                x :: rest ->
+                    if x.id == fromId then
+                        to :: rest
+
+                    else
+                        x :: replaceFirst rest
+    in
+    if player == red then
+        { bench | red = replaceFirst bench.red }
+
+    else
+        { bench | blue = replaceFirst bench.blue }
+
+
+applyActionToBench : String -> Action.Action -> BenchState -> BenchState
+applyActionToBench red action bench =
+    case action of
+        Action.PlayedPokemon { player, card, position } ->
+            case position of
+                Action.BenchSpot ->
+                    addToBench red player card bench
+
+                _ ->
+                    bench
+
+        Action.DrewCard { player, card, andPlayed } ->
+            case andPlayed of
+                Just Action.BenchSpot ->
+                    addToBench red player card bench
+
+                _ ->
+                    bench
+
+        Action.Evolved { player, from, to, position } ->
+            case position of
+                Action.BenchSpot ->
+                    replaceOnBench red player from.id to bench
+
+                _ ->
+                    bench
+
+        Action.KnockedOut { pokemon } ->
+            removeFromBench red pokemon.player pokemon.card.id bench
+
+        Action.MovedToActive { pokemon } ->
+            removeFromBench red pokemon.player pokemon.card.id bench
+
+        Action.Retreated { player, card } ->
+            addToBench red player card bench
+
+        _ ->
+            bench
+
+
+applyGroupToBench : String -> BenchState -> Action.ActionGroup -> BenchState
+applyGroupToBench red bench group =
+    let
+        bench1 =
+            applyActionToBench red group.action bench
+    in
+    List.foldl
+        (\detail b ->
+            let
+                -- DrewAndPlayed as a detail: cards go straight to bench via bullet CardList
+                b1 =
+                    case detail.action of
+                        Action.DrewAndPlayed { player, position } ->
+                            case position of
+                                Action.BenchSpot ->
+                                    List.foldl (addToBench red player) b
+                                        (detailCardList detail)
+
+                                _ ->
+                                    b
+
+                        _ ->
+                            applyActionToBench red detail.action b
+            in
+            List.foldl
+                (\bullet bb -> applyActionToBench red bullet.action bb)
+                b1
+                detail.bullets
+        )
+        bench1
+        group.details
+
+
+computeBench : Replay.Players -> Replay.Replay -> Int -> Int -> BenchState
+computeBench players replay sectionIndex groupIndex =
+    List.foldl (\group b -> applyGroupToBench players.red b group) emptyBench
+        (collectAllGroups replay sectionIndex groupIndex)
+
+
+-- ACTIVE STATE
+
+
+type alias ActiveState =
+    { red : Maybe Action.CardRef
+    , blue : Maybe Action.CardRef
+    }
+
+
+emptyActive : ActiveState
+emptyActive =
+    { red = Nothing, blue = Nothing }
+
+
+setActive : String -> String -> Action.CardRef -> ActiveState -> ActiveState
+setActive red player card active =
+    if player == red then
+        { active | red = Just card }
+
+    else
+        { active | blue = Just card }
+
+
+applyActionToActive : String -> Action.Action -> ActiveState -> ActiveState
+applyActionToActive red action active =
+    case action of
+        Action.PlayedPokemon { player, card, position } ->
+            case position of
+                Action.ActiveSpot ->
+                    setActive red player card active
+
+                _ ->
+                    active
+
+        Action.DrewCard { player, card, andPlayed } ->
+            case andPlayed of
+                Just Action.ActiveSpot ->
+                    setActive red player card active
+
+                _ ->
+                    active
+
+        Action.Evolved { player, from, to, position } ->
+            case position of
+                Action.ActiveSpot ->
+                    let
+                        matches side =
+                            case side of
+                                Just c ->
+                                    c.id == from.id
+
+                                Nothing ->
+                                    False
+                    in
+                    if player == red && matches active.red then
+                        { active | red = Just to }
+
+                    else if player /= red && matches active.blue then
+                        { active | blue = Just to }
+
+                    else
+                        active
+
+                _ ->
+                    active
+
+        Action.KnockedOut { pokemon } ->
+            let
+                matches side =
+                    case side of
+                        Just c ->
+                            c.id == pokemon.card.id
+
+                        Nothing ->
+                            False
+            in
+            if pokemon.player == red && matches active.red then
+                { active | red = Nothing }
+
+            else if pokemon.player /= red && matches active.blue then
+                { active | blue = Nothing }
+
+            else
+                active
+
+        Action.MovedToActive { pokemon } ->
+            setActive red pokemon.player pokemon.card active
+
+        Action.Retreated { player, card } ->
+            let
+                matches side =
+                    case side of
+                        Just c ->
+                            c.id == card.id
+
+                        Nothing ->
+                            False
+            in
+            if player == red && matches active.red then
+                { active | red = Nothing }
+
+            else if player /= red && matches active.blue then
+                { active | blue = Nothing }
+
+            else
+                active
+
+        _ ->
+            active
+
+
+applyGroupToActive : String -> ActiveState -> Action.ActionGroup -> ActiveState
+applyGroupToActive red active group =
+    let
+        active1 =
+            applyActionToActive red group.action active
+    in
+    List.foldl
+        (\detail a ->
+            List.foldl
+                (\bullet ba -> applyActionToActive red bullet.action ba)
+                (applyActionToActive red detail.action a)
+                detail.bullets
+        )
+        active1
+        group.details
+
+
+computeActive : Replay.Players -> Replay.Replay -> Int -> Int -> ActiveState
+computeActive players replay sectionIndex groupIndex =
+    List.foldl (\group a -> applyGroupToActive players.red a group) emptyActive
+        (collectAllGroups replay sectionIndex groupIndex)
+
+
+-- STADIUM STATE
+
+
+type alias StadiumState =
+    { player : String
+    , card : Action.CardRef
+    }
+
+
+applyGroupToStadium : Maybe StadiumState -> Action.ActionGroup -> Maybe StadiumState
+applyGroupToStadium stadium group =
+    let
+        applyAction action st =
+            case action of
+                Action.PlayedStadium { player, card } ->
+                    Just { player = player, card = card }
+
+                _ ->
+                    st
+    in
+    List.foldl
+        (\detail st ->
+            List.foldl (\bullet bs -> applyAction bullet.action bs) (applyAction detail.action st) detail.bullets
+        )
+        (applyAction group.action stadium)
+        group.details
+
+
+computeStadium : Replay.Players -> Replay.Replay -> Int -> Int -> Maybe StadiumState
+computeStadium players replay sectionIndex groupIndex =
+    List.foldl (\group st -> applyGroupToStadium st group) Nothing
+        (collectAllGroups replay sectionIndex groupIndex)
+
+
+{-| Return the action group at the given (sectionIndex, groupIndex) position. -}
+getCurrentGroup : Replay.Replay -> Int -> Int -> Maybe Action.ActionGroup
+getCurrentGroup replay si gi =
+    replay.sections
+        |> List.drop si
+        |> List.head
+        |> Maybe.map (sectionLines >> Action.groupLines)
+        |> Maybe.andThen (List.drop gi >> List.head)
+
+
+{-| If this group represents a trainer card being played (\"played X for\"),
+return the played card and any cards explicitly discarded in its detail lines.
+-}
+currentPlayFromGroup : Action.ActionGroup -> Maybe CurrentPlay
+currentPlayFromGroup group =
+    case group.action of
+        Action.PlayedTrainer { player, card } ->
+            let
+                discards =
+                    group.details
+                        |> List.concatMap
+                            (\d ->
+                                case d.action of
+                                    -- "zosiu discarded (sv4_1) Card Name." — explicit single card
+                                    Action.DiscardedCard discardData ->
+                                        [ Just discardData.card ]
+
+                                    -- "zosiu discarded N cards." — use bullet list, or N unknowns
+                                    Action.Discarded discardData ->
+                                        let
+                                            known =
+                                                detailCardList d
+                                        in
+                                        if List.isEmpty known then
+                                            List.repeat discardData.count Nothing
+
+                                        else
+                                            List.map Just known
+
+                                    _ ->
+                                        []
+                            )
+
+                shuffled =
+                    group.details
+                        |> List.concatMap
+                            (\d ->
+                                case d.action of
+                                    Action.ShuffledInto shuffleData ->
+                                        case shuffleData.card of
+                                            Just c ->
+                                                -- "A shuffled (id) Card Name into their deck."
+                                                [ Just c ]
+
+                                            Nothing ->
+                                                -- "A shuffled N cards." — use bullet list, or N unknowns
+                                                let
+                                                    known =
+                                                        detailCardList d
+                                                in
+                                                if List.isEmpty known then
+                                                    List.repeat (Maybe.withDefault 1 shuffleData.count) Nothing
+
+                                                else
+                                                    List.map Just known
+
+                                    _ ->
+                                        []
+                            )
+
+                drawn =
+                    group.details
+                        |> List.concatMap
+                            (\d ->
+                                case d.action of
+                                    -- "zosiu drew N cards." — use bullet list, or N unknowns
+                                    Action.DrewCount drewData ->
+                                        let
+                                            known =
+                                                detailCardList d
+                                        in
+                                        if List.isEmpty known then
+                                            List.repeat drewData.count Nothing
+
+                                        else
+                                            List.map Just known
+
+                                    -- "zosiu drew (sv4_1) Card Name." or "zosiu drew a card."
+                                    Action.Drew drewData ->
+                                        [ drewData.card ]
+
+                                    -- "zosiu drew and played (sv4_1)" — went straight to play, skip
+                                    Action.DrewCard drewCardData ->
+                                        case drewCardData.andPlayed of
+                                            Nothing ->
+                                                [ Just drewCardData.card ]
+
+                                            Just _ ->
+                                                []
+
+                                    -- "zosiu moved X to their hand." — treat the same as drawing
+                                    Action.MovedToHand movedData ->
+                                        case movedData.card of
+                                            Just c ->
+                                                [ Just c ]
+
+                                            Nothing ->
+                                                List.repeat (Maybe.withDefault 1 movedData.count) Nothing
+
+                                    _ ->
+                                        []
+                            )
+            in
+            Just { player = player, card = Just card, discarded = discards, shuffled = shuffled, drawn = drawn }
+
+        Action.TookPrize { player } ->
+            let
+                drawn =
+                    group.details
+                        |> List.concatMap
+                            (\d ->
+                                case d.action of
+                                    Action.CardAddedToHand { card } ->
+                                        [ card ]
+
+                                    _ ->
+                                        []
+                            )
+            in
+            if List.isEmpty drawn then
+                Nothing
+
+            else
+                Just { player = player, card = Nothing, discarded = [], shuffled = [], drawn = drawn }
+
+        _ ->
+            Nothing
+
+
+viewHandState : Replay.Players -> Dict String CardData -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> PileState -> Maybe CurrentPlay -> Html Msg
+viewHandState players cache hand bench active maybeStadium piles maybePlay =
+    let
+        -- Strip known drawn cards from the player's hand side so they appear
+        -- only in the played panel, not in both places at once.
+        redDisplay =
+            case maybePlay of
+                Just play ->
+                    if play.player == players.red then
+                        removeKnownFromHandSide (List.filterMap identity play.drawn) hand.red
+
+                    else
+                        hand.red
+
+                Nothing ->
+                    hand.red
+
+        blueDisplay =
+            case maybePlay of
+                Just play ->
+                    if play.player /= players.red then
+                        removeKnownFromHandSide (List.filterMap identity play.drawn) hand.blue
+
+                    else
+                        hand.blue
+
+                Nothing ->
+                    hand.blue
+    in
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "column"
+        , style "gap" "0.75rem"
+        , style "padding" "0.5rem 0"
+        , style "flex-shrink" "0"
+        , style "min-width" "0"
+        ]
+        [ -- Two-column layout: cards on the left, pile stacks on the right.
+          -- Bench rows only span the cards column so centering works correctly.
+          div
+            [ style "display" "flex"
+            , style "align-items" "stretch"
+            , style "gap" "0.75rem"
+            , style "min-width" "0"
+            ]
+            [ -- Cards column: hand rows + bench rows
+              div
+                [ style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "0.4rem"
+                , style "flex" "1"
+                , style "min-width" "0"
+                ]
+                [ viewHandRow "BLUE" True "#2c5282" blueDisplay (handCardImage cache)
+                , viewBenchRow True cache bench.blue
+                , viewActiveZone players.red cache active maybeStadium
+                , viewBenchRow False cache bench.red
+                , viewHandRow "RED" False "#c53030" redDisplay (handCardImage cache)
+                ]
+            , -- Piles column: blue stacks at top, red stacks at bottom
+              div
+                [ style "display" "flex"
+                , style "flex-direction" "column"
+                , style "justify-content" "space-between"
+                , style "flex-shrink" "0"
+                ]
+                [ viewPlayerPiles False piles.deckBlue piles.discardBlue piles.prizesBlue "#2c5282"
+                , viewPlayerPiles True piles.deckRed piles.discardRed piles.prizesRed "#c53030"
+                ]
+            ]
+
+        -- Permanent divider between board state and played card panel
+        , div
+            [ style "border-top" "1px solid #e2e8f0"
+            , style "margin" "0"
+            ]
+            []
+
+        -- Played card panel — only visible for PlayedTrainer groups
+        , case maybePlay of
+            Nothing ->
+                text ""
+
+            Just play ->
+                viewCurrentPlay players cache play
+        ]
+
+
+viewPileStack : String -> Int -> String -> String -> Html Msg
+viewPileStack label count bgColor textColor =
+    div
+        [ style "width" "72px"
+        , style "height" "100px"
+        , style "border-radius" "4px"
+        , style "flex-shrink" "0"
+        , style "display" "flex"
+        , style "flex-direction" "column"
+        , style "align-items" "center"
+        , style "justify-content" "center"
+        , style "gap" "0.25rem"
+        , style "background" bgColor
+        , style "color" textColor
+        , style "font-size" "0.65rem"
+        , style "font-weight" "700"
+        , style "letter-spacing" "0.03em"
+        , style "user-select" "none"
+        ]
+        [ div [] [ text label ]
+        , div [ style "font-size" "1.1rem" ] [ text (String.fromInt count) ]
+        ]
+
+
+viewPrizeStack : Int -> String -> Html Msg
+viewPrizeStack count color =
+    div
+        [ style "width" "72px"
+        , style "height" "100px"
+        , style "border-radius" "4px"
+        , style "flex-shrink" "0"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "justify-content" "center"
+        , style "background" color
+        , style "color" "white"
+        , style "font-size" "1.4rem"
+        , style "font-weight" "700"
+        , style "user-select" "none"
+        ]
+        [ text (String.fromInt count) ]
+
+
+viewHandRow : String -> Bool -> String -> List (Maybe Action.CardRef) -> (Maybe Action.CardRef -> Maybe String) -> Html Msg
+viewHandRow playerName upsideDown color cards imageFor =
+    div
+        [ style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "0.35rem"
+        , style "min-height" "60px"
+        , style "min-width" "0"
+        ]
+        [ div
+            [ style "display" "flex"
+            , style "flex-direction" "column"
+            , style "align-items" "center"
+            , style "flex-shrink" "0"
+            , style "gap" "0.2rem"
+            ]
+            [ div
+                [ style "font-size" "0.7rem"
+                , style "font-weight" "600"
+                , style "color" color
+                , style "writing-mode" "vertical-rl"
+                , style "transform" "rotate(180deg)"
+                , style "overflow" "hidden"
+                , style "white-space" "nowrap"
+                , style "max-height" "80px"
+                ]
+                [ text playerName ]
+            , div
+                [ style "font-size" "0.65rem"
+                , style "font-weight" "600"
+                , style "color" color
+                ]
+                [ text ("(" ++ String.fromInt (List.length cards) ++ ")") ]
+            ]
+        , div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            , style "gap" "0.35rem"
+            , style "overflow-x" "auto"
+            , style "flex" "1"
+            , style "min-width" "0"
+            , style "padding-bottom" "4px"
+            ]
+            (List.map (viewHandCard upsideDown color imageFor) cards)
+        ]
+
+
+viewPlayerPiles : Bool -> Int -> Int -> Int -> String -> Html Msg
+viewPlayerPiles prizesOnTop deckCount discardCount prizeCount color =
+    let
+        deckBin =
+            div
+                [ style "display" "flex"
+                , style "gap" "0.35rem"
+                , style "flex-shrink" "0"
+                ]
+                [ viewPileStack "Deck" deckCount "#bfdbfe" "#1e40af"
+                , viewPileStack "Bin" discardCount "#718096" "white"
+                ]
+
+        prize =
+            viewPrizeStack prizeCount color
+
+        children =
+            if prizesOnTop then
+                [ prize, deckBin ]
+
+            else
+                [ deckBin, prize ]
+    in
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "column"
+        , style "align-items" "center"
+        , style "gap" "0.35rem"
+        , style "flex-shrink" "0"
+        ]
+        children
+
+
+handCardImage : Dict String CardData -> Maybe Action.CardRef -> Maybe String
+handCardImage cache maybeCard =
+    case maybeCard of
+        Nothing ->
+            Nothing
+
+        Just card ->
+            Dict.get card.id cache
+                |> Maybe.andThen .imageUrl
+                |> Maybe.map (\u -> u ++ "/low.webp")
+
+
+viewHandCard : Bool -> String -> (Maybe Action.CardRef -> Maybe String) -> Maybe Action.CardRef -> Html Msg
+viewHandCard upsideDown color imageFor maybeCard =
+    let
+        -- Cards show only the top half, scaled up so the art fills the viewport
+        cardW =
+            "86px"
+
+        cardH =
+            "60px"
+
+        radius =
+            "4px"
+
+        -- Opponent cards are rotated to mimic looking across a table
+        rotationStyles =
+            if upsideDown then
+                [ style "transform" "rotate(180deg)" ]
+
+            else
+                []
+
+        -- Shared layout styles for every card variant
+        baseStyles =
+            [ style "width" cardW
+            , style "height" cardH
+            , style "border-radius" radius
+            , style "flex-shrink" "0"
+            , style "box-sizing" "border-box"
+            ]
+    in
+    case maybeCard of
+        Just card ->
+            -- Known card — always an <img> so there is no element-type swap when
+            -- the image arrives. The gray background acts as the loading placeholder;
+            -- the image paints over it once the browser has fetched it.
+            img
+                (baseStyles
+                    ++ rotationStyles
+                    ++ [ style "object-fit" "cover"
+                       , style "object-position" "top"
+                       , style "background" "#e2e8f0"
+                       , style "cursor" "pointer"
+                       , onClick (CardClicked card.id)
+                       ]
+                    ++ (case imageFor maybeCard of
+                            Just imageUrl ->
+                                [ src imageUrl ]
+
+                            Nothing ->
+                                -- No src yet — browser shows the background colour,
+                                -- no network request is made for a missing src attr
+                                []
+                       )
+                )
+                []
+
+        Nothing ->
+            -- Unknown card — card back rectangle
+            div
+                (baseStyles
+                    ++ rotationStyles
+                    ++ [ style "background" "#bfdbfe"
+                       , style "border" "2px solid #1e40af"
+                       ]
+                )
+                []
+
+
+viewBenchRow : Bool -> Dict String CardData -> List Action.CardRef -> Html Msg
+viewBenchRow upsideDown cache cards =
+    div
+        [ style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "0.35rem"
+        , style "min-width" "0"
+        ]
+        [ -- Invisible spacer matching the label column in viewHandRow
+          div
+            [ style "display" "flex"
+            , style "flex-direction" "column"
+            , style "align-items" "center"
+            , style "flex-shrink" "0"
+            , style "gap" "0.2rem"
+            , style "visibility" "hidden"
+            ]
+            [ div
+                [ style "font-size" "0.7rem"
+                , style "writing-mode" "vertical-rl"
+                , style "max-height" "80px"
+                ]
+                [ text "X" ]
+            , div
+                [ style "font-size" "0.65rem" ]
+                [ text "(0)" ]
+            ]
+        , div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "justify-content" "center"
+            , style "gap" "0.35rem"
+            , style "overflow-x" "auto"
+            , style "flex" "1"
+            , style "min-width" "0"
+            , style "min-height" "100px"
+            , style "padding" "6px 8px"
+            , style "background" "#f7fafc"
+            , style "border-radius" "6px"
+            ]
+            (List.map (viewBenchCard upsideDown cache) cards)
+        ]
+
+
+viewBenchCard : Bool -> Dict String CardData -> Action.CardRef -> Html Msg
+viewBenchCard upsideDown cache card =
+    let
+        maybeUrl =
+            Dict.get card.id cache
+                |> Maybe.andThen .imageUrl
+                |> Maybe.map (\u -> u ++ "/low.webp")
+
+        rotStyles =
+            if upsideDown then
+                [ style "transform" "rotate(180deg)" ]
+
+            else
+                []
+    in
+    img
+        ([ style "width" "72px"
+         , style "height" "100px"
+         , style "border-radius" "4px"
+         , style "flex-shrink" "0"
+         , style "box-sizing" "border-box"
+         , style "object-fit" "cover"
+         , style "background" "#e2e8f0"
+         , style "cursor" "pointer"
+         , onClick (CardClicked card.id)
+         ]
+            ++ rotStyles
+            ++ (case maybeUrl of
+                    Just u ->
+                        [ src u ]
+
+                    Nothing ->
+                        []
+               )
+        )
+        []
+
+
+
+{-| The active zone combines both active spots and the stadium into one row.
+Active spots are stacked vertically in the center. Stadium slots sit two card-widths
+out on each side: blue's on the left (upside-down), red's on the right.
+-}
+viewActiveZone : String -> Dict String CardData -> ActiveState -> Maybe StadiumState -> Html Msg
+viewActiveZone red cache active maybeStadium =
+    let
+        stadiumSlot upsideDown maybeCard =
+            case maybeCard of
+                Just card ->
+                    viewBenchCard upsideDown cache card
+
+                Nothing ->
+                    div
+                        [ style "width" "72px"
+                        , style "height" "100px"
+                        , style "flex-shrink" "0"
+                        ]
+                        []
+
+        activeCard upsideDown maybeCard =
+            case maybeCard of
+                Just card ->
+                    viewBenchCard upsideDown cache card
+
+                Nothing ->
+                    div
+                        [ style "width" "72px"
+                        , style "height" "100px"
+                        , style "border-radius" "4px"
+                        , style "flex-shrink" "0"
+                        , style "border" "2px dashed #cbd5e0"
+                        , style "box-sizing" "border-box"
+                        ]
+                        []
+
+        ( blueStadium, redStadium ) =
+            case maybeStadium of
+                Just s ->
+                    if s.player == red then
+                        ( Nothing, Just s.card )
+
+                    else
+                        ( Just s.card, Nothing )
+
+                Nothing ->
+                    ( Nothing, Nothing )
+    in
+    div
+        [ style "display" "flex"
+        , style "align-items" "center"
+        , style "gap" "0.35rem"
+        , style "min-width" "0"
+        ]
+        [ -- Invisible spacer matching the label column in viewHandRow
+          div
+            [ style "display" "flex"
+            , style "flex-direction" "column"
+            , style "align-items" "center"
+            , style "flex-shrink" "0"
+            , style "gap" "0.2rem"
+            , style "visibility" "hidden"
+            ]
+            [ div
+                [ style "font-size" "0.7rem"
+                , style "writing-mode" "vertical-rl"
+                , style "max-height" "80px"
+                ]
+                [ text "X" ]
+            , div
+                [ style "font-size" "0.65rem" ]
+                [ text "(0)" ]
+            ]
+        , -- Centered content: stadium + active spots + stadium
+          div
+            [ style "display" "flex"
+            , style "justify-content" "center"
+            , style "align-items" "center"
+            , style "flex" "1"
+            , style "min-width" "0"
+            , style "gap" "0"
+            ]
+            [ -- Blue stadium: two card-widths left of center
+              stadiumSlot True blueStadium
+            , div [ style "width" "72px", style "flex-shrink" "0" ] []
+
+            -- Active spots stacked vertically
+            , div
+                [ style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "0.4rem"
+                , style "align-items" "center"
+                , style "flex-shrink" "0"
+                ]
+                [ activeCard True active.blue
+                , activeCard False active.red
+                ]
+            , div [ style "width" "72px", style "flex-shrink" "0" ] []
+
+            -- Red stadium: two card-widths right of center
+            , stadiumSlot False redStadium
+            ]
+        ]
+
+
+{-| A card thumbnail at the standard hand size, used for both the hand panel
+and the played-card panel. Always an <img> with a gray background placeholder
+so there is no flicker when the image loads.
+-}
+viewKnownCardThumb : Dict String CardData -> Action.CardRef -> Html Msg
+viewKnownCardThumb cache card =
+    let
+        maybeUrl =
+            Dict.get card.id cache
+                |> Maybe.andThen .imageUrl
+                |> Maybe.map (\u -> u ++ "/low.webp")
+    in
+    img
+        ([ style "width" "72px"
+         , style "height" "100px"
+         , style "border-radius" "4px"
+         , style "flex-shrink" "0"
+         , style "box-sizing" "border-box"
+         , style "object-fit" "cover"
+         , style "background" "#e2e8f0"
+         , style "cursor" "pointer"
+         , onClick (CardClicked card.id)
+         ]
+            ++ (case maybeUrl of
+                    Just imageUrl ->
+                        [ src imageUrl ]
+
+                    Nothing ->
+                        []
+               )
+        )
+        []
+
+
+{-| The played-card panel shown to the right of the hand rows when the current
+action is a trainer play. Shows the played card and any cards discarded as
+part of the effect.
+-}
+viewCurrentPlay : Replay.Players -> Dict String CardData -> CurrentPlay -> Html Msg
+viewCurrentPlay players cache play =
+    let
+        color =
+            if play.player == players.red then
+                "#c53030"
+
+            else
+                "#2c5282"
+
+        playerLabel =
+            div
+                [ style "font-size" "0.7rem"
+                , style "font-weight" "600"
+                , style "color" color
+                , style "writing-mode" "vertical-rl"
+                , style "transform" "rotate(180deg)"
+                , style "flex-shrink" "0"
+                , style "width" "14px"
+                , style "overflow" "hidden"
+                , style "white-space" "nowrap"
+                , style "align-self" "center"
+                ]
+                [ text
+                    (if play.player == players.red then
+                        "RED"
+
+                     else
+                        "BLUE"
+                    )
+                ]
+
+        -- Render one card slot: known card → thumbnail, unknown → gray placeholder
+        viewPlayCard maybeCard =
+            case maybeCard of
+                Just card ->
+                    viewKnownCardThumb cache card
+
+                Nothing ->
+                    div
+                        [ style "width" "72px"
+                        , style "height" "100px"
+                        , style "border-radius" "4px"
+                        , style "flex-shrink" "0"
+                        , style "box-sizing" "border-box"
+                        , style "background" "#e2e8f0"
+                        , style "border" "1px solid #a0aec0"
+                        ]
+                        []
+
+        labeledGroup label cards =
+            div
+                [ style "display" "flex"
+                , style "flex-direction" "column"
+                , style "gap" "0.3rem"
+                , style "flex-shrink" "0"
+                ]
+                [ div
+                    [ style "font-size" "0.7rem"
+                    , style "font-weight" "600"
+                    , style "color" "#718096"
+                    ]
+                    [ text label ]
+                , div
+                    [ style "display" "flex"
+                    , style "gap" "0.35rem"
+                    ]
+                    (List.map viewPlayCard cards)
+                ]
+
+        optionalGroup label cards =
+            if List.isEmpty cards then
+                []
+
+            else
+                [ labeledGroup label cards ]
+
+        groups =
+            case play.card of
+                Nothing ->
+                    [ labeledGroup "Prizes taken" play.drawn ]
+
+                Just card ->
+                    [ labeledGroup "Played" [ Just card ] ]
+                        ++ optionalGroup "Discarded" play.discarded
+                        ++ optionalGroup "Shuffled" play.shuffled
+                        ++ optionalGroup "Drawn" play.drawn
+    in
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "row"
+        , style "align-items" "flex-start"
+        , style "gap" "0.75rem"
+        , style "overflow-x" "auto"
+        , style "padding-bottom" "4px"
+        ]
+        (playerLabel :: groups)
+
+
 -- VIEW
 
 
@@ -663,33 +2393,77 @@ view : Model -> Html Msg
 view model =
     div
         [ style "font-family" "system-ui, -apple-system, sans-serif"
-        , style "max-width" "820px"
+        , style "max-width" "1400px"
         , style "margin" "0 auto"
-        , style "padding" "0 1rem"
-        , style "padding-top" "2rem"
+        , style "padding" "0.5rem 1.5rem 0"
         , style "color" "#1a202c"
         , style "height" "100%"
         , style "display" "flex"
         , style "flex-direction" "column"
         , style "box-sizing" "border-box"
         ]
-        [ h1
-            [ style "font-size" "1.75rem"
-            , style "font-weight" "700"
-            , style "margin" "0 0 1.5rem"
-            , style "color" "#2d3748"
-            , style "flex-shrink" "0"
-            ]
-            [ text "Rotomi" ]
-        , div [ style "flex-shrink" "0" ] [ viewUrlBar model ]
+        [ div [ style "flex-shrink" "0" ] [ viewUrlBar model ]
+
+        -- Two-column layout: play state (80%) on the left, action log (20%) on the right
         , div
             [ style "flex" "1"
             , style "min-height" "0"
             , style "display" "flex"
-            , style "flex-direction" "column"
-            , style "margin-top" "1.5rem"
+            , style "flex-direction" "row"
+            , style "gap" "1.5rem"
+            , style "margin-top" "0.5rem"
             ]
-            [ viewContent model ]
+            [ -- Left column: play state
+              div
+                [ style "flex" "3"
+                , style "min-width" "0"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                ]
+                [ case model of
+                    Loaded _ replay sectionIndex groupIndex _ cache ->
+                        case replay.players of
+                            Just players ->
+                                let
+                                    hand =
+                                        computeHand players replay sectionIndex groupIndex
+
+                                    bench =
+                                        computeBench players replay sectionIndex groupIndex
+
+                                    activeSpots =
+                                        computeActive players replay sectionIndex groupIndex
+
+                                    stadium =
+                                        computeStadium players replay sectionIndex groupIndex
+
+                                    piles =
+                                        computePiles players replay sectionIndex groupIndex
+
+                                    maybePlay =
+                                        getCurrentGroup replay sectionIndex groupIndex
+                                            |> Maybe.andThen currentPlayFromGroup
+                                in
+                                viewHandState players cache hand bench activeSpots stadium piles maybePlay
+
+                            Nothing ->
+                                text ""
+
+                    _ ->
+                        text ""
+                ]
+
+            -- Right column: action log
+            , div
+                [ style "flex" "1"
+                , style "min-width" "0"
+                , style "min-height" "0"
+                , style "display" "flex"
+                , style "flex-direction" "column"
+                ]
+                [ viewContent model ]
+            ]
+
         , case model of
             Loaded _ _ _ _ (Just popup) _ ->
                 viewCardPopup popup
@@ -724,7 +2498,7 @@ viewUrlBar model =
                 _ ->
                     False
     in
-    div [ style "margin-bottom" "2rem" ]
+    div [ style "margin-bottom" "0.25rem" ]
         [ div
             [ style "display" "flex"
             , style "gap" "0.5rem"

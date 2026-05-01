@@ -3,7 +3,8 @@ module MainTest exposing (suite)
 import Dict
 import Expect
 import Http
-import Main exposing (CardData, CardPopup(..), Model(..), Msg(..), init, update)
+import Action exposing (CardRef)
+import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
@@ -352,7 +353,8 @@ suite =
                         json =
                             "{\"id\":\"swsh1-1\",\"image\":\"https://assets.tcgdex.net/en/swsh/swsh1/1\"}"
                     in
-                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                    -- FetchingCard is set by CardClicked before the HTTP response arrives
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1"))) (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]))
             , test "GotCardImage with invalid JSON shows CardNotFound" <|
@@ -364,7 +366,7 @@ suite =
                         emptyCardData =
                             { imageUrl = Nothing, attacks = [], abilities = [] }
                     in
-                    update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                    update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) (Dict.fromList [ ( "swsh1-1", emptyCardData ) ]))
             , test "GotCardImage with HTTP error shows CardNotFound" <|
@@ -373,9 +375,22 @@ suite =
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (GotCardImage "swsh1-1" (Err Http.NetworkError)) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                    update (GotCardImage "swsh1-1" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) Dict.empty)
+            , test "GotCardImage as background hand fetch does not open popup" <|
+                \_ ->
+                    let
+                        replay =
+                            Replay.parse "Setup\nSome setup.\n"
+
+                        json =
+                            "{\"id\":\"swsh1-1\",\"image\":\"https://assets.tcgdex.net/en/swsh/swsh1/1\"}"
+                    in
+                    -- No FetchingCard popup = background prefetch; should just update cache silently
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                        |> Tuple.first
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]))
             , test "CloseCard removes the popup" <|
                 \_ ->
                     let
@@ -425,7 +440,7 @@ suite =
                             , abilities = [ { abilityType = "Ability", name = "Swift Run", effect = "Once per turn." } ]
                             }
                     in
-                    update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                    update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_001")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "sv04_001" expectedData)) (Dict.fromList [ ( "sv04_001", expectedData ) ]))
             ]
@@ -493,7 +508,7 @@ suite =
                         json =
                             "{\"id\":\"swsh1-1\",\"image\":\"" ++ newUrl ++ "\"}"
                     in
-                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 Nothing priorCache)
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) priorCache)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage newUrl))) expectedCache)
             , test "GotCardImage network error does not populate the cache" <|
@@ -502,7 +517,7 @@ suite =
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (GotCardImage "sv04_160" (Err Http.NetworkError)) (Loaded "url" replay 0 0 Nothing Dict.empty)
+                    update (GotCardImage "sv04_160" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_160")) Dict.empty)
                         |> Tuple.first
                         |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "sv04_160")) Dict.empty)
             , test "cache hit fires no HTTP command" <|
@@ -550,6 +565,564 @@ suite =
                         |> Replay.parse
                         |> .players
                         |> Expect.equal (Just { red = "A", blue = "B" })
+            ]
+        , describe "hand state"
+            [ test "OpeningDraw adds unknown cards" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A drew 7 cards for the opening hand."
+                            , action = Action.OpeningDraw { player = "A", count = 7 }
+                            , details = []
+                            }
+                    in
+                    applyGroupToHand "A" emptyHand group
+                        |> .red
+                        |> List.length
+                        |> Expect.equal 7
+
+            , test "OpeningDraw with CardList bullet uses known cards" <|
+                \_ ->
+                    let
+                        cards =
+                            [ { id = "sv1_1", name = "Bulbasaur" }
+                            , { id = "sv1_2", name = "Ivysaur" }
+                            ]
+
+                        group =
+                            { raw = "A drew 2 cards for the opening hand."
+                            , action = Action.OpeningDraw { player = "A", count = 2 }
+                            , details =
+                                [ { raw = "2 drawn cards."
+                                  , action = Action.UnknownAction "2 drawn cards."
+                                  , bullets =
+                                        [ { raw = "(sv1_1) Bulbasaur, (sv1_2) Ivysaur"
+                                          , action = Action.CardList cards
+                                          }
+                                        ]
+                                  }
+                                ]
+                            }
+                    in
+                    applyGroupToHand "A" emptyHand group
+                        |> .red
+                        |> Expect.equal [ Just { id = "sv1_1", name = "Bulbasaur" }, Just { id = "sv1_2", name = "Ivysaur" } ]
+
+            , test "PlayedTrainer removes card from hand" <|
+                \_ ->
+                    let
+                        card =
+                            { id = "sv1_100", name = "Nest Ball" }
+
+                        startHand =
+                            { red = [ Just card, Nothing ], blue = [] }
+
+                        group =
+                            { raw = "A played (sv1_100) Nest Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = card }
+                            , details = []
+                            }
+                    in
+                    applyGroupToHand "A" startHand group
+                        |> .red
+                        |> Expect.equal [ Nothing ]
+
+            , test "Drew adds named card to hand" <|
+                \_ ->
+                    let
+                        card =
+                            { id = "sv1_50", name = "Pikachu" }
+
+                        group =
+                            { raw = "A drew (sv1_50) Pikachu."
+                            , action = Action.Drew { player = "A", card = Just card }
+                            , details = []
+                            }
+                    in
+                    applyGroupToHand "A" emptyHand group
+                        |> .red
+                        |> Expect.equal [ Just card ]
+
+            , test "detail DrewCount with CardList adds known cards" <|
+                \_ ->
+                    let
+                        cards =
+                            [ { id = "sv1_1", name = "Bulbasaur" }, { id = "sv1_2", name = "Ivysaur" } ]
+
+                        group =
+                            { raw = "A played (sv1_90) Trainer."
+                            , action = Action.PlayedTrainer { player = "A", card = { id = "sv1_90", name = "Trainer" } }
+                            , details =
+                                [ { raw = "A drew 2 cards."
+                                  , action = Action.DrewCount { player = "A", count = 2 }
+                                  , bullets =
+                                        [ { raw = "(sv1_1) Bulbasaur, (sv1_2) Ivysaur"
+                                          , action = Action.CardList cards
+                                          }
+                                        ]
+                                  }
+                                ]
+                            }
+
+                        startHand =
+                            { red = [ Just { id = "sv1_90", name = "Trainer" } ], blue = [] }
+                    in
+                    applyGroupToHand "A" startHand group
+                        |> .red
+                        |> Expect.equal [ Just { id = "sv1_1", name = "Bulbasaur" }, Just { id = "sv1_2", name = "Ivysaur" } ]
+
+            , test "opponent draws go to blue hand" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "B drew a card."
+                            , action = Action.Drew { player = "B", card = Nothing }
+                            , details = []
+                            }
+                    in
+                    applyGroupToHand "A" emptyHand group
+                        |> .blue
+                        |> List.length
+                        |> Expect.equal 1
+
+            , test "MulliganTaken replaces hand with 7 unknowns" <|
+                \_ ->
+                    let
+                        startHand =
+                            { red = [ Nothing, Nothing, Nothing ], blue = [] }
+
+                        group =
+                            { raw = "A took a mulligan."
+                            , action = Action.MulliganTaken { player = "A", count = 1 }
+                            , details = []
+                            }
+                    in
+                    applyGroupToHand "A" startHand group
+                        |> .red
+                        |> Expect.equal (List.repeat 7 Nothing)
+
+            , test "TookPrize does not add cards (CardAddedToHand groups do it)" <|
+                \_ ->
+                    let
+                        prize =
+                            { raw = "A took 2 Prize cards."
+                            , action = Action.TookPrize { player = "A", count = 2 }
+                            , details = []
+                            }
+
+                        added1 =
+                            { raw = "A card was added to A's hand."
+                            , action = Action.CardAddedToHand { card = Nothing, player = "A" }
+                            , details = []
+                            }
+
+                        added2 =
+                            { raw = "(sv1_1) Pikachu was added to A's hand."
+                            , action = Action.CardAddedToHand { card = Just { id = "sv1_1", name = "Pikachu" }, player = "A" }
+                            , details = []
+                            }
+
+                        startHand =
+                            { red = [ Just { id = "sv1_50", name = "Raichu" } ], blue = [] }
+
+                        finalHand =
+                            List.foldl (\g h -> applyGroupToHand "A" h g) startHand [ prize, added1, added2 ]
+                    in
+                    finalHand.red
+                        |> List.length
+                        |> Expect.equal 3
+
+            , test "TookPrize with named cards ends up with correct known cards" <|
+                \_ ->
+                    let
+                        prize =
+                            { raw = "A took 2 Prize cards."
+                            , action = Action.TookPrize { player = "A", count = 2 }
+                            , details = []
+                            }
+
+                        card1 =
+                            { id = "sv6_130", name = "Dragapult ex" }
+
+                        card2 =
+                            { id = "sv6_165", name = "Unfair Stamp" }
+
+                        added1 =
+                            { raw = "(sv6_130) Dragapult ex was added to A's hand."
+                            , action = Action.CardAddedToHand { card = Just card1, player = "A" }
+                            , details = []
+                            }
+
+                        added2 =
+                            { raw = "(sv6_165) Unfair Stamp was added to A's hand."
+                            , action = Action.CardAddedToHand { card = Just card2, player = "A" }
+                            , details = []
+                            }
+
+                        finalHand =
+                            List.foldl (\g h -> applyGroupToHand "A" h g) emptyHand [ prize, added1, added2 ]
+                    in
+                    finalHand.red
+                        |> Expect.equal [ Just card1, Just card2 ]
+
+            , test "tryCardList parses multi-card bullet" <|
+                \_ ->
+                    Action.parseAction "(sv1_1) Bulbasaur, (sv1_2) Ivysaur"
+                        |> Expect.equal
+                            (Action.CardList
+                                [ { id = "sv1_1", name = "Bulbasaur" }
+                                , { id = "sv1_2", name = "Ivysaur" }
+                                ]
+                            )
+            ]
+
+        , describe "pile state"
+            [ test "emptyPiles starts with 60 in each deck and 0 in each discard" <|
+                \_ ->
+                    emptyPiles
+                        |> Expect.equal { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 6, prizesBlue = 6 }
+
+            , test "OpeningDraw decreases the drawing player's deck" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A drew 7 cards for the opening hand."
+                            , action = Action.OpeningDraw { player = "A", count = 7 }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" emptyPiles group
+                        |> .deckRed
+                        |> Expect.equal 53
+
+            , test "opponent OpeningDraw decreases blue deck" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "B drew 7 cards for the opening hand."
+                            , action = Action.OpeningDraw { player = "B", count = 7 }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" emptyPiles group
+                        |> .deckBlue
+                        |> Expect.equal 53
+
+            , test "DrewCount in detail decreases deck" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A played (sv1_90) Trainer."
+                            , action = Action.PlayedTrainer { player = "A", card = { id = "sv1_90", name = "Trainer" } }
+                            , details =
+                                [ { raw = "A drew 3 cards."
+                                  , action = Action.DrewCount { player = "A", count = 3 }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    applyGroupToPiles "A" emptyPiles group
+                        |> .deckRed
+                        |> Expect.equal 57
+
+            , test "DiscardedCard increases discard pile" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A discarded (sv1_50) Pikachu."
+                            , action = Action.DiscardedCard { player = "A", card = { id = "sv1_50", name = "Pikachu" } }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" emptyPiles group
+                        |> .discardRed
+                        |> Expect.equal 1
+
+            , test "ShuffledInto increases deck" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A shuffled (sv1_50) Pikachu into the deck."
+                            , action = Action.ShuffledInto { player = "A", card = Just { id = "sv1_50", name = "Pikachu" }, count = Nothing }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" emptyPiles group
+                        |> .deckRed
+                        |> Expect.equal 61
+            ]
+
+        , describe "current play"
+            [ test "TookPrize with CardAddedToHand details returns Just with drawn cards" <|
+                \_ ->
+                    let
+                        card1 =
+                            { id = "sv6_130", name = "Dragapult ex" }
+
+                        card2 =
+                            { id = "sv6_165", name = "Unfair Stamp" }
+
+                        group =
+                            { raw = "A took 2 Prize cards."
+                            , action = Action.TookPrize { player = "A", count = 2 }
+                            , details =
+                                [ { raw = "(sv6_130) Dragapult ex was added to A's hand."
+                                  , action = Action.CardAddedToHand { card = Just card1, player = "A" }
+                                  , bullets = []
+                                  }
+                                , { raw = "(sv6_165) Unfair Stamp was added to A's hand."
+                                  , action = Action.CardAddedToHand { card = Just card2, player = "A" }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Nothing, discarded = [], shuffled = [], drawn = [ Just card1, Just card2 ] })
+
+            , test "TookPrize with unknown prize cards returns Just with Nothing entries" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A took 2 Prize cards."
+                            , action = Action.TookPrize { player = "A", count = 2 }
+                            , details =
+                                [ { raw = "A card was added to A's hand."
+                                  , action = Action.CardAddedToHand { card = Nothing, player = "A" }
+                                  , bullets = []
+                                  }
+                                , { raw = "A card was added to A's hand."
+                                  , action = Action.CardAddedToHand { card = Nothing, player = "A" }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Nothing, discarded = [], shuffled = [], drawn = [ Nothing, Nothing ] })
+
+            , test "TookPrize with no details returns Nothing" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A took a Prize card."
+                            , action = Action.TookPrize { player = "A", count = 1 }
+                            , details = []
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal Nothing
+
+            , test "non-trainer action returns Nothing" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A drew a card."
+                            , action = Action.Drew { player = "A", card = Nothing }
+                            , details = []
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal Nothing
+
+            , test "PlayedTrainer with no discards returns Just with empty discards" <|
+                \_ ->
+                    let
+                        card =
+                            { id = "sv1_100", name = "Nest Ball" }
+
+                        group =
+                            { raw = "A played (sv1_100) Nest Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = card }
+                            , details = []
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just card, discarded = [], shuffled = [], drawn = [] })
+
+            , test "PlayedTrainer with DiscardedCard detail includes that card in discards" <|
+                \_ ->
+                    let
+                        played =
+                            { id = "sv4_160", name = "Ultra Ball" }
+
+                        discardedCard =
+                            { id = "sv1_50", name = "Pikachu" }
+
+                        group =
+                            { raw = "A played (sv4_160) Ultra Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = played }
+                            , details =
+                                [ { raw = "A discarded (sv1_50) Pikachu."
+                                  , action = Action.DiscardedCard { player = "A", card = discardedCard }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [ Just discardedCard ], shuffled = [], drawn = [] })
+
+            , test "PlayedTrainer with Discarded+CardList bullet includes those cards in discards" <|
+                \_ ->
+                    let
+                        played =
+                            { id = "sv4_160", name = "Ultra Ball" }
+
+                        energy1 =
+                            { id = "mee_1", name = "Basic Fire Energy" }
+
+                        energy2 =
+                            { id = "mee_4", name = "Basic Psychic Energy" }
+
+                        group =
+                            { raw = "A played (sv4_160) Ultra Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = played }
+                            , details =
+                                [ { raw = "A discarded 2 cards."
+                                  , action = Action.Discarded { player = "A", count = 2 }
+                                  , bullets =
+                                        [ { raw = "(mee_1) Basic Fire Energy, (mee_4) Basic Psychic Energy"
+                                          , action = Action.CardList [ energy1, energy2 ]
+                                          }
+                                        ]
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [ Just energy1, Just energy2 ], shuffled = [], drawn = [] })
+
+            , test "PlayedTrainer with DrewCount+CardList collects drawn cards and excludes them from nothing else" <|
+                \_ ->
+                    let
+                        played =
+                            { id = "sv4_160", name = "Ultra Ball" }
+
+                        drew1 =
+                            { id = "sv1_1", name = "Bulbasaur" }
+
+                        drew2 =
+                            { id = "sv1_2", name = "Ivysaur" }
+
+                        group =
+                            { raw = "A played (sv4_160) Ultra Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = played }
+                            , details =
+                                [ { raw = "A drew 2 cards."
+                                  , action = Action.DrewCount { player = "A", count = 2 }
+                                  , bullets =
+                                        [ { raw = "(sv1_1) Bulbasaur, (sv1_2) Ivysaur"
+                                          , action = Action.CardList [ drew1, drew2 ]
+                                          }
+                                        ]
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [], drawn = [ Just drew1, Just drew2 ] })
+
+            , test "PlayedTrainer with ShuffledInto detail collects shuffled cards" <|
+                \_ ->
+                    let
+                        played =
+                            { id = "sv4_160", name = "Ultra Ball" }
+
+                        shuffled1 =
+                            { id = "sv1_1", name = "Bulbasaur" }
+
+                        group =
+                            { raw = "A played (sv4_160) Ultra Ball."
+                            , action = Action.PlayedTrainer { player = "A", card = played }
+                            , details =
+                                [ { raw = "A shuffled (sv1_1) Bulbasaur into the deck."
+                                  , action = Action.ShuffledInto { player = "A", card = Just shuffled1, count = Nothing }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [ Just shuffled1 ], drawn = [] })
+
+            , test "PlayedTrainer with ShuffledInto count+CardList bullet collects shuffled cards" <|
+                \_ ->
+                    let
+                        played =
+                            { id = "sv9_108", name = "Lillie's Determination" }
+
+                        dark =
+                            { id = "mee_6", name = "Basic Darkness Energy" }
+
+                        ultraBall =
+                            { id = "sv4_160", name = "Ultra Ball" }
+
+                        group =
+                            { raw = "A played (sv9_108) Lillie's Determination."
+                            , action = Action.PlayedTrainer { player = "A", card = played }
+                            , details =
+                                [ { raw = "A shuffled 2 cards into their deck."
+                                  , action = Action.ShuffledInto { player = "A", card = Nothing, count = Just 2 }
+                                  , bullets =
+                                        [ { raw = "(mee_6) Basic Darkness Energy, (sv4_160) Ultra Ball"
+                                          , action = Action.CardList [ dark, ultraBall ]
+                                          }
+                                        ]
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup group
+                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [ Just dark, Just ultraBall ], drawn = [] })
+            ]
+        , describe "bench state"
+            [ test "DrewAndPlayed parses correctly" <|
+                \_ ->
+                    Action.parseAction "A drew 2 cards and played them to the Bench."
+                        |> Expect.equal (Action.DrewAndPlayed { player = "A", count = 2, position = Action.BenchSpot })
+            , test "DrewAndPlayed group has detail with CardList bullet" <|
+                \_ ->
+                    let
+                        group =
+                            Action.groupLines
+                                [ TopLine "A played (me2-5_184) Buddy-Buddy Poffin."
+                                , DetailLine "A drew 2 cards and played them to the Bench."
+                                , BulletLine "(me2-5_171) Fan Rotom, (sv6_56) Froakie"
+                                , DetailLine "A shuffled their deck."
+                                ]
+                                |> List.head
+                                |> Maybe.withDefault
+                                    { raw = "", action = Action.UnknownAction "", details = [] }
+                        drewDetail =
+                            group.details
+                                |> List.filter (\d -> d.action == Action.DrewAndPlayed { player = "A", count = 2, position = Action.BenchSpot })
+                                |> List.head
+                    in
+                    drewDetail
+                        |> Maybe.map (\d -> List.length d.bullets)
+                        |> Expect.equal (Just 1)
+            , test "DrewAndPlayed detail adds cards to bench via bullet CardList" <|
+                \_ ->
+                    let
+                        fanRotom = { id = "me2-5_171", name = "Fan Rotom" }
+                        froakie  = { id = "sv6_56",    name = "Froakie" }
+                        group =
+                            Action.groupLines
+                                [ TopLine "A played (me2-5_184) Buddy-Buddy Poffin."
+                                , DetailLine "A drew 2 cards and played them to the Bench."
+                                , BulletLine "(me2-5_171) Fan Rotom, (sv6_56) Froakie"
+                                , DetailLine "A shuffled their deck."
+                                ]
+                                |> List.head
+                                |> Maybe.withDefault
+                                    { raw = "", action = Action.UnknownAction "", details = [] }
+                        bench =
+                            applyGroupToBench "A" emptyBench group
+                    in
+                    bench.red
+                        |> Expect.equalLists [ fanRotom, froakie ]
             ]
         ]
 

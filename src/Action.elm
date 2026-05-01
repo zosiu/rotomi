@@ -9,6 +9,7 @@ module Action exposing
     , Position(..)
     , groupLines
     , parseAction
+    , parseCardRef
     )
 
 import Replay exposing (ReplayLine(..))
@@ -83,6 +84,7 @@ type Action
     | Drew { player : String, card : Maybe CardRef }
     | DrewCount { player : String, count : Int }
     | DrewCard { player : String, card : CardRef, andPlayed : Maybe Position }
+    | DrewAndPlayed { player : String, count : Int, position : Position }
     -- Attachment
     | Attached { player : String, item : CardRef, target : PokemonRef, position : Position }
     -- Evolution
@@ -151,14 +153,53 @@ groupHelp lines acc =
 
         (TopLine raw) :: rest ->
             let
+                action =
+                    parseAction raw
+
                 ( details, remaining ) =
                     collectDetails rest []
+
+                -- Prize-taking lines ("X took N Prize cards.") are always followed
+                -- by one TopLine per card ("(id) Card was added to X's hand." /
+                -- "A card was added to X's hand.").  Absorb those into this group
+                -- as details so they appear as a single entry in the log.
+                ( prizeDetails, finalRemaining ) =
+                    case action of
+                        TookPrize _ ->
+                            collectCardAddedToHand remaining []
+
+                        _ ->
+                            ( [], remaining )
             in
-            groupHelp remaining ({ raw = raw, action = parseAction raw, details = details } :: acc)
+            groupHelp finalRemaining
+                ({ raw = raw
+                 , action = action
+                 , details = details ++ prizeDetails
+                 }
+                    :: acc
+                )
 
         _ :: rest ->
             -- DetailLine or BulletLine without a preceding TopLine — skip
             groupHelp rest acc
+
+
+{-| Greedily consume consecutive TopLines that parse as CardAddedToHand and
+convert them into DetailAction entries (with no bullets).
+-}
+collectCardAddedToHand : List ReplayLine -> List DetailAction -> ( List DetailAction, List ReplayLine )
+collectCardAddedToHand lines acc =
+    case lines of
+        (TopLine raw) :: rest ->
+            case parseAction raw of
+                CardAddedToHand _ ->
+                    collectCardAddedToHand rest ({ raw = raw, action = parseAction raw, bullets = [] } :: acc)
+
+                _ ->
+                    ( List.reverse acc, lines )
+
+        _ ->
+            ( List.reverse acc, lines )
 
 
 collectDetails : List ReplayLine -> List DetailAction -> ( List DetailAction, List ReplayLine )
@@ -237,6 +278,7 @@ parseAction raw =
         |> orTry (tryEffectBlocked raw)
         |> orTry (tryDrew raw)
         |> orTry (tryDrewCard raw)
+        |> orTry (tryDrewAndPlayed raw)
         |> orTry (tryDrewCount raw)
         |> orTry (tryDiscarded raw)
         |> orTry (tryDiscardedCard raw)
@@ -252,6 +294,7 @@ parseAction raw =
         |> orTry (tryCoinFlipResult raw)
         |> orTry (tryChoseOption raw)
         |> orTry (tryTimeout raw)
+        |> orTry (tryCardList raw)
         |> Maybe.withDefault (UnknownAction raw)
 
 
@@ -517,7 +560,7 @@ tryPlayedTrainer raw =
 tryUsedStadium : String -> Maybe Action
 tryUsedStadium raw =
     -- "PLAYER played Name."  (no card ID — stadium re-use / ability)
-    if String.contains " played " raw && not (String.contains " played (" raw) && not (String.contains " played it " raw) then
+    if String.contains " played " raw && not (String.contains " played (" raw) && not (String.contains " played it " raw) && not (String.contains " and played " raw) then
         case String.split " played " raw of
             [ player, nameDot ] ->
                 let
@@ -1180,6 +1223,51 @@ tryDrewCard raw =
         Nothing
 
 
+tryDrewAndPlayed : String -> Maybe Action
+tryDrewAndPlayed raw =
+    -- "PLAYER drew N cards and played them to the Bench."
+    -- "PLAYER drew N cards and played them to the Active Spot."
+    -- (singular: "drew 1 card and played it to …")
+    let
+        toBench =
+            String.endsWith " to the Bench." raw
+
+        toActive =
+            String.endsWith " to the Active Spot." raw
+    in
+    if (toBench || toActive) && String.contains " drew " raw && String.contains " and played " raw then
+        case String.split " drew " raw of
+            [ player, rest ] ->
+                let
+                    countStr =
+                        rest
+                            |> String.split " card"
+                            |> List.head
+                            |> Maybe.withDefault ""
+                            |> String.trim
+                in
+                String.toInt countStr
+                    |> Maybe.map
+                        (\n ->
+                            DrewAndPlayed
+                                { player = player
+                                , count = n
+                                , position =
+                                    if toBench then
+                                        BenchSpot
+
+                                    else
+                                        ActiveSpot
+                                }
+                        )
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
 tryDrewCount : String -> Maybe Action
 tryDrewCount raw =
     -- Detail: "PLAYER drew N cards."
@@ -1621,6 +1709,26 @@ tryTimeout raw =
         else
             Just (Timeout { player = player })
 
+    else
+        Nothing
+
+
+tryCardList : String -> Maybe Action
+tryCardList raw =
+    let
+        parts =
+            if String.startsWith "(" raw then
+                raw
+                    |> String.split ", ("
+                    |> List.indexedMap (\i s -> if i == 0 then s else "(" ++ s)
+            else
+                []
+
+        cards =
+            List.filterMap parseCardRef parts
+    in
+    if List.length cards >= 2 && List.length cards == List.length parts then
+        Just (CardList cards)
     else
         Nothing
 
