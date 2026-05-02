@@ -1832,11 +1832,11 @@ viewHandState players cache hand bench active maybeStadium piles maybePlay =
                 , style "flex" "1"
                 , style "min-width" "0"
                 ]
-                [ viewHandRow "BLUE" True "#2c5282" blueDisplay (handCardImage cache)
+                [ viewHandRow "RED" True "#c53030" blueDisplay (handCardImage cache)
                 , viewBenchRow True cache bench.blue
                 , viewActiveZone players.red cache active maybeStadium
                 , viewBenchRow False cache bench.red
-                , viewHandRow "RED" False "#c53030" redDisplay (handCardImage cache)
+                , viewHandRow "BLUE" False "#2c5282" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
               div
@@ -1845,8 +1845,8 @@ viewHandState players cache hand bench active maybeStadium piles maybePlay =
                 , style "justify-content" "space-between"
                 , style "flex-shrink" "0"
                 ]
-                [ viewPlayerPiles False piles.deckBlue piles.discardBlue piles.prizesBlue "#2c5282"
-                , viewPlayerPiles True piles.deckRed piles.discardRed piles.prizesRed "#c53030"
+                [ viewPlayerPiles False piles.deckBlue piles.discardBlue piles.prizesBlue "#c53030"
+                , viewPlayerPiles True piles.deckRed piles.discardRed piles.prizesRed "#2c5282"
                 ]
             ]
 
@@ -2035,29 +2035,30 @@ viewHandCard upsideDown color imageFor maybeCard =
     in
     case maybeCard of
         Just card ->
-            -- Known card — always an <img> so there is no element-type swap when
-            -- the image arrives. The gray background acts as the loading placeholder;
-            -- the image paints over it once the browser has fetched it.
-            img
-                (baseStyles
-                    ++ rotationStyles
-                    ++ [ style "object-fit" "cover"
-                       , style "object-position" "top"
-                       , style "background" "#e2e8f0"
-                       , style "cursor" "pointer"
-                       , onClick (CardClicked card.id)
-                       ]
-                    ++ (case imageFor maybeCard of
-                            Just imageUrl ->
-                                [ src imageUrl ]
+            case imageFor maybeCard of
+                Just imageUrl ->
+                    img
+                        (baseStyles
+                            ++ rotationStyles
+                            ++ [ style "object-fit" "cover"
+                               , style "object-position" "top"
+                               , style "background" "#e2e8f0"
+                               , style "cursor" "pointer"
+                               , onClick (CardClicked card.id)
+                               , src imageUrl
+                               ]
+                        )
+                        []
 
-                            Nothing ->
-                                -- No src yet — browser shows the background colour,
-                                -- no network request is made for a missing src attr
-                                []
-                       )
-                )
-                []
+                Nothing ->
+                    viewNoImageCard
+                        (baseStyles
+                            ++ rotationStyles
+                            ++ [ style "cursor" "pointer"
+                               , onClick (CardClicked card.id)
+                               ]
+                        )
+                        card.name
 
         Nothing ->
             -- Unknown card — card back rectangle
@@ -2115,6 +2116,29 @@ viewBenchRow upsideDown cache cards =
         ]
 
 
+{-| Fallback for any known card whose image hasn't loaded yet.
+Shows a dark card with the card name centered, so it's clear what the card is.
+-}
+viewNoImageCard : List (Html.Attribute Msg) -> String -> Html Msg
+viewNoImageCard extraStyles name =
+    div
+        ([ style "background" "#1a202c"
+         , style "color" "white"
+         , style "display" "flex"
+         , style "align-items" "center"
+         , style "justify-content" "center"
+         , style "text-align" "center"
+         , style "font-size" "0.6rem"
+         , style "font-weight" "600"
+         , style "line-height" "1.3"
+         , style "padding" "4px"
+         , style "overflow" "hidden"
+         ]
+            ++ extraStyles
+        )
+        [ text name ]
+
+
 viewBenchCard : Bool -> Dict String CardData -> Action.CardRef -> Html Msg
 viewBenchCard upsideDown cache card =
     let
@@ -2129,28 +2153,31 @@ viewBenchCard upsideDown cache card =
 
             else
                 []
-    in
-    img
-        ([ style "width" "72px"
-         , style "height" "100px"
-         , style "border-radius" "4px"
-         , style "flex-shrink" "0"
-         , style "box-sizing" "border-box"
-         , style "object-fit" "cover"
-         , style "background" "#e2e8f0"
-         , style "cursor" "pointer"
-         , onClick (CardClicked card.id)
-         ]
-            ++ rotStyles
-            ++ (case maybeUrl of
-                    Just u ->
-                        [ src u ]
 
-                    Nothing ->
-                        []
-               )
-        )
-        []
+        baseStyles =
+            [ style "width" "72px"
+            , style "height" "100px"
+            , style "border-radius" "4px"
+            , style "flex-shrink" "0"
+            , style "box-sizing" "border-box"
+            , style "cursor" "pointer"
+            , onClick (CardClicked card.id)
+            ]
+    in
+    case maybeUrl of
+        Just u ->
+            img
+                (baseStyles
+                    ++ rotStyles
+                    ++ [ style "object-fit" "cover"
+                       , style "background" "#e2e8f0"
+                       , src u
+                       ]
+                )
+                []
+
+        Nothing ->
+            viewNoImageCard (baseStyles ++ rotStyles) card.name
 
 
 
@@ -2270,27 +2297,30 @@ viewKnownCardThumb cache card =
             Dict.get card.id cache
                 |> Maybe.andThen .imageUrl
                 |> Maybe.map (\u -> u ++ "/low.webp")
-    in
-    img
-        ([ style "width" "72px"
-         , style "height" "100px"
-         , style "border-radius" "4px"
-         , style "flex-shrink" "0"
-         , style "box-sizing" "border-box"
-         , style "object-fit" "cover"
-         , style "background" "#e2e8f0"
-         , style "cursor" "pointer"
-         , onClick (CardClicked card.id)
-         ]
-            ++ (case maybeUrl of
-                    Just imageUrl ->
-                        [ src imageUrl ]
 
-                    Nothing ->
-                        []
-               )
-        )
-        []
+        baseStyles =
+            [ style "width" "72px"
+            , style "height" "100px"
+            , style "border-radius" "4px"
+            , style "flex-shrink" "0"
+            , style "box-sizing" "border-box"
+            , style "cursor" "pointer"
+            , onClick (CardClicked card.id)
+            ]
+    in
+    case maybeUrl of
+        Just imageUrl ->
+            img
+                (baseStyles
+                    ++ [ style "object-fit" "cover"
+                       , style "background" "#e2e8f0"
+                       , src imageUrl
+                       ]
+                )
+                []
+
+        Nothing ->
+            viewNoImageCard baseStyles card.name
 
 
 {-| The played-card panel shown to the right of the hand rows when the current
@@ -2302,10 +2332,10 @@ viewCurrentPlay players cache play =
     let
         color =
             if play.player == players.red then
-                "#c53030"
+                "#2c5282"
 
             else
-                "#2c5282"
+                "#c53030"
 
         playerLabel =
             div
@@ -2725,10 +2755,10 @@ playerColor players name =
     case players of
         Just p ->
             if name == p.red then
-                "#c53030"
+                "#2c5282"
 
             else if name == p.blue then
-                "#2c5282"
+                "#c53030"
 
             else
                 "#2d3748"
@@ -3119,7 +3149,7 @@ viewLine players highlight line =
 
 type TextSegment
     = PlainText String
-    | CardRef String String
+    | CardRef String String (Maybe String) -- id, name, optional player color
     | PlayerRef String String -- player name, css color
     | MoveRef String (Maybe MoveKind) String -- name, kind, cardId
 
@@ -3137,13 +3167,19 @@ viewSegment seg =
         PlainText str ->
             text str
 
-        CardRef id name ->
+        CardRef id name maybeColor ->
             span
                 [ onClick (CardClicked id)
                 , style "font-size" "0.8em"
                 , style "font-weight" "600"
-                , style "background" "#e2e8f0"
-                , style "color" "#4a5568"
+                , style "background" (Maybe.withDefault "#e2e8f0" maybeColor)
+                , style "color"
+                    (if maybeColor == Nothing then
+                        "#4a5568"
+
+                     else
+                        "white"
+                    )
                 , style "padding" "0.1em 0.45em"
                 , style "border-radius" "999px"
                 , style "white-space" "nowrap"
@@ -3432,7 +3468,36 @@ segmentText players str =
             []
 
         first :: rest ->
-            segmentPlayers players first ++ List.concatMap (parseParen players) rest
+            (segmentPlayers players first ++ List.concatMap (parseParen players) rest)
+                |> colorPokemonPills
+
+
+{-| After segmentation, any CardRef that immediately follows PlayerRef + "'s " gets
+the player's color so it renders as a tinted Pokémon pill instead of plain gray.
+-}
+colorPokemonPills : List TextSegment -> List TextSegment
+colorPokemonPills segs =
+    case segs of
+        [] ->
+            []
+
+        (PlayerRef name color) :: rest ->
+            case rest of
+                (PlainText possessive) :: (CardRef id cname Nothing) :: further ->
+                    if String.endsWith "'s " possessive then
+                        PlayerRef name color
+                            :: PlainText possessive
+                            :: CardRef id cname (Just color)
+                            :: colorPokemonPills further
+
+                    else
+                        PlayerRef name color :: colorPokemonPills rest
+
+                _ ->
+                    PlayerRef name color :: colorPokemonPills rest
+
+        seg :: rest ->
+            seg :: colorPokemonPills rest
 
 
 parseParen : Maybe Replay.Players -> String -> List TextSegment
@@ -3447,7 +3512,7 @@ parseParen players str =
                     ( name, rest ) =
                         extractCardName remainder
                 in
-                CardRef id name :: segmentPlayers players rest
+                CardRef id name Nothing :: segmentPlayers players rest
 
             else
                 segmentPlayers players ("(" ++ str)
@@ -3467,12 +3532,12 @@ segmentPlayers maybePlayers str =
                 [ PlainText str ]
 
         Just players ->
-            splitByPlayer players.red "#c53030" str
+            splitByPlayer players.red "#2c5282" str
                 |> List.concatMap
                     (\seg ->
                         case seg of
                             PlainText s ->
-                                splitByPlayer players.blue "#2c5282" s
+                                splitByPlayer players.blue "#c53030" s
 
                             other ->
                                 [ other ]
