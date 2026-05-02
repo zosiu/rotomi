@@ -184,7 +184,7 @@ currentFlipOpponent model =
             flip
 
         _ ->
-            True
+            False
 
 
 
@@ -2178,11 +2178,11 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
                 , style "flex" "1"
                 , style "min-width" "0"
                 ]
-                [ viewHandRow "RED" flipOpponent "#c53030" blueDisplay (handCardImage cache)
-                , viewBenchRow flipOpponent cache bench.blue
-                , viewActiveZone players.red cache flipOpponent active maybeStadium
-                , viewBenchRow False cache bench.red
-                , viewHandRow "BLUE" False "#2c5282" redDisplay (handCardImage cache)
+                [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
+                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" bench.blue
+                , viewActiveZone players cache flipOpponent active maybeStadium maybePlay
+                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" bench.red
+                , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
               div
@@ -2195,21 +2195,6 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
                 , viewPlayerPiles True piles.deckRed piles.discardRed piles.prizesRed "#2c5282"
                 ]
             ]
-
-        -- Permanent divider between board state and played card panel
-        , div
-            [ style "border-top" "1px solid #e2e8f0"
-            , style "margin" "0"
-            ]
-            []
-
-        -- Played card panel — only visible for PlayedTrainer groups
-        , case maybePlay of
-            Nothing ->
-                text ""
-
-            Just play ->
-                viewCurrentPlay players cache play
         ]
 
 
@@ -2256,11 +2241,11 @@ viewPrizeStack count color =
         [ text (String.fromInt count) ]
 
 
-viewHandRow : String -> Bool -> String -> List (Maybe Action.CardRef) -> (Maybe Action.CardRef -> Maybe String) -> Html Msg
-viewHandRow playerName upsideDown color cards imageFor =
+viewHandRow : String -> Bool -> String -> String -> List (Maybe Action.CardRef) -> (Maybe Action.CardRef -> Maybe String) -> Html Msg
+viewHandRow playerName upsideDown color alignItems cards imageFor =
     div
         [ style "display" "flex"
-        , style "align-items" "center"
+        , style "align-items" alignItems
         , style "gap" "0.35rem"
         , style "min-height" "60px"
         , style "min-width" "0"
@@ -2298,7 +2283,10 @@ viewHandRow playerName upsideDown color cards imageFor =
             , style "overflow-x" "auto"
             , style "flex" "1"
             , style "min-width" "0"
-            , style "padding-bottom" "4px"
+            -- Scrollbar clearance always on the side away from the bench:
+            -- flex-end (opponent, bench below) → padding-top keeps cards flush at bottom.
+            -- flex-start (player, bench above) → padding-bottom keeps cards flush at top.
+            , if alignItems == "flex-end" then style "padding-top" "4px" else style "padding-bottom" "4px"
             ]
             (List.map
                 (\item ->
@@ -2428,8 +2416,8 @@ viewHandCard upsideDown color imageFor maybeCard =
                 []
 
 
-viewBenchRow : Bool -> Dict String CardData -> List Action.CardRef -> Html Msg
-viewBenchRow upsideDown cache cards =
+viewBenchRow : Bool -> Dict String CardData -> String -> List Action.CardRef -> Html Msg
+viewBenchRow upsideDown cache bgColor cards =
     div
         [ style "display" "flex"
         , style "align-items" "center"
@@ -2465,7 +2453,7 @@ viewBenchRow upsideDown cache cards =
             , style "min-width" "0"
             , style "min-height" "100px"
             , style "padding" "6px 8px"
-            , style "background" "#f7fafc"
+            , style "background" bgColor
             , style "border-radius" "6px"
             ]
             (List.map (viewBenchCard upsideDown cache) cards)
@@ -2541,19 +2529,33 @@ viewBenchCard upsideDown cache card =
 Active spots are stacked vertically in the center. Stadium slots sit two card-widths
 out on each side: blue's on the left (upside-down), red's on the right.
 -}
-viewActiveZone : String -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> Html Msg
-viewActiveZone red cache flipOpponent active maybeStadium =
+viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> Maybe CurrentPlay -> Html Msg
+viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
     let
-        stadiumSlot upsideDown maybeCard =
-            case maybeCard of
-                Just card ->
-                    viewBenchCard upsideDown cache card
+        red =
+            players.red
+
+        stadiumSlot maybeEntry =
+            case maybeEntry of
+                Just ( card, upsideDown, shadowColor ) ->
+                    div
+                        [ style "width" "72px"
+                        , style "height" "100px"
+                        , style "border-radius" "4px"
+                        , style "flex-shrink" "0"
+                        , style "box-shadow" ("0 0 0 4px " ++ shadowColor)
+                        , style "overflow" "hidden"
+                        ]
+                        [ viewBenchCard upsideDown cache card ]
 
                 Nothing ->
                     div
                         [ style "width" "72px"
                         , style "height" "100px"
+                        , style "border-radius" "4px"
                         , style "flex-shrink" "0"
+                        , style "border" "2px dashed #cbd5e0"
+                        , style "box-sizing" "border-box"
                         ]
                         []
 
@@ -2573,23 +2575,32 @@ viewActiveZone red cache flipOpponent active maybeStadium =
                         ]
                         []
 
-        ( blueStadium, redStadium ) =
+        -- Single stadium slot: flip if the opponent played it; border color by player
+        stadiumEntry =
             case maybeStadium of
                 Just s ->
-                    if s.player == red then
-                        ( Nothing, Just s.card )
+                    let
+                        upsideDown =
+                            flipOpponent && s.player /= red
 
-                    else
-                        ( Just s.card, Nothing )
+                        borderColor =
+                            if s.player == red then
+                                "rgba(44, 82, 130, 0.45)"
+
+                            else
+                                "rgba(197, 48, 48, 0.45)"
+                    in
+                    Just ( s.card, upsideDown, borderColor )
 
                 Nothing ->
-                    ( Nothing, Nothing )
+                    Nothing
     in
     div
         [ style "display" "flex"
         , style "align-items" "center"
         , style "gap" "0.35rem"
         , style "min-width" "0"
+        , style "padding-bottom" "1rem"
         ]
         [ -- Invisible spacer matching the label column in viewHandRow
           div
@@ -2610,34 +2621,87 @@ viewActiveZone red cache flipOpponent active maybeStadium =
                 [ style "font-size" "0.65rem" ]
                 [ text "(0)" ]
             ]
-        , -- Centered content: stadium + active spots + stadium
+
+        -- 5-column grid:  1fr | 72px gap | auto (active) | 72px gap | 1fr
+        -- The outer 1fr columns are equal, so the auto active column is exactly
+        -- centered. The 72px columns provide one-card spacing on each side.
+        -- Stadium spans both rows in col 1; play info rows land in col 5.
+        -- row-gap: 0.4rem separates the two rows.
+        -- align-items: start + padding-top: 1rem on active + line-height: 1 on
+        -- play-info labels keeps card images pixel-aligned across columns.
+        , let
+            isTookPrize =
+                case maybePlay of
+                    Just play -> play.card == Nothing
+                    Nothing   -> False
+
+            bluePlay =
+                case maybePlay of
+                    Just play ->
+                        let bluePlayedCard = if play.player /= red then play.card else Nothing
+                        in viewPlayerPlayInfo cache flipOpponent isTookPrize play.blue bluePlayedCard
+                    Nothing ->
+                        text ""
+
+            redPlay =
+                case maybePlay of
+                    Just play ->
+                        let redPlayedCard = if play.player == red then play.card else Nothing
+                        in viewPlayerPlayInfo cache False isTookPrize play.red redPlayedCard
+                    Nothing ->
+                        text ""
+          in
           div
-            [ style "display" "flex"
-            , style "justify-content" "center"
-            , style "align-items" "center"
+            [ style "display" "grid"
+            , style "grid-template-columns" "minmax(0,1fr) 72px auto 72px minmax(0,1fr)"
+            , style "grid-template-rows" "calc(100px + 1rem) calc(100px + 1rem)"
+            , style "row-gap" "0.4rem"
+            , style "align-items" "end"
             , style "flex" "1"
             , style "min-width" "0"
-            , style "gap" "0"
             ]
-            [ -- Blue stadium: two card-widths left of center
-              stadiumSlot flipOpponent blueStadium
-            , div [ style "width" "72px", style "flex-shrink" "0" ] []
-
-            -- Active spots stacked vertically
-            , div
-                [ style "display" "flex"
-                , style "flex-direction" "column"
-                , style "gap" "0.4rem"
+            [ -- Stadium: col 1, spans both rows, vertically centered between them
+              div
+                [ style "grid-column" "1"
+                , style "grid-row" "1 / 3"
+                , style "align-self" "center"
+                , style "display" "flex"
+                , style "justify-content" "flex-end"
                 , style "align-items" "center"
-                , style "flex-shrink" "0"
                 ]
-                [ activeCard flipOpponent active.blue
-                , activeCard False active.red
-                ]
-            , div [ style "width" "72px", style "flex-shrink" "0" ] []
+                [ stadiumSlot stadiumEntry ]
 
-            -- Red stadium: two card-widths right of center
-            , stadiumSlot False redStadium
+            -- Blue active: col 3, row 1
+            , div
+                [ style "grid-column" "3"
+                , style "grid-row" "1"
+                ]
+                [ activeCard flipOpponent active.blue ]
+
+            -- Red active: col 3, row 2
+            , div
+                [ style "grid-column" "3"
+                , style "grid-row" "2"
+                ]
+                [ activeCard False active.red ]
+
+            -- Blue play info: col 5, row 1  (scrollable so wide content doesn't push column)
+            , div
+                [ style "grid-column" "5"
+                , style "grid-row" "1"
+                , style "overflow-x" "auto"
+                , style "min-width" "0"
+                ]
+                [ bluePlay ]
+
+            -- Red play info: col 5, row 2  (scrollable so wide content doesn't push column)
+            , div
+                [ style "grid-column" "5"
+                , style "grid-row" "2"
+                , style "overflow-x" "auto"
+                , style "min-width" "0"
+                ]
+                [ redPlay ]
             ]
         ]
 
@@ -2646,8 +2710,8 @@ viewActiveZone red cache flipOpponent active maybeStadium =
 and the played-card panel. Always an <img> with a gray background placeholder
 so there is no flicker when the image loads.
 -}
-viewKnownCardThumb : Dict String CardData -> Action.CardRef -> Html Msg
-viewKnownCardThumb cache card =
+viewKnownCardThumb : Bool -> Dict String CardData -> Action.CardRef -> Html Msg
+viewKnownCardThumb upsideDown cache card =
     let
         maybeUrl =
             Dict.get card.id cache
@@ -2663,6 +2727,7 @@ viewKnownCardThumb cache card =
             , style "cursor" "pointer"
             , onClick (CardClicked card.id)
             ]
+            ++ (if upsideDown then [ style "transform" "rotate(180deg)" ] else [])
     in
     case maybeUrl of
         Just imageUrl ->
@@ -2750,20 +2815,20 @@ viewUnknownCardBack w h upsideDown count =
         )
 
 
-{-| The played-card panel shown to the right of the hand rows when the current
-action is a trainer play. Shows the played card and any cards discarded as
-part of the effect.
+{-| Render the play info (played card + discarded / shuffled / drawn) for a
+single player next to their active card slot. Returns `text ""` when there is
+nothing to show for that player.
 -}
-viewCurrentPlay : Replay.Players -> Dict String CardData -> CurrentPlay -> Html Msg
-viewCurrentPlay players cache play =
+viewPlayerPlayInfo : Dict String CardData -> Bool -> Bool -> PlayerCards -> Maybe Action.CardRef -> Html Msg
+viewPlayerPlayInfo cache upsideDown isTookPrize playerCards maybePlayedCard =
     let
         viewPlayItem item =
             case item of
                 KnownPlayCard card ->
-                    viewKnownCardThumb cache card
+                    viewKnownCardThumb upsideDown cache card
 
                 UnknownPlayCards n ->
-                    viewUnknownCardBack "72px" "100px" False n
+                    viewUnknownCardBack "72px" "100px" upsideDown n
 
         labeledGroup label cards =
             div
@@ -2776,6 +2841,7 @@ viewCurrentPlay players cache play =
                     [ style "font-size" "0.7rem"
                     , style "font-weight" "600"
                     , style "color" "#718096"
+                    , style "line-height" "1"
                     ]
                     [ text label ]
                 , div
@@ -2792,49 +2858,42 @@ viewCurrentPlay players cache play =
             else
                 [ labeledGroup label cards ]
 
-        -- One horizontal row for a single player
-        -- isTookPrize: use "Prizes taken" label instead of "Drawn" for the drawn cards
+        cardGroups =
+            if isTookPrize then
+                optionalGroup "Prizes taken" playerCards.drawn
+
+            else
+                (case maybePlayedCard of
+                    Just card ->
+                        [ labeledGroup "Played" [ Just card ] ]
+
+                    Nothing ->
+                        []
+                )
+                    ++ optionalGroup "Discarded" playerCards.discarded
+                    ++ optionalGroup "Shuffled" playerCards.shuffled
+                    ++ optionalGroup "Drawn" playerCards.drawn
+    in
+    if List.isEmpty cardGroups then
+        text ""
+
+    else
+        div
+            [ style "display" "flex"
+            , style "flex-direction" "row"
+            , style "align-items" "flex-start"
+            , style "gap" "0.5rem"
+            , style "overflow-x" "auto"
+            ]
+            cardGroups
+
+
+viewCurrentPlay : Replay.Players -> Dict String CardData -> CurrentPlay -> Html Msg
+viewCurrentPlay players cache play =
+    let
         isTookPrize =
             play.card == Nothing
 
-        playerSection playerName rowColor playerCards maybePlayedCard =
-            let
-                cardGroups =
-                    if isTookPrize then
-                        optionalGroup "Prizes taken" playerCards.drawn
-
-                    else
-                        (case maybePlayedCard of
-                            Just card ->
-                                [ labeledGroup "Played" [ Just card ] ]
-
-                            Nothing ->
-                                []
-                        )
-                            ++ optionalGroup "Discarded" playerCards.discarded
-                            ++ optionalGroup "Shuffled" playerCards.shuffled
-                            ++ optionalGroup "Drawn" playerCards.drawn
-            in
-            if List.isEmpty cardGroups then
-                []
-
-            else
-                div
-                    [ style "font-size" "0.7rem"
-                    , style "font-weight" "600"
-                    , style "color" rowColor
-                    , style "writing-mode" "vertical-rl"
-                    , style "transform" "rotate(180deg)"
-                    , style "flex-shrink" "0"
-                    , style "width" "14px"
-                    , style "overflow" "hidden"
-                    , style "white-space" "nowrap"
-                    , style "align-self" "center"
-                    ]
-                    [ text playerName ]
-                    :: cardGroups
-
-        -- "Played" card only shows in the row of the player who played it
         redPlayedCard =
             if play.player == players.red then
                 play.card
@@ -2848,12 +2907,6 @@ viewCurrentPlay players cache play =
 
             else
                 Nothing
-
-        redSection =
-            playerSection "BLUE" "#2c5282" play.red redPlayedCard
-
-        blueSection =
-            playerSection "RED" "#c53030" play.blue bluePlayedCard
     in
     div
         [ style "display" "flex"
@@ -2863,7 +2916,9 @@ viewCurrentPlay players cache play =
         , style "overflow-x" "auto"
         , style "padding-bottom" "4px"
         ]
-        (blueSection ++ redSection)
+        [ viewPlayerPlayInfo cache False isTookPrize play.blue bluePlayedCard
+        , viewPlayerPlayInfo cache False isTookPrize play.red redPlayedCard
+        ]
 
 
 -- VIEW

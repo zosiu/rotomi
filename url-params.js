@@ -19,10 +19,10 @@ function readGroupIndex(search) {
   return isNaN(n) || n < 0 ? 0 : n;
 }
 
-// Default is true (flip opponent cards). Only stored in URL when explicitly set to false.
+// Default is false (don't flip opponent cards). Only stored in URL when explicitly set to true.
 function readFlipOpponent(search) {
   const val = new URLSearchParams(search).get(FLIP_PARAM);
-  return val !== "0";
+  return val === "1";
 }
 
 function buildShareUrl(replayUrl, sectionIndex, groupIndex, flipOpponent) {
@@ -31,7 +31,7 @@ function buildShareUrl(replayUrl, sectionIndex, groupIndex, flipOpponent) {
   params.set(REPLAY_URL_PARAM, replayUrl);
   if (sectionIndex > 0) params.set(SECTION_PARAM, sectionIndex);
   if (groupIndex > 0) params.set(GROUP_PARAM, groupIndex);
-  if (flipOpponent === false) params.set(FLIP_PARAM, "0");
+  if (flipOpponent === true) params.set(FLIP_PARAM, "1");
   return "?" + params.toString();
 }
 
