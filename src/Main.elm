@@ -2978,8 +2978,6 @@ view : Model -> Html Msg
 view model =
     div
         [ style "font-family" "system-ui, -apple-system, sans-serif"
-        , style "max-width" "1400px"
-        , style "margin" "0 auto"
         , style "padding" "0.5rem 1.5rem 0"
         , style "color" "#1a202c"
         , style "height" "100%"
@@ -3039,8 +3037,7 @@ view model =
 
             -- Right column: settings + action log
             , div
-                [ style "flex" "1"
-                , style "min-width" "0"
+                [ style "flex" "0 0 320px"
                 , style "min-height" "0"
                 , style "display" "flex"
                 , style "flex-direction" "column"
