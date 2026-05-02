@@ -12884,6 +12884,9 @@ var $author$project$Main$stripDrawnFromHandSide = F2(
 				A2($elm$core$List$filterMap, $elm$core$Basics$identity, drawn),
 				handSide));
 	});
+var $author$project$Main$activeRowH = 'calc(14vh + 1rem)';
+var $author$project$Main$cardH = '14vh';
+var $author$project$Main$cardW = 'calc(14vh * 0.72)';
 var $author$project$Main$viewNoImageCard = F2(
 	function (extraStyles, name) {
 		return A2(
@@ -12928,8 +12931,8 @@ var $author$project$Main$viewBenchCard = F3(
 				A2($elm$core$Dict$get, card.a$, cache)));
 		var baseStyles = _List_fromArray(
 			[
-				A2($elm$html$Html$Attributes$style, 'width', '72px'),
-				A2($elm$html$Html$Attributes$style, 'height', '100px'),
+				A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+				A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 				A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 				A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 				A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box'),
@@ -13011,8 +13014,8 @@ var $author$project$Main$viewKnownCardThumb = F3(
 		var baseStyles = _Utils_ap(
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'width', '72px'),
-					A2($elm$html$Html$Attributes$style, 'height', '100px'),
+					A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+					A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 					A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box'),
@@ -13092,7 +13095,7 @@ var $author$project$Main$viewPlayerPlayInfo = F5(
 				return A3($author$project$Main$viewKnownCardThumb, upsideDown, cache, card);
 			} else {
 				var n = item.a;
-				return A4($author$project$Main$viewUnknownCardBack, '72px', '100px', upsideDown, n);
+				return A4($author$project$Main$viewUnknownCardBack, $author$project$Main$cardW, $author$project$Main$cardH, upsideDown, n);
 			}
 		};
 		var labeledGroup = F2(
@@ -13188,8 +13191,8 @@ var $author$project$Main$viewActiveZone = F6(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'width', '72px'),
-							A2($elm$html$Html$Attributes$style, 'height', '100px'),
+							A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+							A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 							A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 							A2($elm$html$Html$Attributes$style, 'box-shadow', '0 0 0 4px ' + shadowColor),
@@ -13204,8 +13207,8 @@ var $author$project$Main$viewActiveZone = F6(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'width', '72px'),
-							A2($elm$html$Html$Attributes$style, 'height', '100px'),
+							A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+							A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 							A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 							A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
@@ -13236,8 +13239,8 @@ var $author$project$Main$viewActiveZone = F6(
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
-								A2($elm$html$Html$Attributes$style, 'width', '72px'),
-								A2($elm$html$Html$Attributes$style, 'height', '100px'),
+								A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+								A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 								A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 								A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 								A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
@@ -13327,7 +13330,7 @@ var $author$project$Main$viewActiveZone = F6(
 							[
 								A2($elm$html$Html$Attributes$style, 'display', 'grid'),
 								A2($elm$html$Html$Attributes$style, 'grid-template-columns', 'minmax(0,1fr) 72px auto 72px minmax(0,1fr)'),
-								A2($elm$html$Html$Attributes$style, 'grid-template-rows', 'calc(100px + 1rem) calc(100px + 1rem)'),
+								A2($elm$html$Html$Attributes$style, 'grid-template-rows', $author$project$Main$activeRowH + (' ' + $author$project$Main$activeRowH)),
 								A2($elm$html$Html$Attributes$style, 'row-gap', '0.4rem'),
 								A2($elm$html$Html$Attributes$style, 'align-items', 'end'),
 								A2($elm$html$Html$Attributes$style, 'flex', '1'),
@@ -13458,7 +13461,7 @@ var $author$project$Main$viewBenchRow = F4(
 							A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
 							A2($elm$html$Html$Attributes$style, 'flex', '1'),
 							A2($elm$html$Html$Attributes$style, 'min-width', '0'),
-							A2($elm$html$Html$Attributes$style, 'min-height', '100px'),
+							A2($elm$html$Html$Attributes$style, 'min-height', $author$project$Main$cardH),
 							A2($elm$html$Html$Attributes$style, 'padding', '6px 8px'),
 							A2($elm$html$Html$Attributes$style, 'background', bgColor),
 							A2($elm$html$Html$Attributes$style, 'border-radius', '6px')
@@ -13469,6 +13472,8 @@ var $author$project$Main$viewBenchRow = F4(
 						cards))
 				]));
 	});
+var $author$project$Main$handCardH = 'calc(14vh * 0.60)';
+var $author$project$Main$handCardW = 'calc(14vh * 0.86)';
 var $author$project$Main$viewHandCard = F4(
 	function (upsideDown, color, imageFor, maybeCard) {
 		var rotationStyles = upsideDown ? _List_fromArray(
@@ -13476,12 +13481,10 @@ var $author$project$Main$viewHandCard = F4(
 				A2($elm$html$Html$Attributes$style, 'transform', 'rotate(180deg)')
 			]) : _List_Nil;
 		var radius = '4px';
-		var cardW = '86px';
-		var cardH = '60px';
 		var baseStyles = _List_fromArray(
 			[
-				A2($elm$html$Html$Attributes$style, 'width', cardW),
-				A2($elm$html$Html$Attributes$style, 'height', cardH),
+				A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$handCardW),
+				A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$handCardH),
 				A2($elm$html$Html$Attributes$style, 'border-radius', radius),
 				A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 				A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
@@ -13547,7 +13550,7 @@ var $author$project$Main$viewHandRow = F6(
 					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 					A2($elm$html$Html$Attributes$style, 'align-items', alignItems),
 					A2($elm$html$Html$Attributes$style, 'gap', '0.35rem'),
-					A2($elm$html$Html$Attributes$style, 'min-height', '60px'),
+					A2($elm$html$Html$Attributes$style, 'min-height', $author$project$Main$handCardH),
 					A2($elm$html$Html$Attributes$style, 'min-width', '0')
 				]),
 			_List_fromArray(
@@ -13622,7 +13625,7 @@ var $author$project$Main$viewHandRow = F6(
 									$elm$core$Maybe$Just(card));
 							} else {
 								var n = item.a;
-								return A4($author$project$Main$viewUnknownCardBack, '86px', '60px', upsideDown, n);
+								return A4($author$project$Main$viewUnknownCardBack, $author$project$Main$handCardW, $author$project$Main$handCardH, upsideDown, n);
 							}
 						},
 						$author$project$Main$collapseUnknowns(cards)))
@@ -13634,8 +13637,8 @@ var $author$project$Main$viewPileStack = F4(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'width', '72px'),
-					A2($elm$html$Html$Attributes$style, 'height', '100px'),
+					A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+					A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
@@ -13678,8 +13681,8 @@ var $author$project$Main$viewPrizeStack = F2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'width', '72px'),
-					A2($elm$html$Html$Attributes$style, 'height', '100px'),
+					A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+					A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 					A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
