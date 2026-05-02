@@ -13104,7 +13104,7 @@ var $author$project$Main$handCardImage = F2(
 			return A2(
 				$elm$core$Maybe$map,
 				function (u) {
-					return u + '/low.webp';
+					return u + '/high.webp';
 				},
 				A2(
 					$elm$core$Maybe$andThen,
@@ -13213,7 +13213,7 @@ var $author$project$Main$viewBenchCard = F3(
 		var maybeUrl = A2(
 			$elm$core$Maybe$map,
 			function (u) {
-				return u + '/low.webp';
+				return u + '/high.webp';
 			},
 			A2(
 				$elm$core$Maybe$andThen,
@@ -13295,7 +13295,7 @@ var $author$project$Main$viewKnownCardThumb = F3(
 		var maybeUrl = A2(
 			$elm$core$Maybe$map,
 			function (u) {
-				return u + '/low.webp';
+				return u + '/high.webp';
 			},
 			A2(
 				$elm$core$Maybe$andThen,
@@ -13673,7 +13673,7 @@ var $author$project$Main$viewActiveZone = F6(
 									[
 										A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
 										A2($elm$html$Html$Attributes$style, 'grid-row', '1'),
-										A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
+										A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 										A2($elm$html$Html$Attributes$style, 'min-width', '0')
 									]),
 								_List_fromArray(
@@ -13684,7 +13684,7 @@ var $author$project$Main$viewActiveZone = F6(
 									[
 										A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
 										A2($elm$html$Html$Attributes$style, 'grid-row', '2'),
-										A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
+										A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 										A2($elm$html$Html$Attributes$style, 'min-width', '0')
 									]),
 								_List_fromArray(
@@ -13902,6 +13902,7 @@ var $author$project$Main$viewHandRow = F6(
 							A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
 							A2($elm$html$Html$Attributes$style, 'flex', '1'),
 							A2($elm$html$Html$Attributes$style, 'min-width', '0'),
+							A2($elm$html$Html$Attributes$style, 'min-height', $author$project$Main$handCardH),
 							(alignItems === 'flex-end') ? A2($elm$html$Html$Attributes$style, 'padding-top', '4px') : A2($elm$html$Html$Attributes$style, 'padding-bottom', '4px')
 						]),
 					A2(
