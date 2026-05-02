@@ -13244,6 +13244,7 @@ var $author$project$Main$viewBenchCard = F3(
 							[
 								A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
 								A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
+								A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
 								$elm$html$Html$Attributes$src(u)
 							]))),
 				_List_Nil);
@@ -13329,6 +13330,7 @@ var $author$project$Main$viewKnownCardThumb = F3(
 						[
 							A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
 							A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
+							A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
 							$elm$html$Html$Attributes$src(imageUrl)
 						])),
 				_List_Nil);
@@ -13467,7 +13469,7 @@ var $author$project$Main$viewPlayerPlayInfo = F6(
 					A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
 					A2($elm$html$Html$Attributes$style, 'align-items', 'flex-start'),
 					A2($elm$html$Html$Attributes$style, 'gap', '0.5rem'),
-					A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto')
+					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
 				]),
 			cardGroups);
 	});
@@ -13797,6 +13799,7 @@ var $author$project$Main$viewHandCard = F4(
 									A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
 									A2($elm$html$Html$Attributes$style, 'object-position', 'top'),
 									A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
+									A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
 									A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 									$elm$html$Html$Events$onClick(
 									$author$project$Main$CardClicked(card.a$)),
