@@ -1440,14 +1440,14 @@ correctGroupPlayers players group =
                         detail
 
                 Action.ShuffledInto { card } ->
-                    if card == Nothing && countOnlyShuffleCount >= 2 then
+                    if card == Nothing && (countOnlyShuffleCount >= 2 || drewCountCount >= 2) then
                         correctDetailPlayer players detail
 
                     else
                         detail
 
                 Action.PutOnBottom { card } ->
-                    if card == Nothing && countOnlyPutOnBottomCount >= 2 then
+                    if card == Nothing && (countOnlyPutOnBottomCount >= 2 || drewCountCount >= 2) then
                         correctDetailPlayer players detail
 
                     else
