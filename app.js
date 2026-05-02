@@ -4570,10 +4570,7 @@ function _Url_percentDecode(string)
 	{
 		return $elm$core$Maybe$Nothing;
 	}
-}var $author$project$Main$GotSwipe = function (a) {
-	return {$: 7, a: a};
-};
-var $elm$core$List$cons = _List_cons;
+}var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
 	function (func, baseCase, _v0) {
@@ -4653,6 +4650,12 @@ var $elm$core$Set$toList = function (_v0) {
 var $elm$core$Basics$EQ = 1;
 var $elm$core$Basics$GT = 2;
 var $elm$core$Basics$LT = 0;
+var $author$project$Main$GotSwipe = function (a) {
+	return {$: 7, a: a};
+};
+var $author$project$Main$KeyDown = function (a) {
+	return {$: 8, a: a};
+};
 var $elm$core$Result$Err = function (a) {
 	return {$: 1, a: a};
 };
@@ -5049,6 +5052,7 @@ var $elm$core$Result$isOk = function (result) {
 	}
 };
 var $elm$json$Json$Decode$andThen = _Json_andThen;
+var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$json$Json$Decode$bool = _Json_decodeBool;
 var $elm$json$Json$Decode$map = _Json_map1;
 var $elm$json$Json$Decode$map2 = _Json_map2;
@@ -6164,6 +6168,276 @@ var $author$project$Main$init = function (flags) {
 			}));
 };
 var $elm$json$Json$Decode$int = _Json_decodeInt;
+var $elm$browser$Browser$Events$Document = 0;
+var $elm$browser$Browser$Events$MySub = F3(
+	function (a, b, c) {
+		return {$: 0, a: a, b: b, c: c};
+	});
+var $elm$browser$Browser$Events$State = F2(
+	function (subs, pids) {
+		return {bT: pids, cb: subs};
+	});
+var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
+	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
+var $elm$browser$Browser$Events$nodeToKey = function (node) {
+	if (!node) {
+		return 'd_';
+	} else {
+		return 'w_';
+	}
+};
+var $elm$browser$Browser$Events$addKey = function (sub) {
+	var node = sub.a;
+	var name = sub.b;
+	return _Utils_Tuple2(
+		_Utils_ap(
+			$elm$browser$Browser$Events$nodeToKey(node),
+			name),
+		sub);
+};
+var $elm$core$Dict$fromList = function (assocs) {
+	return A3(
+		$elm$core$List$foldl,
+		F2(
+			function (_v0, dict) {
+				var key = _v0.a;
+				var value = _v0.b;
+				return A3($elm$core$Dict$insert, key, value, dict);
+			}),
+		$elm$core$Dict$empty,
+		assocs);
+};
+var $elm$core$Dict$foldl = F3(
+	function (func, acc, dict) {
+		foldl:
+		while (true) {
+			if (dict.$ === -2) {
+				return acc;
+			} else {
+				var key = dict.b;
+				var value = dict.c;
+				var left = dict.d;
+				var right = dict.e;
+				var $temp$func = func,
+					$temp$acc = A3(
+					func,
+					key,
+					value,
+					A3($elm$core$Dict$foldl, func, acc, left)),
+					$temp$dict = right;
+				func = $temp$func;
+				acc = $temp$acc;
+				dict = $temp$dict;
+				continue foldl;
+			}
+		}
+	});
+var $elm$core$Dict$merge = F6(
+	function (leftStep, bothStep, rightStep, leftDict, rightDict, initialResult) {
+		var stepState = F3(
+			function (rKey, rValue, _v0) {
+				stepState:
+				while (true) {
+					var list = _v0.a;
+					var result = _v0.b;
+					if (!list.b) {
+						return _Utils_Tuple2(
+							list,
+							A3(rightStep, rKey, rValue, result));
+					} else {
+						var _v2 = list.a;
+						var lKey = _v2.a;
+						var lValue = _v2.b;
+						var rest = list.b;
+						if (_Utils_cmp(lKey, rKey) < 0) {
+							var $temp$rKey = rKey,
+								$temp$rValue = rValue,
+								$temp$_v0 = _Utils_Tuple2(
+								rest,
+								A3(leftStep, lKey, lValue, result));
+							rKey = $temp$rKey;
+							rValue = $temp$rValue;
+							_v0 = $temp$_v0;
+							continue stepState;
+						} else {
+							if (_Utils_cmp(lKey, rKey) > 0) {
+								return _Utils_Tuple2(
+									list,
+									A3(rightStep, rKey, rValue, result));
+							} else {
+								return _Utils_Tuple2(
+									rest,
+									A4(bothStep, lKey, lValue, rValue, result));
+							}
+						}
+					}
+				}
+			});
+		var _v3 = A3(
+			$elm$core$Dict$foldl,
+			stepState,
+			_Utils_Tuple2(
+				$elm$core$Dict$toList(leftDict),
+				initialResult),
+			rightDict);
+		var leftovers = _v3.a;
+		var intermediateResult = _v3.b;
+		return A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v4, result) {
+					var k = _v4.a;
+					var v = _v4.b;
+					return A3(leftStep, k, v, result);
+				}),
+			intermediateResult,
+			leftovers);
+	});
+var $elm$browser$Browser$Events$Event = F2(
+	function (key, event) {
+		return {bu: event, bI: key};
+	});
+var $elm$browser$Browser$Events$spawn = F3(
+	function (router, key, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var actualNode = function () {
+			if (!node) {
+				return _Browser_doc;
+			} else {
+				return _Browser_window;
+			}
+		}();
+		return A2(
+			$elm$core$Task$map,
+			function (value) {
+				return _Utils_Tuple2(key, value);
+			},
+			A3(
+				_Browser_on,
+				actualNode,
+				name,
+				function (event) {
+					return A2(
+						$elm$core$Platform$sendToSelf,
+						router,
+						A2($elm$browser$Browser$Events$Event, key, event));
+				}));
+	});
+var $elm$core$Dict$union = F2(
+	function (t1, t2) {
+		return A3($elm$core$Dict$foldl, $elm$core$Dict$insert, t2, t1);
+	});
+var $elm$browser$Browser$Events$onEffects = F3(
+	function (router, subs, state) {
+		var stepRight = F3(
+			function (key, sub, _v6) {
+				var deads = _v6.a;
+				var lives = _v6.b;
+				var news = _v6.c;
+				return _Utils_Tuple3(
+					deads,
+					lives,
+					A2(
+						$elm$core$List$cons,
+						A3($elm$browser$Browser$Events$spawn, router, key, sub),
+						news));
+			});
+		var stepLeft = F3(
+			function (_v4, pid, _v5) {
+				var deads = _v5.a;
+				var lives = _v5.b;
+				var news = _v5.c;
+				return _Utils_Tuple3(
+					A2($elm$core$List$cons, pid, deads),
+					lives,
+					news);
+			});
+		var stepBoth = F4(
+			function (key, pid, _v2, _v3) {
+				var deads = _v3.a;
+				var lives = _v3.b;
+				var news = _v3.c;
+				return _Utils_Tuple3(
+					deads,
+					A3($elm$core$Dict$insert, key, pid, lives),
+					news);
+			});
+		var newSubs = A2($elm$core$List$map, $elm$browser$Browser$Events$addKey, subs);
+		var _v0 = A6(
+			$elm$core$Dict$merge,
+			stepLeft,
+			stepBoth,
+			stepRight,
+			state.bT,
+			$elm$core$Dict$fromList(newSubs),
+			_Utils_Tuple3(_List_Nil, $elm$core$Dict$empty, _List_Nil));
+		var deadPids = _v0.a;
+		var livePids = _v0.b;
+		var makeNewPids = _v0.c;
+		return A2(
+			$elm$core$Task$andThen,
+			function (pids) {
+				return $elm$core$Task$succeed(
+					A2(
+						$elm$browser$Browser$Events$State,
+						newSubs,
+						A2(
+							$elm$core$Dict$union,
+							livePids,
+							$elm$core$Dict$fromList(pids))));
+			},
+			A2(
+				$elm$core$Task$andThen,
+				function (_v1) {
+					return $elm$core$Task$sequence(makeNewPids);
+				},
+				$elm$core$Task$sequence(
+					A2($elm$core$List$map, $elm$core$Process$kill, deadPids))));
+	});
+var $elm$browser$Browser$Events$onSelfMsg = F3(
+	function (router, _v0, state) {
+		var key = _v0.bI;
+		var event = _v0.bu;
+		var toMessage = function (_v2) {
+			var subKey = _v2.a;
+			var _v3 = _v2.b;
+			var node = _v3.a;
+			var name = _v3.b;
+			var decoder = _v3.c;
+			return _Utils_eq(subKey, key) ? A2(_Browser_decodeEvent, decoder, event) : $elm$core$Maybe$Nothing;
+		};
+		var messages = A2($elm$core$List$filterMap, toMessage, state.cb);
+		return A2(
+			$elm$core$Task$andThen,
+			function (_v1) {
+				return $elm$core$Task$succeed(state);
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$map,
+					$elm$core$Platform$sendToApp(router),
+					messages)));
+	});
+var $elm$browser$Browser$Events$subMap = F2(
+	function (func, _v0) {
+		var node = _v0.a;
+		var name = _v0.b;
+		var decoder = _v0.c;
+		return A3(
+			$elm$browser$Browser$Events$MySub,
+			node,
+			name,
+			A2($elm$json$Json$Decode$map, func, decoder));
+	});
+_Platform_effectManagers['Browser.Events'] = _Platform_createManager($elm$browser$Browser$Events$init, $elm$browser$Browser$Events$onEffects, $elm$browser$Browser$Events$onSelfMsg, 0, $elm$browser$Browser$Events$subMap);
+var $elm$browser$Browser$Events$subscription = _Platform_leaf('Browser.Events');
+var $elm$browser$Browser$Events$on = F3(
+	function (node, name, decoder) {
+		return $elm$browser$Browser$Events$subscription(
+			A3($elm$browser$Browser$Events$MySub, node, name, decoder));
+	});
+var $elm$browser$Browser$Events$onKeyDown = A2($elm$browser$Browser$Events$on, 0, 'keydown');
 var $elm$json$Json$Decode$string = _Json_decodeString;
 var $author$project$Main$onSwipe = _Platform_incomingPort('onSwipe', $elm$json$Json$Decode$string);
 var $author$project$Main$CardNotFound = function (a) {
@@ -6182,7 +6456,7 @@ var $author$project$Main$FetchingMove = F2(
 	});
 var $author$project$Main$GotCardImage = F2(
 	function (a, b) {
-		return {$: 11, a: a, b: b};
+		return {$: 12, a: a, b: b};
 	});
 var $author$project$Main$Loaded = F7(
 	function (a, b, c, d, e, f, g) {
@@ -10503,7 +10777,7 @@ var $elm$url$Url$percentEncode = _Url_percentEncode;
 var $author$project$Main$proxyUrl = function (url) {
 	return 'https://api.allorigins.win/raw?url=' + $elm$url$Url$percentEncode(url);
 };
-var $author$project$Main$NoOp = {$: 14};
+var $author$project$Main$NoOp = {$: 15};
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
@@ -10758,6 +11032,24 @@ var $author$project$Main$update = F2(
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
 				case 8:
+					var key = msg.a;
+					switch (key) {
+						case 'ArrowLeft':
+							var $temp$msg = $author$project$Main$PrevSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						case 'ArrowRight':
+							var $temp$msg = $author$project$Main$NextSection,
+								$temp$model = model;
+							msg = $temp$msg;
+							model = $temp$model;
+							continue update;
+						default:
+							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 9:
 					var id = msg.a;
 					if (model.$ === 3) {
 						var url = model.a;
@@ -10766,9 +11058,9 @@ var $author$project$Main$update = F2(
 						var g = model.d;
 						var cache = model.f;
 						var flip = model.g;
-						var _v11 = A2($elm$core$Dict$get, id, cache);
-						if (!_v11.$) {
-							var cardData = _v11.a;
+						var _v12 = A2($elm$core$Dict$get, id, cache);
+						if (!_v12.$) {
+							var cardData = _v12.a;
 							return _Utils_Tuple2(
 								A7(
 									$author$project$Main$Loaded,
@@ -10782,9 +11074,9 @@ var $author$project$Main$update = F2(
 									flip),
 								$elm$core$Platform$Cmd$none);
 						} else {
-							var _v12 = $author$project$Main$cardApiUrl(id);
-							if (!_v12.$) {
-								var apiUrl = _v12.a;
+							var _v13 = $author$project$Main$cardApiUrl(id);
+							if (!_v13.$) {
+								var apiUrl = _v13.a;
 								return _Utils_Tuple2(
 									A7(
 										$author$project$Main$Loaded,
@@ -10820,7 +11112,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 9:
+				case 10:
 					var cardId = msg.a;
 					var moveName = msg.b;
 					if (model.$ === 3) {
@@ -10830,9 +11122,9 @@ var $author$project$Main$update = F2(
 						var g = model.d;
 						var cache = model.f;
 						var flip = model.g;
-						var _v14 = A2($elm$core$Dict$get, cardId, cache);
-						if (!_v14.$) {
-							var cardData = _v14.a;
+						var _v15 = A2($elm$core$Dict$get, cardId, cache);
+						if (!_v15.$) {
+							var cardData = _v15.a;
 							return _Utils_Tuple2(
 								A7(
 									$author$project$Main$Loaded,
@@ -10846,9 +11138,9 @@ var $author$project$Main$update = F2(
 									flip),
 								$elm$core$Platform$Cmd$none);
 						} else {
-							var _v15 = $author$project$Main$cardApiUrl(cardId);
-							if (!_v15.$) {
-								var apiUrl = _v15.a;
+							var _v16 = $author$project$Main$cardApiUrl(cardId);
+							if (!_v16.$) {
+								var apiUrl = _v16.a;
 								return _Utils_Tuple2(
 									A7(
 										$author$project$Main$Loaded,
@@ -10884,7 +11176,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 10:
+				case 11:
 					var info = msg.a;
 					if (model.$ === 3) {
 						var url = model.a;
@@ -10908,7 +11200,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 11:
+				case 12:
 					var id = msg.a;
 					var result = msg.b;
 					if (model.$ === 3) {
@@ -10920,7 +11212,7 @@ var $author$project$Main$update = F2(
 						var cache = model.f;
 						var flip = model.g;
 						var isUserFetch = function () {
-							_v27$2:
+							_v28$2:
 							while (true) {
 								if (!currentPopup.$) {
 									switch (currentPopup.a.$) {
@@ -10928,37 +11220,37 @@ var $author$project$Main$update = F2(
 											var fetchId = currentPopup.a.a;
 											return _Utils_eq(fetchId, id);
 										case 1:
-											var _v28 = currentPopup.a;
+											var _v29 = currentPopup.a;
 											return true;
 										default:
-											break _v27$2;
+											break _v28$2;
 									}
 								} else {
-									break _v27$2;
+									break _v28$2;
 								}
 							}
 							return false;
 						}();
-						var _v18 = function () {
+						var _v19 = function () {
 							if (!result.$) {
 								var body = result.a;
-								var _v20 = $author$project$Main$decodeCardData(body);
-								if (!_v20.$) {
-									var cardData = _v20.a;
+								var _v21 = $author$project$Main$decodeCardData(body);
+								if (!_v21.$) {
+									var cardData = _v21.a;
 									var resolvedData = function () {
-										var _v24 = cardData.S;
-										if (!_v24.$) {
+										var _v25 = cardData.S;
+										if (!_v25.$) {
 											return cardData;
 										} else {
-											var _v25 = A2(
+											var _v26 = A2(
 												$elm$json$Json$Decode$decodeString,
 												A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
 												body);
-											if (!_v25.$) {
-												var apiName = _v25.a;
-												var _v26 = $author$project$Main$basicEnergyImageUrl(apiName);
-												if (!_v26.$) {
-													var fallbackUrl = _v26.a;
+											if (!_v26.$) {
+												var apiName = _v26.a;
+												var _v27 = $author$project$Main$basicEnergyImageUrl(apiName);
+												if (!_v27.$) {
+													var fallbackUrl = _v27.a;
 													return _Utils_update(
 														cardData,
 														{
@@ -10975,13 +11267,13 @@ var $author$project$Main$update = F2(
 									var popup = function () {
 										if (isUserFetch) {
 											if ((!currentPopup.$) && (currentPopup.a.$ === 1)) {
-												var _v22 = currentPopup.a;
-												var moveName = _v22.b;
+												var _v23 = currentPopup.a;
+												var moveName = _v23.b;
 												return $elm$core$Maybe$Just(
 													A2($author$project$Main$ShowingMove, resolvedData, moveName));
 											} else {
-												var _v23 = resolvedData.S;
-												if (!_v23.$) {
+												var _v24 = resolvedData.S;
+												if (!_v24.$) {
 													return $elm$core$Maybe$Just(
 														A2($author$project$Main$ShowingCard, id, resolvedData));
 												} else {
@@ -11009,15 +11301,15 @@ var $author$project$Main$update = F2(
 									cache);
 							}
 						}();
-						var nextPopup = _v18.a;
-						var newCache = _v18.b;
+						var nextPopup = _v19.a;
+						var newCache = _v19.b;
 						return _Utils_Tuple2(
 							A7($author$project$Main$Loaded, url, replay, i, g, nextPopup, newCache, flip),
 							$elm$core$Platform$Cmd$none);
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 13:
+				case 14:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11031,7 +11323,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 12:
+				case 13:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11229,7 +11521,7 @@ var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$CloseCard = {$: 13};
+var $author$project$Main$CloseCard = {$: 14};
 var $elm$html$Html$img = _VirtualDom_node('img');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 0, a: a};
@@ -11679,7 +11971,7 @@ var $author$project$Main$sectionNavInfo = F2(
 var $author$project$Main$IsAbility = 0;
 var $author$project$Main$IsAttack = 1;
 var $author$project$Main$DamageClicked = function (a) {
-	return {$: 10, a: a};
+	return {$: 11, a: a};
 };
 var $author$project$Main$viewDamageChip = F2(
 	function (damage, info) {
@@ -12109,11 +12401,11 @@ var $author$project$Main$segmentText = F2(
 		}
 	});
 var $author$project$Main$CardClicked = function (a) {
-	return {$: 8, a: a};
+	return {$: 9, a: a};
 };
 var $author$project$Main$MoveClicked = F2(
 	function (a, b) {
-		return {$: 9, a: a, b: b};
+		return {$: 10, a: a, b: b};
 	});
 var $author$project$Main$viewSegment = function (seg) {
 	switch (seg.$) {
@@ -13831,7 +14123,7 @@ var $author$project$Main$viewHandState = F9(
 						]))
 				]));
 	});
-var $author$project$Main$FlipOpponentToggled = {$: 12};
+var $author$project$Main$FlipOpponentToggled = {$: 13};
 var $author$project$Main$viewSettings = function (model) {
 	var flip = $author$project$Main$currentFlipOpponent(model);
 	return A2(
@@ -14174,7 +14466,16 @@ var $author$project$Main$main = $elm$browser$Browser$element(
 	{
 		cP: $author$project$Main$init,
 		dj: function (_v0) {
-			return $author$project$Main$onSwipe($author$project$Main$GotSwipe);
+			return $elm$core$Platform$Sub$batch(
+				_List_fromArray(
+					[
+						$author$project$Main$onSwipe($author$project$Main$GotSwipe),
+						$elm$browser$Browser$Events$onKeyDown(
+						A2(
+							$elm$json$Json$Decode$map,
+							$author$project$Main$KeyDown,
+							A2($elm$json$Json$Decode$field, 'key', $elm$json$Json$Decode$string)))
+					]));
 		},
 		dp: $author$project$Main$update,
 		dq: $author$project$Main$view
