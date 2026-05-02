@@ -28,6 +28,24 @@
         font-size: 1rem;
         cursor: pointer;
       }
+
+      /* Thin scrollbars for play-info scroll areas.
+         On macOS these are overlay scrollbars anyway; on Windows this gives
+         a slim 4px track that only appears when content overflows. */
+      .play-info-scroll {
+        scrollbar-width: thin;           /* Firefox */
+        scrollbar-color: rgba(0,0,0,0.25) transparent;
+      }
+      .play-info-scroll::-webkit-scrollbar {
+        height: 4px;
+      }
+      .play-info-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .play-info-scroll::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,0.25);
+        border-radius: 2px;
+      }
     </style>
   </head>
   <body>

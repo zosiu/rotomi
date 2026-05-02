@@ -13235,17 +13235,17 @@ var $author$project$Main$viewBenchCard = F3(
 		if (!maybeUrl.$) {
 			var u = maybeUrl.a;
 			return A2(
-				$elm$html$Html$img,
+				$elm$html$Html$div,
 				_Utils_ap(
 					baseStyles,
 					_Utils_ap(
 						rotStyles,
 						_List_fromArray(
 							[
-								A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
-								A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
-								A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
-								$elm$html$Html$Attributes$src(u)
+								A2($elm$html$Html$Attributes$style, 'background-image', 'url(\'' + (u + '\')')),
+								A2($elm$html$Html$Attributes$style, 'background-size', 'cover'),
+								A2($elm$html$Html$Attributes$style, 'background-position', 'center'),
+								A2($elm$html$Html$Attributes$style, 'background-color', '#e2e8f0')
 							]))),
 				_List_Nil);
 		} else {
@@ -13255,6 +13255,7 @@ var $author$project$Main$viewBenchCard = F3(
 				card.aL);
 		}
 	});
+var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $author$project$Main$KnownPlayCard = function (a) {
 	return {$: 0, a: a};
 };
@@ -13323,15 +13324,15 @@ var $author$project$Main$viewKnownCardThumb = F3(
 		if (!maybeUrl.$) {
 			var imageUrl = maybeUrl.a;
 			return A2(
-				$elm$html$Html$img,
+				$elm$html$Html$div,
 				_Utils_ap(
 					baseStyles,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
-							A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
-							A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
-							$elm$html$Html$Attributes$src(imageUrl)
+							A2($elm$html$Html$Attributes$style, 'background-image', 'url(\'' + (imageUrl + '\')')),
+							A2($elm$html$Html$Attributes$style, 'background-size', 'cover'),
+							A2($elm$html$Html$Attributes$style, 'background-position', 'center'),
+							A2($elm$html$Html$Attributes$style, 'background-color', '#e2e8f0')
 						])),
 				_List_Nil);
 		} else {
@@ -13469,7 +13470,8 @@ var $author$project$Main$viewPlayerPlayInfo = F6(
 					A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
 					A2($elm$html$Html$Attributes$style, 'align-items', 'flex-start'),
 					A2($elm$html$Html$Attributes$style, 'gap', '0.5rem'),
-					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+					A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
+					$elm$html$Html$Attributes$class('play-info-scroll')
 				]),
 			cardGroups);
 	});
@@ -13789,21 +13791,20 @@ var $author$project$Main$viewHandCard = F4(
 			if (!_v1.$) {
 				var imageUrl = _v1.a;
 				return A2(
-					$elm$html$Html$img,
+					$elm$html$Html$div,
 					_Utils_ap(
 						baseStyles,
 						_Utils_ap(
 							rotationStyles,
 							_List_fromArray(
 								[
-									A2($elm$html$Html$Attributes$style, 'object-fit', 'cover'),
-									A2($elm$html$Html$Attributes$style, 'object-position', 'top'),
-									A2($elm$html$Html$Attributes$style, 'background', '#e2e8f0'),
-									A2($elm$html$Html$Attributes$style, 'will-change', 'transform'),
+									A2($elm$html$Html$Attributes$style, 'background-image', 'url(\'' + (imageUrl + '\')')),
+									A2($elm$html$Html$Attributes$style, 'background-size', 'cover'),
+									A2($elm$html$Html$Attributes$style, 'background-position', 'top center'),
+									A2($elm$html$Html$Attributes$style, 'background-color', '#e2e8f0'),
 									A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 									$elm$html$Html$Events$onClick(
-									$author$project$Main$CardClicked(card.a$)),
-									$elm$html$Html$Attributes$src(imageUrl)
+									$author$project$Main$CardClicked(card.a$))
 								]))),
 					_List_Nil);
 			} else {
