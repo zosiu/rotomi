@@ -287,6 +287,7 @@ parseAction raw =
         |> orTry (tryShuffledInto raw)
         |> orTry (tryPutOnTop raw)
         |> orTry (tryPutOnBottom raw)
+        |> orTry (tryMovedToDeck raw)
         |> orTry (tryPlacedDamageCounters raw)
         |> orTry (tryMovedDamageCounters raw)
         |> orTry (tryMovedToHand raw)
@@ -1587,6 +1588,39 @@ tryMovedToHand raw =
 
                                 Nothing ->
                                     Nothing
+
+                    _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+tryMovedToDeck : String -> Maybe Action
+tryMovedToDeck raw =
+    -- "PLAYER moved PLAYER's N cards to their deck."
+    if String.contains " moved " raw && String.endsWith " to their deck." raw then
+        case String.split " moved " raw of
+            [ mover, rest ] ->
+                case String.split "'s " rest of
+                    [ _, afterApos ] ->
+                        let
+                            countStr =
+                                afterApos
+                                    |> String.split " card"
+                                    |> List.head
+                                    |> Maybe.withDefault ""
+                                    |> String.trim
+                        in
+                        case String.toInt countStr of
+                            Just n ->
+                                Just (PutOnBottom { player = mover, card = Nothing, count = Just n })
+
+                            Nothing ->
+                                Nothing
 
                     _ ->
                         Nothing

@@ -777,10 +777,10 @@ suite =
             ]
 
         , describe "pile state"
-            [ test "emptyPiles starts with 60 in each deck and 0 in each discard" <|
+            [ test "emptyPiles starts with 60 in each deck, 0 in each discard, 0 prizes" <|
                 \_ ->
                     emptyPiles
-                        |> Expect.equal { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 6, prizesBlue = 6 }
+                        |> Expect.equal { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 0, prizesBlue = 0 }
 
             , test "OpeningDraw decreases the drawing player's deck" <|
                 \_ ->
@@ -791,7 +791,7 @@ suite =
                             , details = []
                             }
                     in
-                    applyGroupToPiles "A" emptyPiles group
+                    applyGroupToPiles "A" False emptyPiles group
                         |> .deckRed
                         |> Expect.equal 53
 
@@ -804,7 +804,7 @@ suite =
                             , details = []
                             }
                     in
-                    applyGroupToPiles "A" emptyPiles group
+                    applyGroupToPiles "A" False emptyPiles group
                         |> .deckBlue
                         |> Expect.equal 53
 
@@ -822,7 +822,7 @@ suite =
                                 ]
                             }
                     in
-                    applyGroupToPiles "A" emptyPiles group
+                    applyGroupToPiles "A" False emptyPiles group
                         |> .deckRed
                         |> Expect.equal 57
 
@@ -835,7 +835,7 @@ suite =
                             , details = []
                             }
                     in
-                    applyGroupToPiles "A" emptyPiles group
+                    applyGroupToPiles "A" False emptyPiles group
                         |> .discardRed
                         |> Expect.equal 1
 
@@ -848,9 +848,38 @@ suite =
                             , details = []
                             }
                     in
-                    applyGroupToPiles "A" emptyPiles group
+                    applyGroupToPiles "A" False emptyPiles group
                         |> .deckRed
                         |> Expect.equal 61
+
+            , test "PlayedPokemon to ActiveSpot during setup sets 6 prizes and removes 6 from deck" <|
+                \_ ->
+                    let
+                        group =
+                            { raw = "A played (sv1_1) Bulbasaur to the Active Spot."
+                            , action = Action.PlayedPokemon { player = "A", card = { id = "sv1_1", name = "Bulbasaur" }, position = Action.ActiveSpot }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" True emptyPiles group
+                        |> (\p -> ( p.prizesRed, p.deckRed ))
+                        |> Expect.equal ( 6, 54 )
+
+            , test "PlayedPokemon to ActiveSpot mid-game does not change prizes" <|
+                \_ ->
+                    let
+                        setupPiles =
+                            { emptyPiles | prizesRed = 4, deckRed = 40 }
+
+                        group =
+                            { raw = "A played (sv1_1) Bulbasaur to the Active Spot."
+                            , action = Action.PlayedPokemon { player = "A", card = { id = "sv1_1", name = "Bulbasaur" }, position = Action.ActiveSpot }
+                            , details = []
+                            }
+                    in
+                    applyGroupToPiles "A" False setupPiles group
+                        |> (\p -> ( p.prizesRed, p.deckRed ))
+                        |> Expect.equal ( 4, 40 )
             ]
 
         , describe "current play"

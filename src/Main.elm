@@ -1016,6 +1016,40 @@ groupTopDetailCardList group =
         |> List.concat
 
 
+{-| Remove the last N Nothing slots from a hand side.
+Used to strip unknown drawn cards out of the hand display when showing them in
+the played panel instead.
+-}
+removeLastNUnknowns : Int -> List (Maybe Action.CardRef) -> List (Maybe Action.CardRef)
+removeLastNUnknowns n handSide =
+    handSide
+        |> List.reverse
+        |> List.foldl
+            (\card ( remaining, acc ) ->
+                if remaining > 0 && card == Nothing then
+                    ( remaining - 1, acc )
+
+                else
+                    ( remaining, card :: acc )
+            )
+            ( n, [] )
+        |> Tuple.second
+
+
+{-| Strip all drawn cards (known and unknown) from a hand side so they appear
+only in the played panel, not in both places at once.
+-}
+stripDrawnFromHandSide : List (Maybe Action.CardRef) -> List (Maybe Action.CardRef) -> List (Maybe Action.CardRef)
+stripDrawnFromHandSide drawn handSide =
+    let
+        unknownCount =
+            List.length (List.filter ((==) Nothing) drawn)
+    in
+    handSide
+        |> removeKnownFromHandSide (List.filterMap identity drawn)
+        |> removeLastNUnknowns unknownCount
+
+
 {-| Remove the first occurrence of each card (matched by id) from a hand side.
 Used to strip drawn cards out of the hand display when showing them in the
 played panel instead.
@@ -1195,6 +1229,14 @@ applyDetailAction red hand detail =
                 Nothing ->
                     removeN red player (Maybe.withDefault 1 count) hand
 
+        Action.PutOnBottom { player, card, count } ->
+            case card of
+                Just c ->
+                    removeById red player c.id hand
+
+                Nothing ->
+                    removeN red player (Maybe.withDefault 1 count) hand
+
         Action.PlayedPokemon { player, card } ->
             removeById red player card.id hand
 
@@ -1297,13 +1339,105 @@ correctDetailPlayer players detail =
                 Just _ ->
                     detail
 
+        Action.PutOnBottom { player, card, count } ->
+            case card of
+                Nothing ->
+                    if player /= correctPlayer then
+                        { detail
+                            | action = Action.PutOnBottom { player = correctPlayer, card = Nothing, count = count }
+                            , raw =
+                                detail.raw
+                                    |> replacePlayer player correctPlayer
+                                    |> String.replace (player ++ "'s") (correctPlayer ++ "'s")
+                        }
+
+                    else
+                        detail
+
+                Just _ ->
+                    detail
+
         _ ->
             detail
 
 
 correctGroupPlayers : Replay.Players -> Action.ActionGroup -> Action.ActionGroup
 correctGroupPlayers players group =
-    { group | details = List.map (correctDetailPlayer players) group.details }
+    let
+        drewCountCount =
+            List.foldl
+                (\d acc ->
+                    case d.action of
+                        Action.DrewCount _ ->
+                            acc + 1
+
+                        _ ->
+                            acc
+                )
+                0
+                group.details
+
+        countOnlyShuffleCount =
+            List.foldl
+                (\d acc ->
+                    case d.action of
+                        Action.ShuffledInto { card } ->
+                            if card == Nothing then
+                                acc + 1
+
+                            else
+                                acc
+
+                        _ ->
+                            acc
+                )
+                0
+                group.details
+
+        countOnlyPutOnBottomCount =
+            List.foldl
+                (\d acc ->
+                    case d.action of
+                        Action.PutOnBottom { card } ->
+                            if card == Nothing then
+                                acc + 1
+
+                            else
+                                acc
+
+                        _ ->
+                            acc
+                )
+                0
+                group.details
+
+        correctDetail detail =
+            case detail.action of
+                Action.DrewCount _ ->
+                    if drewCountCount >= 2 then
+                        correctDetailPlayer players detail
+
+                    else
+                        detail
+
+                Action.ShuffledInto { card } ->
+                    if card == Nothing && countOnlyShuffleCount >= 2 then
+                        correctDetailPlayer players detail
+
+                    else
+                        detail
+
+                Action.PutOnBottom { card } ->
+                    if card == Nothing && countOnlyPutOnBottomCount >= 2 then
+                        correctDetailPlayer players detail
+
+                    else
+                        detail
+
+                _ ->
+                    detail
+    in
+    { group | details = List.map correctDetail group.details }
 
 
 collectAndCorrectGroups : Replay.Players -> Replay.Replay -> Int -> Int -> List Action.ActionGroup
@@ -1333,7 +1467,7 @@ type alias PileState =
 
 emptyPiles : PileState
 emptyPiles =
-    { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 6, prizesBlue = 6 }
+    { deckRed = 60, deckBlue = 60, discardRed = 0, discardBlue = 0, prizesRed = 0, prizesBlue = 0 }
 
 
 pilesDeckDelta : String -> String -> Int -> PileState -> PileState
@@ -1363,8 +1497,8 @@ pilesDiscardDelta red player delta piles =
         { piles | discardBlue = piles.discardBlue + delta }
 
 
-applyActionToPiles : String -> Action.Action -> PileState -> PileState
-applyActionToPiles red action piles =
+applyActionToPiles : String -> Bool -> Action.Action -> PileState -> PileState
+applyActionToPiles red isSetup action piles =
     case action of
         Action.OpeningDraw { player, count } ->
             pilesDeckDelta red player -count piles
@@ -1409,6 +1543,17 @@ applyActionToPiles red action piles =
                 )
                 piles
 
+        Action.PlayedPokemon { player, position } ->
+            -- During setup each player's first Active Spot play also selects 6
+            -- prize cards from their deck.
+            if isSetup && position == Action.ActiveSpot then
+                piles
+                    |> pilesDeckDelta red player -6
+                    |> pilesPrizeDelta red player 6
+
+            else
+                piles
+
         Action.PlayedTrainer { player } ->
             pilesDiscardDelta red player 1 piles
 
@@ -1428,17 +1573,17 @@ applyActionToPiles red action piles =
             piles
 
 
-applyGroupToPiles : String -> PileState -> Action.ActionGroup -> PileState
-applyGroupToPiles red piles group =
+applyGroupToPiles : String -> Bool -> PileState -> Action.ActionGroup -> PileState
+applyGroupToPiles red isSetup piles group =
     let
         piles1 =
-            applyActionToPiles red group.action piles
+            applyActionToPiles red isSetup group.action piles
     in
     List.foldl
         (\detail p ->
             List.foldl
-                (\bullet bp -> applyActionToPiles red bullet.action bp)
-                (applyActionToPiles red detail.action p)
+                (\bullet bp -> applyActionToPiles red isSetup bullet.action bp)
+                (applyActionToPiles red isSetup detail.action p)
                 detail.bullets
         )
         piles1
@@ -1447,8 +1592,35 @@ applyGroupToPiles red piles group =
 
 computePiles : Replay.Players -> Replay.Replay -> Int -> Int -> PileState
 computePiles players replay sectionIndex groupIndex =
-    List.foldl (\group p -> applyGroupToPiles players.red p group) emptyPiles
-        (collectAndCorrectGroups players replay sectionIndex groupIndex)
+    replay.sections
+        |> List.indexedMap
+            (\si section ->
+                let
+                    isSetup =
+                        case section of
+                            Replay.SetupSection _ ->
+                                True
+
+                            _ ->
+                                False
+
+                    groups =
+                        Action.groupLines (sectionLines section)
+
+                    trimmed =
+                        if si < sectionIndex then
+                            groups
+
+                        else if si == sectionIndex then
+                            List.take (groupIndex + 1) groups
+
+                        else
+                            []
+                in
+                List.map (\g -> ( isSetup, correctGroupPlayers players g )) trimmed
+            )
+        |> List.concat
+        |> List.foldl (\( isSetup, group ) p -> applyGroupToPiles players.red isSetup p group) emptyPiles
 
 
 -- BENCH STATE
@@ -1784,7 +1956,7 @@ currentPlayFromGroup players group =
         Action.PlayedTrainer { player, card } ->
             let
                 correctedDetails =
-                    List.map (correctDetailPlayer players) group.details
+                    (correctGroupPlayers players group).details
 
                 -- Which player owns this detail line?
                 detailOwner d =
@@ -1953,23 +2125,34 @@ currentPlayFromGroup players group =
 viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> PileState -> Maybe CurrentPlay -> Html Msg
 viewHandState players cache flipOpponent hand bench active maybeStadium piles maybePlay =
     let
-        -- Strip known drawn cards from the player's hand side so they appear
-        -- only in the played panel, not in both places at once.
-        redDisplay =
-            case maybePlay of
-                Just play ->
-                    removeKnownFromHandSide (List.filterMap identity play.red.drawn) hand.red
+        -- When True, drawn cards are hidden from the hand panel and shown only
+        -- in the played panel below. Disabled for now.
+        stripDrawnFromHand =
+            False
 
-                Nothing ->
-                    hand.red
+        redDisplay =
+            if stripDrawnFromHand then
+                case maybePlay of
+                    Just play ->
+                        stripDrawnFromHandSide play.red.drawn hand.red
+
+                    Nothing ->
+                        hand.red
+
+            else
+                hand.red
 
         blueDisplay =
-            case maybePlay of
-                Just play ->
-                    removeKnownFromHandSide (List.filterMap identity play.blue.drawn) hand.blue
+            if stripDrawnFromHand then
+                case maybePlay of
+                    Just play ->
+                        stripDrawnFromHandSide play.blue.drawn hand.blue
 
-                Nothing ->
-                    hand.blue
+                    Nothing ->
+                        hand.blue
+
+            else
+                hand.blue
     in
     div
         [ style "display" "flex"
