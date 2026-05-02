@@ -2395,15 +2395,15 @@ viewHandCard upsideDown color imageFor maybeCard =
         Just card ->
             case imageFor maybeCard of
                 Just imageUrl ->
-                    img
+                    div
                         (baseStyles
                             ++ rotationStyles
-                            ++ [ style "object-fit" "cover"
-                               , style "object-position" "top"
-                               , style "background" "#e2e8f0"
+                            ++ [ style "background-image" ("url('" ++ imageUrl ++ "')")
+                               , style "background-size" "cover"
+                               , style "background-position" "top center"
+                               , style "background-color" "#e2e8f0"
                                , style "cursor" "pointer"
                                , onClick (CardClicked card.id)
-                               , src imageUrl
                                ]
                         )
                         []
@@ -2524,12 +2524,13 @@ viewBenchCard upsideDown cache card =
     in
     case maybeUrl of
         Just u ->
-            img
+            div
                 (baseStyles
                     ++ rotStyles
-                    ++ [ style "object-fit" "cover"
-                       , style "background" "#e2e8f0"
-                       , src u
+                    ++ [ style "background-image" ("url('" ++ u ++ "')")
+                       , style "background-size" "cover"
+                       , style "background-position" "center"
+                       , style "background-color" "#e2e8f0"
                        ]
                 )
                 []
@@ -2745,11 +2746,12 @@ viewKnownCardThumb upsideDown cache card =
     in
     case maybeUrl of
         Just imageUrl ->
-            img
+            div
                 (baseStyles
-                    ++ [ style "object-fit" "cover"
-                       , style "background" "#e2e8f0"
-                       , src imageUrl
+                    ++ [ style "background-image" ("url('" ++ imageUrl ++ "')")
+                       , style "background-size" "cover"
+                       , style "background-position" "center"
+                       , style "background-color" "#e2e8f0"
                        ]
                 )
                 []
@@ -2898,6 +2900,7 @@ viewPlayerPlayInfo cache upsideDown isTookPrize color playerCards maybePlayedCar
             , style "align-items" "flex-start"
             , style "gap" "0.5rem"
             , style "overflow-x" "auto"
+            , Html.Attributes.class "play-info-scroll"
             ]
             cardGroups
 
