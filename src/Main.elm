@@ -2364,7 +2364,7 @@ handCardImage cache maybeCard =
         Just card ->
             Dict.get card.id cache
                 |> Maybe.andThen .imageUrl
-                |> Maybe.map (\u -> u ++ "/low.webp")
+                |> Maybe.map (\u -> u ++ "/high.webp")
 
 
 viewHandCard : Bool -> String -> (Maybe Action.CardRef -> Maybe String) -> Maybe Action.CardRef -> Html Msg
@@ -2503,7 +2503,7 @@ viewBenchCard upsideDown cache card =
         maybeUrl =
             Dict.get card.id cache
                 |> Maybe.andThen .imageUrl
-                |> Maybe.map (\u -> u ++ "/low.webp")
+                |> Maybe.map (\u -> u ++ "/high.webp")
 
         rotStyles =
             if upsideDown then
@@ -2730,7 +2730,7 @@ viewKnownCardThumb upsideDown cache card =
         maybeUrl =
             Dict.get card.id cache
                 |> Maybe.andThen .imageUrl
-                |> Maybe.map (\u -> u ++ "/low.webp")
+                |> Maybe.map (\u -> u ++ "/high.webp")
 
         baseStyles =
             [ style "width" cardW
