@@ -13379,8 +13379,8 @@ var $author$project$Main$viewUnknownCardBack = F4(
 						]))
 				]) : _List_Nil);
 	});
-var $author$project$Main$viewPlayerPlayInfo = F5(
-	function (cache, upsideDown, isTookPrize, playerCards, maybePlayedCard) {
+var $author$project$Main$viewPlayerPlayInfo = F6(
+	function (cache, upsideDown, isTookPrize, color, playerCards, maybePlayedCard) {
 		var viewPlayItem = function (item) {
 			if (!item.$) {
 				var card = item.a;
@@ -13409,7 +13409,7 @@ var $author$project$Main$viewPlayerPlayInfo = F5(
 								[
 									A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
 									A2($elm$html$Html$Attributes$style, 'font-weight', '600'),
-									A2($elm$html$Html$Attributes$style, 'color', '#718096'),
+									A2($elm$html$Html$Attributes$style, 'color', color),
 									A2($elm$html$Html$Attributes$style, 'line-height', '1')
 								]),
 							_List_fromArray(
@@ -13602,7 +13602,7 @@ var $author$project$Main$viewActiveZone = F6(
 						if (!maybePlay.$) {
 							var play = maybePlay.a;
 							var redPlayedCard = _Utils_eq(play.c, red) ? play.f : $elm$core$Maybe$Nothing;
-							return A5($author$project$Main$viewPlayerPlayInfo, cache, false, isTookPrize, play.b, redPlayedCard);
+							return A6($author$project$Main$viewPlayerPlayInfo, cache, false, isTookPrize, '#2c5282', play.b, redPlayedCard);
 						} else {
 							return $elm$html$Html$text('');
 						}
@@ -13611,7 +13611,7 @@ var $author$project$Main$viewActiveZone = F6(
 						if (!maybePlay.$) {
 							var play = maybePlay.a;
 							var bluePlayedCard = (!_Utils_eq(play.c, red)) ? play.f : $elm$core$Maybe$Nothing;
-							return A5($author$project$Main$viewPlayerPlayInfo, cache, flipOpponent, isTookPrize, play.d, bluePlayedCard);
+							return A6($author$project$Main$viewPlayerPlayInfo, cache, flipOpponent, isTookPrize, '#c53030', play.d, bluePlayedCard);
 						} else {
 							return $elm$html$Html$text('');
 						}
