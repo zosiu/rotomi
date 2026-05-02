@@ -6307,7 +6307,7 @@ var $author$project$Main$currentFlipOpponent = function (model) {
 			var flip = model.g;
 			return flip;
 		default:
-			return true;
+			return false;
 	}
 };
 var $author$project$Main$currentUrl = function (model) {
