@@ -113,14 +113,25 @@ emptyBench =
 {-| The card that was played in the current action group, plus cards
 discarded as part of the effect and cards drawn as a result of it.
 -}
+type alias PlayerCards =
+    { discarded : List (Maybe Action.CardRef)
+    , shuffled : List (Maybe Action.CardRef)
+    , drawn : List (Maybe Action.CardRef)
+    }
+
+
+emptyPlayerCards : PlayerCards
+emptyPlayerCards =
+    { discarded = [], shuffled = [], drawn = [] }
+
+
 type alias CurrentPlay =
     { player : String
     -- Nothing = prize-taking action (no single card played)
     , card : Maybe Action.CardRef
-    -- Nothing = unknown card (show a placeholder back)
-    , discarded : List (Maybe Action.CardRef)
-    , shuffled : List (Maybe Action.CardRef)
-    , drawn : List (Maybe Action.CardRef)
+    -- per-player card buckets (red = local recorder, blue = opponent)
+    , red : PlayerCards
+    , blue : PlayerCards
     }
 
 
@@ -577,9 +588,15 @@ fetchHandCards maybePlayers replay si gi cache =
                 -- Also fetch the played card + all known panel cards so images load without a click
                 playRefs =
                     getCurrentGroup replay si gi
-                        |> Maybe.andThen currentPlayFromGroup
+                        |> Maybe.andThen (currentPlayFromGroup players)
                         |> Maybe.map
                             (\play ->
+                                let
+                                    allCards pc =
+                                        List.filterMap identity pc.discarded
+                                            ++ List.filterMap identity pc.shuffled
+                                            ++ List.filterMap identity pc.drawn
+                                in
                                 (case play.card of
                                     Just c ->
                                         [ c ]
@@ -587,9 +604,8 @@ fetchHandCards maybePlayers replay si gi cache =
                                     Nothing ->
                                         []
                                 )
-                                    ++ List.filterMap identity play.discarded
-                                    ++ List.filterMap identity play.shuffled
-                                    ++ List.filterMap identity play.drawn
+                                    ++ allCards play.red
+                                    ++ allCards play.blue
                             )
                         |> Maybe.withDefault []
 
@@ -1188,10 +1204,87 @@ collectAllGroups replay sectionIndex groupIndex =
         |> List.concat
 
 
+{-| Fix detail lines where the player is wrongly attributed to the local recorder
+(players.red) when no revealed cards exist. Count-only draw/shuffle lines without
+a CardList bullet always belong to the opponent (players.blue). This correction is
+idempotent: if a future log already has the correct player, nothing changes.
+-}
+correctDetailPlayer : Replay.Players -> Action.DetailAction -> Action.DetailAction
+correctDetailPlayer players detail =
+    let
+        hasRevealedCards =
+            List.any
+                (\b ->
+                    case b.action of
+                        Action.CardList _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+                detail.bullets
+
+        -- Lines with revealed cards belong to the local recorder; count-only lines to the opponent.
+        correctPlayer =
+            if hasRevealedCards then
+                players.red
+
+            else
+                players.blue
+
+        replacePlayer : String -> String -> String -> String
+        replacePlayer from to raw =
+            if String.startsWith (from ++ " ") raw then
+                to ++ String.dropLeft (String.length from) raw
+
+            else
+                raw
+    in
+    case detail.action of
+        Action.DrewCount { player, count } ->
+            if player /= correctPlayer then
+                { detail
+                    | action = Action.DrewCount { player = correctPlayer, count = count }
+                    , raw = replacePlayer player correctPlayer detail.raw
+                }
+
+            else
+                detail
+
+        Action.ShuffledInto { player, card, count } ->
+            case card of
+                Nothing ->
+                    if player /= correctPlayer then
+                        { detail
+                            | action = Action.ShuffledInto { player = correctPlayer, card = Nothing, count = count }
+                            , raw = replacePlayer player correctPlayer detail.raw
+                        }
+
+                    else
+                        detail
+
+                Just _ ->
+                    detail
+
+        _ ->
+            detail
+
+
+correctGroupPlayers : Replay.Players -> Action.ActionGroup -> Action.ActionGroup
+correctGroupPlayers players group =
+    { group | details = List.map (correctDetailPlayer players) group.details }
+
+
+collectAndCorrectGroups : Replay.Players -> Replay.Replay -> Int -> Int -> List Action.ActionGroup
+collectAndCorrectGroups players replay sectionIndex groupIndex =
+    collectAllGroups replay sectionIndex groupIndex
+        |> List.map (correctGroupPlayers players)
+
+
 computeHand : Replay.Players -> Replay.Replay -> Int -> Int -> HandState
 computeHand players replay sectionIndex groupIndex =
     List.foldl (\group h -> applyGroupToHand players.red h group) emptyHand
-        (collectAllGroups replay sectionIndex groupIndex)
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
 -- PILE STATE
@@ -1324,7 +1417,7 @@ applyGroupToPiles red piles group =
 computePiles : Replay.Players -> Replay.Replay -> Int -> Int -> PileState
 computePiles players replay sectionIndex groupIndex =
     List.foldl (\group p -> applyGroupToPiles players.red p group) emptyPiles
-        (collectAllGroups replay sectionIndex groupIndex)
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
 -- BENCH STATE
@@ -1465,7 +1558,7 @@ applyGroupToBench red bench group =
 computeBench : Replay.Players -> Replay.Replay -> Int -> Int -> BenchState
 computeBench players replay sectionIndex groupIndex =
     List.foldl (\group b -> applyGroupToBench players.red b group) emptyBench
-        (collectAllGroups replay sectionIndex groupIndex)
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
 -- ACTIVE STATE
@@ -1603,7 +1696,7 @@ applyGroupToActive red active group =
 computeActive : Replay.Players -> Replay.Replay -> Int -> Int -> ActiveState
 computeActive players replay sectionIndex groupIndex =
     List.foldl (\group a -> applyGroupToActive players.red a group) emptyActive
-        (collectAllGroups replay sectionIndex groupIndex)
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
 -- STADIUM STATE
@@ -1637,7 +1730,7 @@ applyGroupToStadium stadium group =
 computeStadium : Replay.Players -> Replay.Replay -> Int -> Int -> Maybe StadiumState
 computeStadium players replay sectionIndex groupIndex =
     List.foldl (\group st -> applyGroupToStadium st group) Nothing
-        (collectAllGroups replay sectionIndex groupIndex)
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
 {-| Return the action group at the given (sectionIndex, groupIndex) position. -}
@@ -1651,113 +1744,154 @@ getCurrentGroup replay si gi =
 
 
 {-| If this group represents a trainer card being played (\"played X for\"),
-return the played card and any cards explicitly discarded in its detail lines.
+return the played card and any cards explicitly discarded in its detail lines,
+split by player (red = local recorder, blue = opponent).
 -}
-currentPlayFromGroup : Action.ActionGroup -> Maybe CurrentPlay
-currentPlayFromGroup group =
+currentPlayFromGroup : Replay.Players -> Action.ActionGroup -> Maybe CurrentPlay
+currentPlayFromGroup players group =
     case group.action of
         Action.PlayedTrainer { player, card } ->
             let
-                discards =
-                    group.details
-                        |> List.concatMap
-                            (\d ->
-                                case d.action of
-                                    -- "zosiu discarded (sv4_1) Card Name." — explicit single card
-                                    Action.DiscardedCard discardData ->
-                                        [ Just discardData.card ]
+                correctedDetails =
+                    List.map (correctDetailPlayer players) group.details
 
-                                    -- "zosiu discarded N cards." — use bullet list, or N unknowns
-                                    Action.Discarded discardData ->
-                                        let
-                                            known =
-                                                detailCardList d
-                                        in
-                                        if List.isEmpty known then
-                                            List.repeat discardData.count Nothing
+                -- Which player owns this detail line?
+                detailOwner d =
+                    case d.action of
+                        Action.DiscardedCard rec ->
+                            Just rec.player
 
-                                        else
-                                            List.map Just known
+                        Action.Discarded rec ->
+                            Just rec.player
 
-                                    _ ->
-                                        []
-                            )
+                        Action.ShuffledInto rec ->
+                            Just rec.player
 
-                shuffled =
-                    group.details
-                        |> List.concatMap
-                            (\d ->
-                                case d.action of
-                                    Action.ShuffledInto shuffleData ->
-                                        case shuffleData.card of
-                                            Just c ->
-                                                -- "A shuffled (id) Card Name into their deck."
-                                                [ Just c ]
+                        Action.DrewCount rec ->
+                            Just rec.player
 
-                                            Nothing ->
-                                                -- "A shuffled N cards." — use bullet list, or N unknowns
-                                                let
-                                                    known =
-                                                        detailCardList d
-                                                in
-                                                if List.isEmpty known then
-                                                    List.repeat (Maybe.withDefault 1 shuffleData.count) Nothing
+                        Action.Drew rec ->
+                            Just rec.player
 
-                                                else
-                                                    List.map Just known
+                        Action.DrewCard rec ->
+                            Just rec.player
 
-                                    _ ->
-                                        []
-                            )
+                        Action.MovedToHand rec ->
+                            Just rec.player
 
-                drawn =
-                    group.details
-                        |> List.concatMap
-                            (\d ->
-                                case d.action of
-                                    -- "zosiu drew N cards." — use bullet list, or N unknowns
-                                    Action.DrewCount drewData ->
-                                        let
-                                            known =
-                                                detailCardList d
-                                        in
-                                        if List.isEmpty known then
-                                            List.repeat drewData.count Nothing
+                        _ ->
+                            Nothing
 
-                                        else
-                                            List.map Just known
+                detailsFor p =
+                    List.filter (\d -> detailOwner d == Just p) correctedDetails
 
-                                    -- "zosiu drew (sv4_1) Card Name." or "zosiu drew a card."
-                                    Action.Drew drewData ->
-                                        [ drewData.card ]
+                extractDiscards ds =
+                    List.concatMap
+                        (\d ->
+                            case d.action of
+                                Action.DiscardedCard discardData ->
+                                    [ Just discardData.card ]
 
-                                    -- "zosiu drew and played (sv4_1)" — went straight to play, skip
-                                    Action.DrewCard drewCardData ->
-                                        case drewCardData.andPlayed of
-                                            Nothing ->
-                                                [ Just drewCardData.card ]
+                                Action.Discarded discardData ->
+                                    let
+                                        known =
+                                            detailCardList d
+                                    in
+                                    if List.isEmpty known then
+                                        List.repeat discardData.count Nothing
 
-                                            Just _ ->
-                                                []
+                                    else
+                                        List.map Just known
 
-                                    -- "zosiu moved X to their hand." — treat the same as drawing
-                                    Action.MovedToHand movedData ->
-                                        case movedData.card of
-                                            Just c ->
-                                                [ Just c ]
+                                _ ->
+                                    []
+                        )
+                        ds
 
-                                            Nothing ->
-                                                List.repeat (Maybe.withDefault 1 movedData.count) Nothing
+                extractShuffled ds =
+                    List.concatMap
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledInto shuffleData ->
+                                    case shuffleData.card of
+                                        Just c ->
+                                            [ Just c ]
 
-                                    _ ->
-                                        []
-                            )
+                                        Nothing ->
+                                            let
+                                                known =
+                                                    detailCardList d
+                                            in
+                                            if List.isEmpty known then
+                                                List.repeat (Maybe.withDefault 1 shuffleData.count) Nothing
+
+                                            else
+                                                List.map Just known
+
+                                _ ->
+                                    []
+                        )
+                        ds
+
+                extractDrawn ds =
+                    List.concatMap
+                        (\d ->
+                            case d.action of
+                                Action.DrewCount drewData ->
+                                    let
+                                        known =
+                                            detailCardList d
+                                    in
+                                    if List.isEmpty known then
+                                        List.repeat drewData.count Nothing
+
+                                    else
+                                        List.map Just known
+
+                                Action.Drew drewData ->
+                                    [ drewData.card ]
+
+                                Action.DrewCard drewCardData ->
+                                    case drewCardData.andPlayed of
+                                        Nothing ->
+                                            [ Just drewCardData.card ]
+
+                                        Just _ ->
+                                            []
+
+                                Action.MovedToHand movedData ->
+                                    case movedData.card of
+                                        Just c ->
+                                            [ Just c ]
+
+                                        Nothing ->
+                                            List.repeat (Maybe.withDefault 1 movedData.count) Nothing
+
+                                _ ->
+                                    []
+                        )
+                        ds
+
+                makePlayerCards p =
+                    let
+                        ds =
+                            detailsFor p
+                    in
+                    { discarded = extractDiscards ds
+                    , shuffled = extractShuffled ds
+                    , drawn = extractDrawn ds
+                    }
             in
-            Just { player = player, card = Just card, discarded = discards, shuffled = shuffled, drawn = drawn }
+            Just
+                { player = player
+                , card = Just card
+                , red = makePlayerCards players.red
+                , blue = makePlayerCards players.blue
+                }
 
         Action.TookPrize { player } ->
             let
-                drawn =
+                drawnCards =
                     group.details
                         |> List.concatMap
                             (\d ->
@@ -1768,12 +1902,18 @@ currentPlayFromGroup group =
                                     _ ->
                                         []
                             )
+
+                playerCards =
+                    { discarded = [], shuffled = [], drawn = drawnCards }
             in
-            if List.isEmpty drawn then
+            if List.isEmpty drawnCards then
                 Nothing
 
+            else if player == players.red then
+                Just { player = player, card = Nothing, red = playerCards, blue = emptyPlayerCards }
+
             else
-                Just { player = player, card = Nothing, discarded = [], shuffled = [], drawn = drawn }
+                Just { player = player, card = Nothing, red = emptyPlayerCards, blue = playerCards }
 
         _ ->
             Nothing
@@ -1787,11 +1927,7 @@ viewHandState players cache hand bench active maybeStadium piles maybePlay =
         redDisplay =
             case maybePlay of
                 Just play ->
-                    if play.player == players.red then
-                        removeKnownFromHandSide (List.filterMap identity play.drawn) hand.red
-
-                    else
-                        hand.red
+                    removeKnownFromHandSide (List.filterMap identity play.red.drawn) hand.red
 
                 Nothing ->
                     hand.red
@@ -1799,11 +1935,7 @@ viewHandState players cache hand bench active maybeStadium piles maybePlay =
         blueDisplay =
             case maybePlay of
                 Just play ->
-                    if play.player /= players.red then
-                        removeKnownFromHandSide (List.filterMap identity play.drawn) hand.blue
-
-                    else
-                        hand.blue
+                    removeKnownFromHandSide (List.filterMap identity play.blue.drawn) hand.blue
 
                 Nothing ->
                     hand.blue
@@ -1954,7 +2086,17 @@ viewHandRow playerName upsideDown color cards imageFor =
             , style "min-width" "0"
             , style "padding-bottom" "4px"
             ]
-            (List.map (viewHandCard upsideDown color imageFor) cards)
+            (List.map
+                (\item ->
+                    case item of
+                        KnownPlayCard card ->
+                            viewHandCard upsideDown color imageFor (Just card)
+
+                        UnknownPlayCards n ->
+                            viewUnknownCardBack "86px" "60px" upsideDown n
+                )
+                (collapseUnknowns cards)
+            )
         ]
 
 
@@ -2323,6 +2465,77 @@ viewKnownCardThumb cache card =
             viewNoImageCard baseStyles card.name
 
 
+type PlayItem
+    = KnownPlayCard Action.CardRef
+    | UnknownPlayCards Int
+
+
+collapseUnknowns : List (Maybe Action.CardRef) -> List PlayItem
+collapseUnknowns cards =
+    List.foldr
+        (\maybeCard acc ->
+            case maybeCard of
+                Just card ->
+                    KnownPlayCard card :: acc
+
+                Nothing ->
+                    case acc of
+                        (UnknownPlayCards n) :: rest ->
+                            UnknownPlayCards (n + 1) :: rest
+
+                        _ ->
+                            UnknownPlayCards 1 :: acc
+        )
+        []
+        cards
+
+
+{-| A card-back rectangle with an optional ×N count label.
+Width/height should match the card slot for the context it's used in.
+-}
+viewUnknownCardBack : String -> String -> Bool -> Int -> Html Msg
+viewUnknownCardBack w h upsideDown count =
+    div
+        [ style "width" w
+        , style "height" h
+        , style "border-radius" "4px"
+        , style "flex-shrink" "0"
+        , style "box-sizing" "border-box"
+        , style "background" "#bfdbfe"
+        , style "border" "2px solid #1e40af"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "justify-content" "center"
+        , style "font-size" "1rem"
+        , style "font-weight" "700"
+        , style "color" "#1e40af"
+        , style "transform"
+            (if upsideDown then
+                "rotate(180deg)"
+
+             else
+                ""
+            )
+        ]
+        (if count > 1 then
+            [ span
+                [ style "transform"
+                    (if upsideDown then
+                        "rotate(180deg)"
+
+                     else
+                        ""
+                    )
+                , style "display" "inline-block"
+                ]
+                [ text ("×" ++ String.fromInt count) ]
+            ]
+
+         else
+            []
+        )
+
+
 {-| The played-card panel shown to the right of the hand rows when the current
 action is a trainer play. Shows the played card and any cards discarded as
 part of the effect.
@@ -2330,52 +2543,13 @@ part of the effect.
 viewCurrentPlay : Replay.Players -> Dict String CardData -> CurrentPlay -> Html Msg
 viewCurrentPlay players cache play =
     let
-        color =
-            if play.player == players.red then
-                "#2c5282"
-
-            else
-                "#c53030"
-
-        playerLabel =
-            div
-                [ style "font-size" "0.7rem"
-                , style "font-weight" "600"
-                , style "color" color
-                , style "writing-mode" "vertical-rl"
-                , style "transform" "rotate(180deg)"
-                , style "flex-shrink" "0"
-                , style "width" "14px"
-                , style "overflow" "hidden"
-                , style "white-space" "nowrap"
-                , style "align-self" "center"
-                ]
-                [ text
-                    (if play.player == players.red then
-                        "RED"
-
-                     else
-                        "BLUE"
-                    )
-                ]
-
-        -- Render one card slot: known card → thumbnail, unknown → gray placeholder
-        viewPlayCard maybeCard =
-            case maybeCard of
-                Just card ->
+        viewPlayItem item =
+            case item of
+                KnownPlayCard card ->
                     viewKnownCardThumb cache card
 
-                Nothing ->
-                    div
-                        [ style "width" "72px"
-                        , style "height" "100px"
-                        , style "border-radius" "4px"
-                        , style "flex-shrink" "0"
-                        , style "box-sizing" "border-box"
-                        , style "background" "#e2e8f0"
-                        , style "border" "1px solid #a0aec0"
-                        ]
-                        []
+                UnknownPlayCards n ->
+                    viewUnknownCardBack "72px" "100px" False n
 
         labeledGroup label cards =
             div
@@ -2394,7 +2568,7 @@ viewCurrentPlay players cache play =
                     [ style "display" "flex"
                     , style "gap" "0.35rem"
                     ]
-                    (List.map viewPlayCard cards)
+                    (List.map viewPlayItem (collapseUnknowns cards))
                 ]
 
         optionalGroup label cards =
@@ -2404,16 +2578,68 @@ viewCurrentPlay players cache play =
             else
                 [ labeledGroup label cards ]
 
-        groups =
-            case play.card of
-                Nothing ->
-                    [ labeledGroup "Prizes taken" play.drawn ]
+        -- One horizontal row for a single player
+        -- isTookPrize: use "Prizes taken" label instead of "Drawn" for the drawn cards
+        isTookPrize =
+            play.card == Nothing
 
-                Just card ->
-                    [ labeledGroup "Played" [ Just card ] ]
-                        ++ optionalGroup "Discarded" play.discarded
-                        ++ optionalGroup "Shuffled" play.shuffled
-                        ++ optionalGroup "Drawn" play.drawn
+        playerSection playerName rowColor playerCards maybePlayedCard =
+            let
+                cardGroups =
+                    if isTookPrize then
+                        optionalGroup "Prizes taken" playerCards.drawn
+
+                    else
+                        (case maybePlayedCard of
+                            Just card ->
+                                [ labeledGroup "Played" [ Just card ] ]
+
+                            Nothing ->
+                                []
+                        )
+                            ++ optionalGroup "Discarded" playerCards.discarded
+                            ++ optionalGroup "Shuffled" playerCards.shuffled
+                            ++ optionalGroup "Drawn" playerCards.drawn
+            in
+            if List.isEmpty cardGroups then
+                []
+
+            else
+                div
+                    [ style "font-size" "0.7rem"
+                    , style "font-weight" "600"
+                    , style "color" rowColor
+                    , style "writing-mode" "vertical-rl"
+                    , style "transform" "rotate(180deg)"
+                    , style "flex-shrink" "0"
+                    , style "width" "14px"
+                    , style "overflow" "hidden"
+                    , style "white-space" "nowrap"
+                    , style "align-self" "center"
+                    ]
+                    [ text playerName ]
+                    :: cardGroups
+
+        -- "Played" card only shows in the row of the player who played it
+        redPlayedCard =
+            if play.player == players.red then
+                play.card
+
+            else
+                Nothing
+
+        bluePlayedCard =
+            if play.player /= players.red then
+                play.card
+
+            else
+                Nothing
+
+        redSection =
+            playerSection "BLUE" "#2c5282" play.red redPlayedCard
+
+        blueSection =
+            playerSection "RED" "#c53030" play.blue bluePlayedCard
     in
     div
         [ style "display" "flex"
@@ -2423,7 +2649,7 @@ viewCurrentPlay players cache play =
         , style "overflow-x" "auto"
         , style "padding-bottom" "4px"
         ]
-        (playerLabel :: groups)
+        (blueSection ++ redSection)
 
 
 -- VIEW
@@ -2482,7 +2708,7 @@ view model =
 
                                     maybePlay =
                                         getCurrentGroup replay sectionIndex groupIndex
-                                            |> Maybe.andThen currentPlayFromGroup
+                                            |> Maybe.andThen (currentPlayFromGroup players)
                                 in
                                 viewHandState players cache hand bench activeSpots stadium piles maybePlay
 
@@ -2974,6 +3200,14 @@ navArrow visible msg symbol =
 viewActionGroup : Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
 viewActionGroup players cache group =
     let
+        correctedGroup =
+            case players of
+                Just ps ->
+                    correctGroupPlayers ps group
+
+                Nothing ->
+                    group
+
         topHighlight =
             case group.action of
                 Action.UsedAttack { attacker, move } ->
@@ -3018,13 +3252,13 @@ viewActionGroup players cache group =
                     viewLine players Nothing (Replay.DetailLine detail.raw)
                         :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
                 )
-                group.details
+                correctedGroup.details
     in
     case group.action of
         Action.UsedAttack { target, modifier } ->
             case target of
                 Just { damage } ->
-                    if modifier /= Nothing || (List.head group.details |> Maybe.map (\d -> d.raw == "Damage breakdown:") |> Maybe.withDefault False) then
+                    if modifier /= Nothing || (List.head correctedGroup.details |> Maybe.map (\d -> d.raw == "Damage breakdown:") |> Maybe.withDefault False) then
                         let
                             -- Split the raw line at "for X damage." to isolate the modifier sentence
                             forDamage =
@@ -3042,7 +3276,7 @@ viewActionGroup players cache group =
                                         group.raw
 
                             breakdownLines =
-                                group.details
+                                correctedGroup.details
                                     |> List.filter (\d -> d.raw == "Damage breakdown:")
                                     |> List.concatMap (\detail -> detail.raw :: List.map .raw detail.bullets)
 
@@ -3050,7 +3284,7 @@ viewActionGroup players cache group =
                                 { breakdownLines = breakdownLines }
 
                             nonBreakdownDetails =
-                                group.details
+                                correctedGroup.details
                                     |> List.filter (\d -> d.raw /= "Damage breakdown:")
                                     |> List.concatMap
                                         (\detail ->

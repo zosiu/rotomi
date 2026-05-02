@@ -857,6 +857,9 @@ suite =
             [ test "TookPrize with CardAddedToHand details returns Just with drawn cards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         card1 =
                             { id = "sv6_130", name = "Dragapult ex" }
 
@@ -878,12 +881,22 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Nothing, discarded = [], shuffled = [], drawn = [ Just card1, Just card2 ] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Nothing
+                                , red = { discarded = [], shuffled = [], drawn = [ Just card1, Just card2 ] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "TookPrize with unknown prize cards returns Just with Nothing entries" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         group =
                             { raw = "A took 2 Prize cards."
                             , action = Action.TookPrize { player = "A", count = 2 }
@@ -899,36 +912,52 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Nothing, discarded = [], shuffled = [], drawn = [ Nothing, Nothing ] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Nothing
+                                , red = { discarded = [], shuffled = [], drawn = [ Nothing, Nothing ] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "TookPrize with no details returns Nothing" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         group =
                             { raw = "A took a Prize card."
                             , action = Action.TookPrize { player = "A", count = 1 }
                             , details = []
                             }
                     in
-                    currentPlayFromGroup group
+                    currentPlayFromGroup players group
                         |> Expect.equal Nothing
 
             , test "non-trainer action returns Nothing" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         group =
                             { raw = "A drew a card."
                             , action = Action.Drew { player = "A", card = Nothing }
                             , details = []
                             }
                     in
-                    currentPlayFromGroup group
+                    currentPlayFromGroup players group
                         |> Expect.equal Nothing
 
             , test "PlayedTrainer with no discards returns Just with empty discards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         card =
                             { id = "sv1_100", name = "Nest Ball" }
 
@@ -938,12 +967,22 @@ suite =
                             , details = []
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just card, discarded = [], shuffled = [], drawn = [] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just card
+                                , red = { discarded = [], shuffled = [], drawn = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "PlayedTrainer with DiscardedCard detail includes that card in discards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         played =
                             { id = "sv4_160", name = "Ultra Ball" }
 
@@ -961,12 +1000,22 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [ Just discardedCard ], shuffled = [], drawn = [] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just played
+                                , red = { discarded = [ Just discardedCard ], shuffled = [], drawn = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "PlayedTrainer with Discarded+CardList bullet includes those cards in discards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         played =
                             { id = "sv4_160", name = "Ultra Ball" }
 
@@ -991,12 +1040,22 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [ Just energy1, Just energy2 ], shuffled = [], drawn = [] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just played
+                                , red = { discarded = [ Just energy1, Just energy2 ], shuffled = [], drawn = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "PlayedTrainer with DrewCount+CardList collects drawn cards and excludes them from nothing else" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         played =
                             { id = "sv4_160", name = "Ultra Ball" }
 
@@ -1021,12 +1080,22 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [], drawn = [ Just drew1, Just drew2 ] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just played
+                                , red = { discarded = [], shuffled = [], drawn = [ Just drew1, Just drew2 ] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "PlayedTrainer with ShuffledInto detail collects shuffled cards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         played =
                             { id = "sv4_160", name = "Ultra Ball" }
 
@@ -1044,12 +1113,22 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [ Just shuffled1 ], drawn = [] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just played
+                                , red = { discarded = [], shuffled = [ Just shuffled1 ], drawn = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
 
             , test "PlayedTrainer with ShuffledInto count+CardList bullet collects shuffled cards" <|
                 \_ ->
                     let
+                        players =
+                            { red = "A", blue = "B" }
+
                         played =
                             { id = "sv9_108", name = "Lillie's Determination" }
 
@@ -1074,8 +1153,15 @@ suite =
                                 ]
                             }
                     in
-                    currentPlayFromGroup group
-                        |> Expect.equal (Just { player = "A", card = Just played, discarded = [], shuffled = [ Just dark, Just ultraBall ], drawn = [] })
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Just played
+                                , red = { discarded = [], shuffled = [ Just dark, Just ultraBall ], drawn = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                }
+                            )
             ]
         , describe "bench state"
             [ test "DrewAndPlayed parses correctly" <|
