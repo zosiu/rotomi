@@ -14,13 +14,13 @@ import Replay
 import Url
 
 
-port pushUrl : { url : String, index : Int, groupIndex : Int } -> Cmd msg
+port pushUrl : { url : String, index : Int, groupIndex : Int, flipOpponent : Bool } -> Cmd msg
 
 
 port onSwipe : (String -> msg) -> Sub msg
 
 
-init : { replayUrl : String, sectionIndex : Int, groupIndex : Int } -> ( Model, Cmd Msg )
+init : { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool } -> ( Model, Cmd Msg )
 init flags =
     let
         url =
@@ -30,12 +30,12 @@ init flags =
         ( EnteringUrl "", Cmd.none )
 
     else
-        ( Loading url flags.sectionIndex flags.groupIndex
+        ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
         , Http.get { url = url, expect = Http.expectString GotReplay }
         )
 
 
-main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int } Model Msg
+main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool } Model Msg
 main =
     Browser.element
         { init = init
@@ -146,9 +146,9 @@ type CardPopup
 
 type Model
     = EnteringUrl String
-    | Loading String Int Int
-    | Retrying String Int Int
-    | Loaded String Replay.Replay Int Int (Maybe CardPopup) (Dict String CardData)
+    | Loading String Int Int Bool
+    | Retrying String Int Int Bool
+    | Loaded String Replay.Replay Int Int (Maybe CardPopup) (Dict String CardData) Bool
     | Failed String String
 
 
@@ -158,17 +158,33 @@ currentUrl model =
         EnteringUrl url ->
             url
 
-        Loading url _ _ ->
+        Loading url _ _ _ ->
             url
 
-        Retrying url _ _ ->
+        Retrying url _ _ _ ->
             url
 
-        Loaded url _ _ _ _ _ ->
+        Loaded url _ _ _ _ _ _ ->
             url
 
         Failed url _ ->
             url
+
+
+currentFlipOpponent : Model -> Bool
+currentFlipOpponent model =
+    case model of
+        Loading _ _ _ flip ->
+            flip
+
+        Retrying _ _ _ flip ->
+            flip
+
+        Loaded _ _ _ _ _ _ flip ->
+            flip
+
+        _ ->
+            True
 
 
 
@@ -188,6 +204,7 @@ type Msg
     | MoveClicked String String
     | DamageClicked DamageInfo
     | GotCardImage String (Result Http.Error String)
+    | FlipOpponentToggled
     | CloseCard
     | NoOp
 
@@ -207,29 +224,29 @@ update msg model =
                 ( model, Cmd.none )
 
             else
-                ( Loading url 0 0
+                ( Loading url 0 0 (currentFlipOpponent model)
                 , Http.get { url = url, expect = Http.expectString GotReplay }
                 )
 
         GotReplay result ->
             case model of
-                Loading url idx gIdx ->
+                Loading url idx gIdx flip ->
                     case result of
                         Ok content ->
-                            loadReplay url idx gIdx content
+                            loadReplay url idx gIdx flip content
 
                         Err Http.NetworkError ->
-                            ( Retrying url idx gIdx
+                            ( Retrying url idx gIdx flip
                             , Http.get { url = proxyUrl url, expect = Http.expectString GotReplay }
                             )
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
 
-                Retrying url idx gIdx ->
+                Retrying url idx gIdx flip ->
                     case result of
                         Ok content ->
-                            loadReplay url idx gIdx content
+                            loadReplay url idx gIdx flip content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -239,10 +256,10 @@ update msg model =
 
         FirstSection ->
             case model of
-                Loaded url replay _ _ _ cache ->
-                    ( Loaded url replay 0 0 Nothing cache
+                Loaded url replay _ _ _ cache flip ->
+                    ( Loaded url replay 0 0 Nothing cache flip
                     , Cmd.batch
-                        [ pushUrl { url = url, index = 0, groupIndex = 0 }
+                        [ pushUrl { url = url, index = 0, groupIndex = 0, flipOpponent = flip }
                         , scrollToTop
                         , fetchHandCards replay.players replay 0 0 cache
                         ]
@@ -253,11 +270,11 @@ update msg model =
 
         PrevSection ->
             case model of
-                Loaded url replay i g _ cache ->
+                Loaded url replay i g _ cache flip ->
                     if g > 0 then
-                        ( Loaded url replay i (g - 1) Nothing cache
+                        ( Loaded url replay i (g - 1) Nothing cache flip
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i, groupIndex = g - 1 }
+                            [ pushUrl { url = url, index = i, groupIndex = g - 1, flipOpponent = flip }
                             , scrollToTop
                             , fetchHandCards replay.players replay i (g - 1) cache
                             ]
@@ -277,9 +294,9 @@ update msg model =
                             newG =
                                 max 0 (prevCount - 1)
                         in
-                        ( Loaded url replay newI newG Nothing cache
+                        ( Loaded url replay newI newG Nothing cache flip
                         , Cmd.batch
-                            [ pushUrl { url = url, index = newI, groupIndex = newG }
+                            [ pushUrl { url = url, index = newI, groupIndex = newG, flipOpponent = flip }
                             , scrollToTop
                             , fetchHandCards replay.players replay newI newG cache
                             ]
@@ -293,7 +310,7 @@ update msg model =
 
         NextSection ->
             case model of
-                Loaded url replay i g _ cache ->
+                Loaded url replay i g _ cache flip ->
                     let
                         currentSection =
                             replay.sections |> List.drop i |> List.head
@@ -305,18 +322,18 @@ update msg model =
                             List.length replay.sections
                     in
                     if g < totalGroups - 1 then
-                        ( Loaded url replay i (g + 1) Nothing cache
+                        ( Loaded url replay i (g + 1) Nothing cache flip
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i, groupIndex = g + 1 }
+                            [ pushUrl { url = url, index = i, groupIndex = g + 1, flipOpponent = flip }
                             , scrollToTop
                             , fetchHandCards replay.players replay i (g + 1) cache
                             ]
                         )
 
                     else if i < totalSections - 1 then
-                        ( Loaded url replay (i + 1) 0 Nothing cache
+                        ( Loaded url replay (i + 1) 0 Nothing cache flip
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i + 1, groupIndex = 0 }
+                            [ pushUrl { url = url, index = i + 1, groupIndex = 0, flipOpponent = flip }
                             , scrollToTop
                             , fetchHandCards replay.players replay (i + 1) 0 cache
                             ]
@@ -330,7 +347,7 @@ update msg model =
 
         LastSection ->
             case model of
-                Loaded url replay _ _ _ cache ->
+                Loaded url replay _ _ _ cache flip ->
                     let
                         lastI =
                             List.length replay.sections - 1
@@ -344,9 +361,9 @@ update msg model =
                         lastG =
                             max 0 (lastCount - 1)
                     in
-                    ( Loaded url replay lastI lastG Nothing cache
+                    ( Loaded url replay lastI lastG Nothing cache flip
                     , Cmd.batch
-                        [ pushUrl { url = url, index = lastI, groupIndex = lastG }
+                        [ pushUrl { url = url, index = lastI, groupIndex = lastG, flipOpponent = flip }
                         , scrollToTop
                         , fetchHandCards replay.players replay lastI lastG cache
                         ]
@@ -368,15 +385,15 @@ update msg model =
 
         CardClicked id ->
             case model of
-                Loaded url replay i g _ cache ->
+                Loaded url replay i g _ cache flip ->
                     case Dict.get id cache of
                         Just cardData ->
-                            ( Loaded url replay i g (Just (ShowingCard id cardData)) cache, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingCard id cardData)) cache flip, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl id of
                                 Just apiUrl ->
-                                    ( Loaded url replay i g (Just (FetchingCard id)) cache
+                                    ( Loaded url replay i g (Just (FetchingCard id)) cache flip
                                     , Http.get
                                         { url = apiUrl
                                         , expect = Http.expectString (GotCardImage id)
@@ -384,42 +401,42 @@ update msg model =
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i g (Just (CardNotFound id)) cache, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound id)) cache flip, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         MoveClicked cardId moveName ->
             case model of
-                Loaded url replay i g _ cache ->
+                Loaded url replay i g _ cache flip ->
                     case Dict.get cardId cache of
                         Just cardData ->
-                            ( Loaded url replay i g (Just (ShowingMove cardData moveName)) cache, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingMove cardData moveName)) cache flip, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl cardId of
                                 Just apiUrl ->
-                                    ( Loaded url replay i g (Just (FetchingMove cardId moveName)) cache
+                                    ( Loaded url replay i g (Just (FetchingMove cardId moveName)) cache flip
                                     , Http.get { url = apiUrl, expect = Http.expectString (GotCardImage cardId) }
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i g (Just (CardNotFound cardId)) cache, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound cardId)) cache flip, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         DamageClicked info ->
             case model of
-                Loaded url replay i g _ cache ->
-                    ( Loaded url replay i g (Just (ShowingDamageInfo info)) cache, Cmd.none )
+                Loaded url replay i g _ cache flip ->
+                    ( Loaded url replay i g (Just (ShowingDamageInfo info)) cache flip, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         GotCardImage id result ->
             case model of
-                Loaded url replay i g currentPopup cache ->
+                Loaded url replay i g currentPopup cache flip ->
                     let
                         -- True only when the user explicitly requested this card
                         -- (by clicking a pill / card thumbnail), so we should open a popup.
@@ -484,15 +501,29 @@ update msg model =
                                 Err _ ->
                                     ( if isUserFetch then Just (CardNotFound id) else currentPopup, cache )
                     in
-                    ( Loaded url replay i g nextPopup newCache, Cmd.none )
+                    ( Loaded url replay i g nextPopup newCache flip, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         CloseCard ->
             case model of
-                Loaded url replay i g _ cache ->
-                    ( Loaded url replay i g Nothing cache, Cmd.none )
+                Loaded url replay i g _ cache flip ->
+                    ( Loaded url replay i g Nothing cache flip, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        FlipOpponentToggled ->
+            case model of
+                Loaded url replay i g popup cache flip ->
+                    let
+                        newFlip =
+                            not flip
+                    in
+                    ( Loaded url replay i g popup cache newFlip
+                    , pushUrl { url = url, index = i, groupIndex = g, flipOpponent = newFlip }
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -513,8 +544,8 @@ scrollToTop =
         |> Task.attempt (\_ -> NoOp)
 
 
-loadReplay : String -> Int -> Int -> String -> ( Model, Cmd Msg )
-loadReplay url requestedIndex requestedGroupIndex content =
+loadReplay : String -> Int -> Int -> Bool -> String -> ( Model, Cmd Msg )
+loadReplay url requestedIndex requestedGroupIndex flip content =
     let
         -- Normalize Unicode curly apostrophes (U+2019 ' RIGHT SINGLE QUOTATION MARK)
         -- to plain ASCII apostrophes. Some replay sources use smart quotes in player
@@ -542,9 +573,9 @@ loadReplay url requestedIndex requestedGroupIndex content =
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index groupIndex Nothing Dict.empty
+        ( Loaded url replay index groupIndex Nothing Dict.empty flip
         , Cmd.batch
-            [ pushUrl { url = url, index = index, groupIndex = groupIndex }
+            [ pushUrl { url = url, index = index, groupIndex = groupIndex, flipOpponent = flip }
             , fetchHandCards replay.players replay index groupIndex Dict.empty
             ]
         )
@@ -1919,8 +1950,8 @@ currentPlayFromGroup players group =
             Nothing
 
 
-viewHandState : Replay.Players -> Dict String CardData -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> PileState -> Maybe CurrentPlay -> Html Msg
-viewHandState players cache hand bench active maybeStadium piles maybePlay =
+viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> PileState -> Maybe CurrentPlay -> Html Msg
+viewHandState players cache flipOpponent hand bench active maybeStadium piles maybePlay =
     let
         -- Strip known drawn cards from the player's hand side so they appear
         -- only in the played panel, not in both places at once.
@@ -1964,9 +1995,9 @@ viewHandState players cache hand bench active maybeStadium piles maybePlay =
                 , style "flex" "1"
                 , style "min-width" "0"
                 ]
-                [ viewHandRow "RED" True "#c53030" blueDisplay (handCardImage cache)
-                , viewBenchRow True cache bench.blue
-                , viewActiveZone players.red cache active maybeStadium
+                [ viewHandRow "RED" flipOpponent "#c53030" blueDisplay (handCardImage cache)
+                , viewBenchRow flipOpponent cache bench.blue
+                , viewActiveZone players.red cache flipOpponent active maybeStadium
                 , viewBenchRow False cache bench.red
                 , viewHandRow "BLUE" False "#2c5282" redDisplay (handCardImage cache)
                 ]
@@ -2327,8 +2358,8 @@ viewBenchCard upsideDown cache card =
 Active spots are stacked vertically in the center. Stadium slots sit two card-widths
 out on each side: blue's on the left (upside-down), red's on the right.
 -}
-viewActiveZone : String -> Dict String CardData -> ActiveState -> Maybe StadiumState -> Html Msg
-viewActiveZone red cache active maybeStadium =
+viewActiveZone : String -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> Html Msg
+viewActiveZone red cache flipOpponent active maybeStadium =
     let
         stadiumSlot upsideDown maybeCard =
             case maybeCard of
@@ -2406,7 +2437,7 @@ viewActiveZone red cache active maybeStadium =
             , style "gap" "0"
             ]
             [ -- Blue stadium: two card-widths left of center
-              stadiumSlot True blueStadium
+              stadiumSlot flipOpponent blueStadium
             , div [ style "width" "72px", style "flex-shrink" "0" ] []
 
             -- Active spots stacked vertically
@@ -2417,7 +2448,7 @@ viewActiveZone red cache active maybeStadium =
                 , style "align-items" "center"
                 , style "flex-shrink" "0"
                 ]
-                [ activeCard True active.blue
+                [ activeCard flipOpponent active.blue
                 , activeCard False active.red
                 ]
             , div [ style "width" "72px", style "flex-shrink" "0" ] []
@@ -2668,10 +2699,8 @@ view model =
         , style "flex-direction" "column"
         , style "box-sizing" "border-box"
         ]
-        [ div [ style "flex-shrink" "0" ] [ viewUrlBar model ]
-
-        -- Two-column layout: play state (80%) on the left, action log (20%) on the right
-        , div
+        -- Two-column layout: play state (75%) on the left, action log (25%) on the right
+        [ div
             [ style "flex" "1"
             , style "min-height" "0"
             , style "display" "flex"
@@ -2679,15 +2708,16 @@ view model =
             , style "gap" "1.5rem"
             , style "margin-top" "0.5rem"
             ]
-            [ -- Left column: play state
+            [ -- Left column: URL bar + play state
               div
                 [ style "flex" "3"
                 , style "min-width" "0"
                 , style "display" "flex"
                 , style "flex-direction" "column"
                 ]
-                [ case model of
-                    Loaded _ replay sectionIndex groupIndex _ cache ->
+                [ div [ style "flex-shrink" "0", style "margin-bottom" "0.25rem" ] [ viewUrlBar model ]
+                , case model of
+                    Loaded _ replay sectionIndex groupIndex _ cache flip ->
                         case replay.players of
                             Just players ->
                                 let
@@ -2710,7 +2740,7 @@ view model =
                                         getCurrentGroup replay sectionIndex groupIndex
                                             |> Maybe.andThen (currentPlayFromGroup players)
                                 in
-                                viewHandState players cache hand bench activeSpots stadium piles maybePlay
+                                viewHandState players cache flip hand bench activeSpots stadium piles maybePlay
 
                             Nothing ->
                                 text ""
@@ -2719,7 +2749,7 @@ view model =
                         text ""
                 ]
 
-            -- Right column: action log
+            -- Right column: settings + action log
             , div
                 [ style "flex" "1"
                 , style "min-width" "0"
@@ -2727,15 +2757,81 @@ view model =
                 , style "display" "flex"
                 , style "flex-direction" "column"
                 ]
-                [ viewContent model ]
+                [ viewSettings model
+                , viewContent model
+                ]
             ]
 
         , case model of
-            Loaded _ _ _ _ (Just popup) _ ->
+            Loaded _ _ _ _ (Just popup) _ _ ->
                 viewCardPopup popup
 
             _ ->
                 text ""
+        ]
+
+
+viewSettings : Model -> Html Msg
+viewSettings model =
+    let
+        flip =
+            currentFlipOpponent model
+    in
+    div
+        [ style "flex-shrink" "0"
+        , style "padding" "0.4rem 0"
+        , style "display" "flex"
+        , style "flex-direction" "column"
+        , style "gap" "0.35rem"
+        ]
+        [ div
+            [ style "display" "flex"
+            , style "align-items" "center"
+            , style "gap" "0.5rem"
+            , style "cursor" "pointer"
+            , onClick FlipOpponentToggled
+            ]
+            [ -- Toggle switch
+              div
+                [ style "width" "32px"
+                , style "height" "18px"
+                , style "border-radius" "9px"
+                , style "background"
+                    (if flip then
+                        "#4a5568"
+
+                     else
+                        "#cbd5e0"
+                    )
+                , style "position" "relative"
+                , style "flex-shrink" "0"
+                , style "transition" "background 0.15s"
+                ]
+                [ div
+                    [ style "width" "12px"
+                    , style "height" "12px"
+                    , style "border-radius" "50%"
+                    , style "background" "white"
+                    , style "position" "absolute"
+                    , style "top" "3px"
+                    , style "left"
+                        (if flip then
+                            "17px"
+
+                         else
+                            "3px"
+                        )
+                    , style "transition" "left 0.15s"
+                    ]
+                    []
+                ]
+            , span
+                [ style "font-size" "0.75rem"
+                , style "color" "#4a5568"
+                , style "user-select" "none"
+                ]
+                [ text "Flip opponent's cards" ]
+            ]
         ]
 
 
@@ -2747,10 +2843,10 @@ viewUrlBar model =
 
         isLoading =
             case model of
-                Loading _ _ _ ->
+                Loading _ _ _ _ ->
                     True
 
-                Retrying _ _ _ ->
+                Retrying _ _ _ _ ->
                     True
 
                 _ ->
@@ -2858,21 +2954,21 @@ viewContent model =
         EnteringUrl _ ->
             text ""
 
-        Loading _ _ _ ->
+        Loading _ _ _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Retrying _ _ _ ->
+        Retrying _ _ _ _ ->
             div
                 [ style "color" "#718096"
                 , style "font-style" "italic"
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index groupIndex _ cache ->
+        Loaded _ replay index groupIndex _ cache _ ->
             viewReplay cache replay index groupIndex
 
         Failed _ _ ->

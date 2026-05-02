@@ -41,10 +41,11 @@
           replayUrl: readReplayUrl(window.location.search),
           sectionIndex: readSectionIndex(window.location.search),
           groupIndex: readGroupIndex(window.location.search),
+          flipOpponent: readFlipOpponent(window.location.search),
         },
       });
-      app.ports.pushUrl.subscribe(function ({ url, index, groupIndex }) {
-        history.pushState({}, "", buildShareUrl(url, index, groupIndex) || window.location.pathname);
+      app.ports.pushUrl.subscribe(function ({ url, index, groupIndex, flipOpponent }) {
+        history.pushState({}, "", buildShareUrl(url, index, groupIndex, flipOpponent) || window.location.pathname);
       });
 
       var touchStartX = 0;
