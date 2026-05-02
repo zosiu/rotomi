@@ -13104,7 +13104,7 @@ var $author$project$Main$handCardImage = F2(
 			return A2(
 				$elm$core$Maybe$map,
 				function (u) {
-					return u + '/high.webp';
+					return u + '/low.webp';
 				},
 				A2(
 					$elm$core$Maybe$andThen,
@@ -13213,7 +13213,7 @@ var $author$project$Main$viewBenchCard = F3(
 		var maybeUrl = A2(
 			$elm$core$Maybe$map,
 			function (u) {
-				return u + '/high.webp';
+				return u + '/low.webp';
 			},
 			A2(
 				$elm$core$Maybe$andThen,
@@ -13297,7 +13297,7 @@ var $author$project$Main$viewKnownCardThumb = F3(
 		var maybeUrl = A2(
 			$elm$core$Maybe$map,
 			function (u) {
-				return u + '/high.webp';
+				return u + '/low.webp';
 			},
 			A2(
 				$elm$core$Maybe$andThen,
