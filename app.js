@@ -9310,10 +9310,10 @@ var $author$project$Main$correctGroupPlayers = F2(
 					return (drewCountCount >= 2) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				case 31:
 					var card = _v0.a.f;
-					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && (countOnlyShuffleCount >= 2)) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && ((countOnlyShuffleCount >= 2) || (drewCountCount >= 2))) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				case 30:
 					var card = _v0.a.f;
-					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && (countOnlyPutOnBottomCount >= 2)) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && ((countOnlyPutOnBottomCount >= 2) || (drewCountCount >= 2))) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				default:
 					return detail;
 			}
