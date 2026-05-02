@@ -2,6 +2,7 @@ port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), Move
 
 import Browser
 import Browser.Dom
+import Browser.Events
 import Dict exposing (Dict)
 import Html exposing (Html, button, div, img, input, p, span, text)
 import Html.Attributes exposing (id, placeholder, src, style, type_, value)
@@ -41,7 +42,13 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> onSwipe GotSwipe
+        , subscriptions =
+            \_ ->
+                Sub.batch
+                    [ onSwipe GotSwipe
+                    , Browser.Events.onKeyDown
+                        (Decode.map KeyDown (Decode.field "key" Decode.string))
+                    ]
         }
 
 
@@ -200,6 +207,7 @@ type Msg
     | NextSection
     | LastSection
     | GotSwipe String
+    | KeyDown String
     | CardClicked String
     | MoveClicked String String
     | DamageClicked DamageInfo
@@ -379,6 +387,17 @@ update msg model =
 
                 "right" ->
                     update PrevSection model
+
+                _ ->
+                    ( model, Cmd.none )
+
+        KeyDown key ->
+            case key of
+                "ArrowLeft" ->
+                    update PrevSection model
+
+                "ArrowRight" ->
+                    update NextSection model
 
                 _ ->
                     ( model, Cmd.none )
