@@ -14362,8 +14362,6 @@ var $author$project$Main$view = function (model) {
 		_List_fromArray(
 			[
 				A2($elm$html$Html$Attributes$style, 'font-family', 'system-ui, -apple-system, sans-serif'),
-				A2($elm$html$Html$Attributes$style, 'max-width', '1400px'),
-				A2($elm$html$Html$Attributes$style, 'margin', '0 auto'),
 				A2($elm$html$Html$Attributes$style, 'padding', '0.5rem 1.5rem 0'),
 				A2($elm$html$Html$Attributes$style, 'color', '#1a202c'),
 				A2($elm$html$Html$Attributes$style, 'height', '100%'),
@@ -14440,8 +14438,7 @@ var $author$project$Main$view = function (model) {
 						$elm$html$Html$div,
 						_List_fromArray(
 							[
-								A2($elm$html$Html$Attributes$style, 'flex', '1'),
-								A2($elm$html$Html$Attributes$style, 'min-width', '0'),
+								A2($elm$html$Html$Attributes$style, 'flex', '0 0 320px'),
 								A2($elm$html$Html$Attributes$style, 'min-height', '0'),
 								A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 								A2($elm$html$Html$Attributes$style, 'flex-direction', 'column')
