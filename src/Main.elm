@@ -2653,7 +2653,7 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
                 case maybePlay of
                     Just play ->
                         let bluePlayedCard = if play.player /= red then play.card else Nothing
-                        in viewPlayerPlayInfo cache flipOpponent isTookPrize play.blue bluePlayedCard
+                        in viewPlayerPlayInfo cache flipOpponent isTookPrize "#c53030" play.blue bluePlayedCard
                     Nothing ->
                         text ""
 
@@ -2661,7 +2661,7 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
                 case maybePlay of
                     Just play ->
                         let redPlayedCard = if play.player == red then play.card else Nothing
-                        in viewPlayerPlayInfo cache False isTookPrize play.red redPlayedCard
+                        in viewPlayerPlayInfo cache False isTookPrize "#2c5282" play.red redPlayedCard
                     Nothing ->
                         text ""
           in
@@ -2833,8 +2833,8 @@ viewUnknownCardBack w h upsideDown count =
 single player next to their active card slot. Returns `text ""` when there is
 nothing to show for that player.
 -}
-viewPlayerPlayInfo : Dict String CardData -> Bool -> Bool -> PlayerCards -> Maybe Action.CardRef -> Html Msg
-viewPlayerPlayInfo cache upsideDown isTookPrize playerCards maybePlayedCard =
+viewPlayerPlayInfo : Dict String CardData -> Bool -> Bool -> String -> PlayerCards -> Maybe Action.CardRef -> Html Msg
+viewPlayerPlayInfo cache upsideDown isTookPrize color playerCards maybePlayedCard =
     let
         viewPlayItem item =
             case item of
@@ -2854,7 +2854,7 @@ viewPlayerPlayInfo cache upsideDown isTookPrize playerCards maybePlayedCard =
                 [ div
                     [ style "font-size" "0.7rem"
                     , style "font-weight" "600"
-                    , style "color" "#718096"
+                    , style "color" color
                     , style "line-height" "1"
                     ]
                     [ text label ]
@@ -2930,8 +2930,8 @@ viewCurrentPlay players cache play =
         , style "overflow-x" "auto"
         , style "padding-bottom" "4px"
         ]
-        [ viewPlayerPlayInfo cache False isTookPrize play.blue bluePlayedCard
-        , viewPlayerPlayInfo cache False isTookPrize play.red redPlayedCard
+        [ viewPlayerPlayInfo cache False isTookPrize "#c53030" play.blue bluePlayedCard
+        , viewPlayerPlayInfo cache False isTookPrize "#2c5282" play.red redPlayedCard
         ]
 
 
