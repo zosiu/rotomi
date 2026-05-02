@@ -2302,6 +2302,7 @@ viewHandRow playerName upsideDown color alignItems cards imageFor =
             , style "overflow-x" "auto"
             , style "flex" "1"
             , style "min-width" "0"
+            , style "min-height" handCardH
             -- Scrollbar clearance always on the side away from the bench:
             -- flex-end (opponent, bench below) → padding-top keeps cards flush at bottom.
             -- flex-start (player, bench above) → padding-bottom keeps cards flush at top.
@@ -2698,20 +2699,20 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
                 ]
                 [ activeCard False active.red ]
 
-            -- Blue play info: col 5, row 1  (scrollable so wide content doesn't push column)
+            -- Blue play info: col 5, row 1  (clip so tall content never bleeds into the other row)
             , div
                 [ style "grid-column" "5"
                 , style "grid-row" "1"
-                , style "overflow-x" "auto"
+                , style "overflow" "hidden"
                 , style "min-width" "0"
                 ]
                 [ bluePlay ]
 
-            -- Red play info: col 5, row 2  (scrollable so wide content doesn't push column)
+            -- Red play info: col 5, row 2  (clip so tall content never bleeds into the other row)
             , div
                 [ style "grid-column" "5"
                 , style "grid-row" "2"
-                , style "overflow-x" "auto"
+                , style "overflow" "hidden"
                 , style "min-width" "0"
                 ]
                 [ redPlay ]
