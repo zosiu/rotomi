@@ -2201,8 +2201,8 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
 viewPileStack : String -> Int -> String -> String -> Html Msg
 viewPileStack label count bgColor textColor =
     div
-        [ style "width" "72px"
-        , style "height" "100px"
+        [ style "width" cardW
+        , style "height" cardH
         , style "border-radius" "4px"
         , style "flex-shrink" "0"
         , style "display" "flex"
@@ -2225,8 +2225,8 @@ viewPileStack label count bgColor textColor =
 viewPrizeStack : Int -> String -> Html Msg
 viewPrizeStack count color =
     div
-        [ style "width" "72px"
-        , style "height" "100px"
+        [ style "width" cardW
+        , style "height" cardH
         , style "border-radius" "4px"
         , style "flex-shrink" "0"
         , style "display" "flex"
@@ -2247,7 +2247,7 @@ viewHandRow playerName upsideDown color alignItems cards imageFor =
         [ style "display" "flex"
         , style "align-items" alignItems
         , style "gap" "0.35rem"
-        , style "min-height" "60px"
+        , style "min-height" handCardH
         , style "min-width" "0"
         ]
         [ div
@@ -2295,7 +2295,7 @@ viewHandRow playerName upsideDown color alignItems cards imageFor =
                             viewHandCard upsideDown color imageFor (Just card)
 
                         UnknownPlayCards n ->
-                            viewUnknownCardBack "86px" "60px" upsideDown n
+                            viewUnknownCardBack handCardW handCardH upsideDown n
                 )
                 (collapseUnknowns cards)
             )
@@ -2351,12 +2351,6 @@ viewHandCard : Bool -> String -> (Maybe Action.CardRef -> Maybe String) -> Maybe
 viewHandCard upsideDown color imageFor maybeCard =
     let
         -- Cards show only the top half, scaled up so the art fills the viewport
-        cardW =
-            "86px"
-
-        cardH =
-            "60px"
-
         radius =
             "4px"
 
@@ -2370,8 +2364,8 @@ viewHandCard upsideDown color imageFor maybeCard =
 
         -- Shared layout styles for every card variant
         baseStyles =
-            [ style "width" cardW
-            , style "height" cardH
+            [ style "width" handCardW
+            , style "height" handCardH
             , style "border-radius" radius
             , style "flex-shrink" "0"
             , style "box-sizing" "border-box"
@@ -2451,7 +2445,7 @@ viewBenchRow upsideDown cache bgColor cards =
             , style "overflow-x" "auto"
             , style "flex" "1"
             , style "min-width" "0"
-            , style "min-height" "100px"
+            , style "min-height" cardH
             , style "padding" "6px 8px"
             , style "background" bgColor
             , style "border-radius" "6px"
@@ -2499,8 +2493,8 @@ viewBenchCard upsideDown cache card =
                 []
 
         baseStyles =
-            [ style "width" "72px"
-            , style "height" "100px"
+            [ style "width" cardW
+            , style "height" cardH
             , style "border-radius" "4px"
             , style "flex-shrink" "0"
             , style "box-sizing" "border-box"
@@ -2539,8 +2533,8 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
             case maybeEntry of
                 Just ( card, upsideDown, shadowColor ) ->
                     div
-                        [ style "width" "72px"
-                        , style "height" "100px"
+                        [ style "width" cardW
+                        , style "height" cardH
                         , style "border-radius" "4px"
                         , style "flex-shrink" "0"
                         , style "box-shadow" ("0 0 0 4px " ++ shadowColor)
@@ -2550,8 +2544,8 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
 
                 Nothing ->
                     div
-                        [ style "width" "72px"
-                        , style "height" "100px"
+                        [ style "width" cardW
+                        , style "height" cardH
                         , style "border-radius" "4px"
                         , style "flex-shrink" "0"
                         , style "border" "2px dashed #cbd5e0"
@@ -2566,8 +2560,8 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
 
                 Nothing ->
                     div
-                        [ style "width" "72px"
-                        , style "height" "100px"
+                        [ style "width" cardW
+                        , style "height" cardH
                         , style "border-radius" "4px"
                         , style "flex-shrink" "0"
                         , style "border" "2px dashed #cbd5e0"
@@ -2654,7 +2648,7 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
           div
             [ style "display" "grid"
             , style "grid-template-columns" "minmax(0,1fr) 72px auto 72px minmax(0,1fr)"
-            , style "grid-template-rows" "calc(100px + 1rem) calc(100px + 1rem)"
+            , style "grid-template-rows" (activeRowH ++ " " ++ activeRowH)
             , style "row-gap" "0.4rem"
             , style "align-items" "end"
             , style "flex" "1"
@@ -2719,8 +2713,8 @@ viewKnownCardThumb upsideDown cache card =
                 |> Maybe.map (\u -> u ++ "/low.webp")
 
         baseStyles =
-            [ style "width" "72px"
-            , style "height" "100px"
+            [ style "width" cardW
+            , style "height" cardH
             , style "border-radius" "4px"
             , style "flex-shrink" "0"
             , style "box-sizing" "border-box"
@@ -2828,7 +2822,7 @@ viewPlayerPlayInfo cache upsideDown isTookPrize playerCards maybePlayedCard =
                     viewKnownCardThumb upsideDown cache card
 
                 UnknownPlayCards n ->
-                    viewUnknownCardBack "72px" "100px" upsideDown n
+                    viewUnknownCardBack cardW cardH upsideDown n
 
         labeledGroup label cards =
             div
@@ -2922,6 +2916,43 @@ viewCurrentPlay players cache play =
 
 
 -- VIEW
+
+
+{- Card dimension constants.
+   All card sizes are derived from `cardH` (14 vh) so they scale with
+   the viewport and fill the available screen space.
+
+   Bench / active / pile cards  – portrait, aspect ratio 0.72 : 1
+   Hand cards                   – landscape crop, aspect ratio 0.86 : 0.60
+-}
+
+
+cardH : String
+cardH =
+    "14vh"
+
+
+cardW : String
+cardW =
+    "calc(14vh * 0.72)"
+
+
+handCardH : String
+handCardH =
+    "calc(14vh * 0.60)"
+
+
+handCardW : String
+handCardW =
+    "calc(14vh * 0.86)"
+
+
+{-| Height of one active-zone grid row: card height plus 1 rem for the
+play-info label that floats above the card.
+-}
+activeRowH : String
+activeRowH =
+    "calc(14vh + 1rem)"
 
 
 view : Model -> Html Msg
