@@ -9871,8 +9871,53 @@ var $author$project$Main$detailCardList = function (detail) {
 			},
 			detail.av));
 };
+var $author$project$Main$isPokemonAbilityGroup = function (group) {
+	var _v0 = group.L;
+	if (_v0.$ === 9) {
+		var card = _v0.a.f;
+		return A2(
+			$elm$core$List$any,
+			function (d) {
+				var _v1 = d.L;
+				if (_v1.$ === 32) {
+					var info = _v1.a;
+					return _Utils_eq(info.f, $elm$core$Maybe$Nothing) && A2(
+						$elm$core$List$any,
+						function (b) {
+							var _v2 = b.L;
+							if (_v2.$ === 48) {
+								var cards = _v2.a;
+								return A2(
+									$elm$core$List$any,
+									function (c) {
+										return _Utils_eq(c.ad, card.ad);
+									},
+									cards);
+							} else {
+								return false;
+							}
+						},
+						d.av);
+				} else {
+					return false;
+				}
+			},
+			group.bu);
+	} else {
+		return false;
+	}
+};
 var $author$project$Main$applyGroupToBench = F4(
 	function (red, active, bench, group) {
+		var pokemonAbilityCardId = function () {
+			var _v3 = group.L;
+			if (_v3.$ === 9) {
+				var card = _v3.a.f;
+				return $author$project$Main$isPokemonAbilityGroup(group) ? $elm$core$Maybe$Just(card.ad) : $elm$core$Maybe$Nothing;
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var bench1 = A4($author$project$Main$applyActionToBench, red, active, group.L, bench);
 		return A3(
 			$elm$core$List$foldl,
@@ -9880,20 +9925,29 @@ var $author$project$Main$applyGroupToBench = F4(
 				function (detail, b) {
 					var b1 = function () {
 						var _v0 = detail.L;
-						if (_v0.$ === 13) {
-							var player = _v0.a.d;
-							var position = _v0.a.aF;
-							if (position === 1) {
-								return A3(
-									$elm$core$List$foldl,
-									A2($author$project$Main$addToBench, red, player),
-									b,
-									$author$project$Main$detailCardList(detail));
-							} else {
-								return b;
-							}
-						} else {
-							return A4($author$project$Main$applyActionToBench, red, active, detail.L, b);
+						switch (_v0.$) {
+							case 13:
+								var player = _v0.a.d;
+								var position = _v0.a.aF;
+								if (position === 1) {
+									return A3(
+										$elm$core$List$foldl,
+										A2($author$project$Main$addToBench, red, player),
+										b,
+										$author$project$Main$detailCardList(detail));
+								} else {
+									return b;
+								}
+							case 32:
+								var player = _v0.a.d;
+								if (!pokemonAbilityCardId.$) {
+									var cardId = pokemonAbilityCardId.a;
+									return A4($author$project$Main$removeFromBench, red, player, cardId, b);
+								} else {
+									return A4($author$project$Main$applyActionToBench, red, active, detail.L, b);
+								}
+							default:
+								return A4($author$project$Main$applyActionToBench, red, active, detail.L, b);
 						}
 					}();
 					return A3(
@@ -10178,6 +10232,18 @@ var $author$project$Main$applyDetailAction = F3(
 				var player = _v0.a.d;
 				var to = _v0.a.bg;
 				return A4($author$project$Main$removeById, red, player, to.ad, hand);
+			case 29:
+				var owner = _v0.a.db;
+				var count = _v0.a.i;
+				var known = $author$project$Main$detailCardList(detail);
+				return $elm$core$List$isEmpty(known) ? A4($author$project$Main$removeN, red, owner, count, hand) : A3(
+					$elm$core$List$foldl,
+					F2(
+						function (card, h) {
+							return A4($author$project$Main$removeById, red, owner, card.ad, h);
+						}),
+					hand,
+					known);
 			default:
 				return hand;
 		}
@@ -10366,7 +10432,8 @@ var $elm$core$List$member = F2(
 	});
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
-		var hand1 = A3($author$project$Main$applyTopAction, red, hand, group);
+		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
+		var hand1 = isPokemonAbility ? hand : A3($author$project$Main$applyTopAction, red, hand, group);
 		var details = function () {
 			var _v2 = group.L;
 			if (_v2.$ === 7) {
@@ -10402,11 +10469,14 @@ var $author$project$Main$applyGroupToHand = F3(
 			F2(
 				function (detail, h) {
 					var _v0 = detail.L;
-					if (_v0.$ === 14) {
-						var player = _v0.a.d;
-						return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
-					} else {
-						return A3($author$project$Main$applyDetailAction, red, h, detail);
+					switch (_v0.$) {
+						case 14:
+							var player = _v0.a.d;
+							return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+						case 32:
+							return isPokemonAbility ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+						default:
+							return A3($author$project$Main$applyDetailAction, red, h, detail);
 					}
 				}),
 			hand1,
@@ -11956,7 +12026,7 @@ var $author$project$Main$applyActionToPiles = F4(
 	});
 var $author$project$Main$applyGroupToPiles = F4(
 	function (red, isSetup, piles, group) {
-		var piles1 = A4($author$project$Main$applyActionToPiles, red, isSetup, group.L, piles);
+		var piles1 = $author$project$Main$isPokemonAbilityGroup(group) ? piles : A4($author$project$Main$applyActionToPiles, red, isSetup, group.L, piles);
 		var deckAttachPlayers = A2(
 			$elm$core$List$filterMap,
 			function (d) {
