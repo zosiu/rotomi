@@ -123,30 +123,37 @@ applyActionToEvolution red action evo =
         Action.KnockedOut _ ->
             evo
 
-        Action.CardDiscardedFrom { pokemon } ->
-            let
-                dict =
-                    if pokemon.player == red then
-                        evo.red
-
-                    else
-                        evo.blue
-
-                currentDepth =
-                    Dict.get pokemon.card.id dict |> Maybe.withDefault 0
-
-                newDict =
-                    if currentDepth <= 1 then
-                        Dict.remove pokemon.card.id dict
-
-                    else
-                        Dict.insert pokemon.card.id (currentDepth - 1) dict
-            in
-            if pokemon.player == red then
-                { evo | red = newDict }
+        Action.CardDiscardedFrom { card, pokemon } ->
+            -- Only decrement evo depth when a pre-evo card is the one being discarded
+            -- (i.e. the buried layer beneath the evolved Pokémon).
+            -- Energies/tools discarded from a Pokémon must not touch evo depth.
+            if not (Set.member card.id evo.preEvoIds) then
+                evo
 
             else
-                { evo | blue = newDict }
+                let
+                    dict =
+                        if pokemon.player == red then
+                            evo.red
+
+                        else
+                            evo.blue
+
+                    currentDepth =
+                        Dict.get pokemon.card.id dict |> Maybe.withDefault 0
+
+                    newDict =
+                        if currentDepth <= 1 then
+                            Dict.remove pokemon.card.id dict
+
+                        else
+                            Dict.insert pokemon.card.id (currentDepth - 1) dict
+                in
+                if pokemon.player == red then
+                    { evo | red = newDict }
+
+                else
+                    { evo | blue = newDict }
 
         _ ->
             evo
@@ -472,6 +479,7 @@ type alias FailInfo =
     , redDuplicates : List ( Action.CardRef, Int )
     , blueDuplicates : List ( Action.CardRef, Int )
     , blueHasUnknowns : Bool
+    , warnings : List String
     }
 
 
@@ -586,22 +594,154 @@ detectAmbiguousKO red indexed gs =
             Nothing
 
 
-checkGroups : String -> String -> List IndexedGroup -> Result FailInfo ( GameState, List AmbiguousKO )
+isPokemonOnField : String -> String -> String -> GameState -> Bool
+isPokemonOnField red player cardId gs =
+    let
+        ( maybeActive, benchList ) =
+            if player == red then
+                ( gs.active.red, gs.bench.red )
+
+            else
+                ( gs.active.blue, gs.bench.blue )
+    in
+    (maybeActive |> Maybe.map .id |> (==) (Just cardId))
+        || List.any (\c -> c.id == cardId) benchList
+
+
+{-| Detect pokemon-attribution errors in CardDiscardedFrom / NCardsDiscardedFrom.
+If the pokemon is not on the stated player's field but IS on the other player's field,
+return a corrected group (with player swapped) and a warning message.
+Checks both the top-level action and all detail actions.
+-}
+detectAndCorrectGroup : String -> String -> IndexedGroup -> GameState -> ( Action.ActionGroup, List String )
+detectAndCorrectGroup red blue indexed gs =
+    let
+        group =
+            indexed.group
+
+        location =
+            " (section "
+                ++ String.fromInt indexed.sectionIndex
+                ++ ", group "
+                ++ String.fromInt indexed.groupIndex
+                ++ ")"
+
+        checkPokemon pokemon =
+            if isPokemonOnField red pokemon.player pokemon.card.id gs then
+                Nothing
+
+            else
+                let
+                    otherPlayer =
+                        if pokemon.player == red then
+                            blue
+
+                        else
+                            red
+                in
+                if isPokemonOnField red otherPlayer pokemon.card.id gs then
+                    Just
+                        ( { pokemon | player = otherPlayer }
+                        , "⚠  "
+                            ++ pokemon.card.name
+                            ++ " attributed to "
+                            ++ pokemon.player
+                            ++ " but found on "
+                            ++ otherPlayer
+                            ++ "'s field — corrected"
+                            ++ location
+                        )
+
+                else
+                    Just
+                        ( pokemon
+                        , "⚠  "
+                            ++ pokemon.card.name
+                            ++ " attributed to "
+                            ++ pokemon.player
+                            ++ " but not found on either player's field"
+                            ++ location
+                        )
+
+        correctTopAction =
+            case group.action of
+                Action.CardDiscardedFrom { card, pokemon } ->
+                    case checkPokemon pokemon of
+                        Just ( newPokemon, warn ) ->
+                            ( Action.CardDiscardedFrom { card = card, pokemon = newPokemon }, [ warn ] )
+
+                        Nothing ->
+                            ( group.action, [] )
+
+                Action.NCardsDiscardedFrom { pokemon, count } ->
+                    case checkPokemon pokemon of
+                        Just ( newPokemon, warn ) ->
+                            ( Action.NCardsDiscardedFrom { pokemon = newPokemon, count = count }, [ warn ] )
+
+                        Nothing ->
+                            ( group.action, [] )
+
+                _ ->
+                    ( group.action, [] )
+
+        correctDetail detail =
+            case detail.action of
+                Action.CardDiscardedFrom { card, pokemon } ->
+                    case checkPokemon pokemon of
+                        Just ( newPokemon, warn ) ->
+                            ( { detail | action = Action.CardDiscardedFrom { card = card, pokemon = newPokemon } }, [ warn ] )
+
+                        Nothing ->
+                            ( detail, [] )
+
+                Action.NCardsDiscardedFrom { pokemon, count } ->
+                    case checkPokemon pokemon of
+                        Just ( newPokemon, warn ) ->
+                            ( { detail | action = Action.NCardsDiscardedFrom { pokemon = newPokemon, count = count } }, [ warn ] )
+
+                        Nothing ->
+                            ( detail, [] )
+
+                _ ->
+                    ( detail, [] )
+
+        ( newTopAction, topWarns ) =
+            correctTopAction
+
+        ( newDetails, detailWarnLists ) =
+            List.unzip (List.map correctDetail group.details)
+
+        allWarns =
+            topWarns ++ List.concat detailWarnLists
+    in
+    ( { group | action = newTopAction, details = newDetails }, allWarns )
+
+
+checkGroups : String -> String -> List IndexedGroup -> Result FailInfo ( GameState, List AmbiguousKO, List String )
 checkGroups red blue groups =
     foldUntilError
-        (\indexed ( gs, kos ) ->
+        (\indexed ( gs, kos, warns ) ->
             let
                 ambig =
                     detectAmbiguousKO red indexed gs
 
+                ( correctedGroup, newWarnings ) =
+                    detectAndCorrectGroup red blue indexed gs
+
+                correctedIndexed =
+                    { indexed | group = correctedGroup }
+
                 newGs =
-                    stepGroup red indexed.isSetup indexed.group gs
+                    stepGroup red correctedIndexed.isSetup correctedIndexed.group gs
 
                 redBD =
                     breakdownForRed red newGs
 
                 blueBD =
                     breakdownForBlue red blue newGs
+
+                allWarns =
+                    warns ++ newWarnings
             in
             if redBD.total /= 60 || blueBD.total /= 60 then
                 Err
@@ -613,12 +753,17 @@ checkGroups red blue groups =
                     , redDuplicates = duplicatesOnBoard gs.bench.red gs.active.red
                     , blueDuplicates = duplicatesOnBoard gs.bench.blue gs.active.blue
                     , blueHasUnknowns = List.any ((==) Nothing) newGs.hand.red
+                    , warnings = allWarns
                     }
 
             else
-                Ok ( newGs, kos ++ (ambig |> Maybe.map List.singleton |> Maybe.withDefault []) )
+                Ok
+                    ( newGs
+                    , kos ++ (ambig |> Maybe.map List.singleton |> Maybe.withDefault [])
+                    , allWarns
+                    )
         )
-        ( initialState, [] )
+        ( initialState, [], [] )
         groups
 
 
@@ -747,10 +892,22 @@ checkFile flags =
                     checkGroups players.red players.blue groups
             in
             case result of
-                Ok ( _, ambigKOs ) ->
+                Ok ( _, ambigKOs, warns ) ->
                     let
                         ambigStr =
                             formatAmbiguousKOs ambigKOs
+
+                        warnsStr =
+                            if List.isEmpty warns then
+                                ""
+
+                            else
+                                String.join "\n" warns
+
+                        extras =
+                            [ ambigStr, warnsStr ]
+                                |> List.filter (not << String.isEmpty)
+                                |> String.join "\n"
                     in
                     { output =
                         "✓  "
@@ -758,7 +915,7 @@ checkFile flags =
                             ++ "  ("
                             ++ String.fromInt (List.length groups)
                             ++ " groups)"
-                            ++ (if String.isEmpty ambigStr then "\n" else "\n" ++ ambigStr ++ "\n")
+                            ++ (if String.isEmpty extras then "\n" else "\n" ++ extras ++ "\n")
                     , ok = True
                     }
 
@@ -775,6 +932,13 @@ checkFile flags =
                                     ++ String.fromInt fail.sectionIndex
                                     ++ "&group="
                                     ++ String.fromInt fail.groupIndex
+
+                        warnsStr =
+                            if List.isEmpty fail.warnings then
+                                ""
+
+                            else
+                                String.join "\n" fail.warnings
                     in
                     { output =
                         String.join "\n"
@@ -788,6 +952,7 @@ checkFile flags =
                             , formatBreakdown ("blue (" ++ players.red ++ ")") fail.redBreakdown
                             , formatDuplicates players.blue players.red fail.blueDuplicates fail.redDuplicates
                             , formatBlueUnknowns fail.blueHasUnknowns
+                            , warnsStr
                             , visualUrl
                             , ""
                             ]

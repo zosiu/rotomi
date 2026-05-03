@@ -5826,6 +5826,162 @@ var $author$project$CardCountCheck$detectAmbiguousKO = F3(
 			return $elm$core$Maybe$Nothing;
 		}
 	});
+var $author$project$CardCountCheck$isPokemonOnField = F4(
+	function (red, player, cardId, gs) {
+		var _v0 = _Utils_eq(player, red) ? _Utils_Tuple2(gs.active.red, gs.bench.red) : _Utils_Tuple2(gs.active.blue, gs.bench.blue);
+		var maybeActive = _v0.a;
+		var benchList = _v0.b;
+		return _Utils_eq(
+			$elm$core$Maybe$Just(cardId),
+			A2(
+				$elm$core$Maybe$map,
+				function ($) {
+					return $.id;
+				},
+				maybeActive)) || A2(
+			$elm$core$List$any,
+			function (c) {
+				return _Utils_eq(c.id, cardId);
+			},
+			benchList);
+	});
+var $elm$core$List$unzip = function (pairs) {
+	var step = F2(
+		function (_v0, _v1) {
+			var x = _v0.a;
+			var y = _v0.b;
+			var xs = _v1.a;
+			var ys = _v1.b;
+			return _Utils_Tuple2(
+				A2($elm$core$List$cons, x, xs),
+				A2($elm$core$List$cons, y, ys));
+		});
+	return A3(
+		$elm$core$List$foldr,
+		step,
+		_Utils_Tuple2(_List_Nil, _List_Nil),
+		pairs);
+};
+var $author$project$CardCountCheck$detectAndCorrectGroup = F4(
+	function (red, blue, indexed, gs) {
+		var location = ' (section ' + ($elm$core$String$fromInt(indexed.sectionIndex) + (', group ' + ($elm$core$String$fromInt(indexed.groupIndex) + ')')));
+		var group = indexed.group;
+		var checkPokemon = function (pokemon) {
+			if (A4($author$project$CardCountCheck$isPokemonOnField, red, pokemon.player, pokemon.card.id, gs)) {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var otherPlayer = _Utils_eq(pokemon.player, red) ? blue : red;
+				return A4($author$project$CardCountCheck$isPokemonOnField, red, otherPlayer, pokemon.card.id, gs) ? $elm$core$Maybe$Just(
+					_Utils_Tuple2(
+						_Utils_update(
+							pokemon,
+							{player: otherPlayer}),
+						'⚠  ' + (pokemon.card.name + (' attributed to ' + (pokemon.player + (' but found on ' + (otherPlayer + ('\'s field — corrected' + location)))))))) : $elm$core$Maybe$Just(
+					_Utils_Tuple2(pokemon, '⚠  ' + (pokemon.card.name + (' attributed to ' + (pokemon.player + (' but not found on either player\'s field' + location))))));
+			}
+		};
+		var correctDetail = function (detail) {
+			var _v7 = detail.action;
+			switch (_v7.$) {
+				case 'CardDiscardedFrom':
+					var card = _v7.a.card;
+					var pokemon = _v7.a.pokemon;
+					var _v8 = checkPokemon(pokemon);
+					if (_v8.$ === 'Just') {
+						var _v9 = _v8.a;
+						var newPokemon = _v9.a;
+						var warn = _v9.b;
+						return _Utils_Tuple2(
+							_Utils_update(
+								detail,
+								{
+									action: $author$project$Action$CardDiscardedFrom(
+										{card: card, pokemon: newPokemon})
+								}),
+							_List_fromArray(
+								[warn]));
+					} else {
+						return _Utils_Tuple2(detail, _List_Nil);
+					}
+				case 'NCardsDiscardedFrom':
+					var pokemon = _v7.a.pokemon;
+					var count = _v7.a.count;
+					var _v10 = checkPokemon(pokemon);
+					if (_v10.$ === 'Just') {
+						var _v11 = _v10.a;
+						var newPokemon = _v11.a;
+						var warn = _v11.b;
+						return _Utils_Tuple2(
+							_Utils_update(
+								detail,
+								{
+									action: $author$project$Action$NCardsDiscardedFrom(
+										{count: count, pokemon: newPokemon})
+								}),
+							_List_fromArray(
+								[warn]));
+					} else {
+						return _Utils_Tuple2(detail, _List_Nil);
+					}
+				default:
+					return _Utils_Tuple2(detail, _List_Nil);
+			}
+		};
+		var correctTopAction = function () {
+			var _v2 = group.action;
+			switch (_v2.$) {
+				case 'CardDiscardedFrom':
+					var card = _v2.a.card;
+					var pokemon = _v2.a.pokemon;
+					var _v3 = checkPokemon(pokemon);
+					if (_v3.$ === 'Just') {
+						var _v4 = _v3.a;
+						var newPokemon = _v4.a;
+						var warn = _v4.b;
+						return _Utils_Tuple2(
+							$author$project$Action$CardDiscardedFrom(
+								{card: card, pokemon: newPokemon}),
+							_List_fromArray(
+								[warn]));
+					} else {
+						return _Utils_Tuple2(group.action, _List_Nil);
+					}
+				case 'NCardsDiscardedFrom':
+					var pokemon = _v2.a.pokemon;
+					var count = _v2.a.count;
+					var _v5 = checkPokemon(pokemon);
+					if (_v5.$ === 'Just') {
+						var _v6 = _v5.a;
+						var newPokemon = _v6.a;
+						var warn = _v6.b;
+						return _Utils_Tuple2(
+							$author$project$Action$NCardsDiscardedFrom(
+								{count: count, pokemon: newPokemon}),
+							_List_fromArray(
+								[warn]));
+					} else {
+						return _Utils_Tuple2(group.action, _List_Nil);
+					}
+				default:
+					return _Utils_Tuple2(group.action, _List_Nil);
+			}
+		}();
+		var _v0 = correctTopAction;
+		var newTopAction = _v0.a;
+		var topWarns = _v0.b;
+		var _v1 = $elm$core$List$unzip(
+			A2($elm$core$List$map, correctDetail, group.details));
+		var newDetails = _v1.a;
+		var detailWarnLists = _v1.b;
+		var allWarns = _Utils_ap(
+			topWarns,
+			$elm$core$List$concat(detailWarnLists));
+		return _Utils_Tuple2(
+			_Utils_update(
+				group,
+				{action: newTopAction, details: newDetails}),
+			allWarns);
+	});
 var $elm$core$List$singleton = function (value) {
 	return _List_fromArray(
 		[value]);
@@ -6636,6 +6792,20 @@ var $elm$core$Set$insert = F2(
 		return $elm$core$Set$Set_elm_builtin(
 			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
 	});
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
+	});
 var $elm$core$Dict$getMin = function (dict) {
 	getMin:
 	while (true) {
@@ -7033,18 +7203,23 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 			case 'KnockedOut':
 				return evo;
 			case 'CardDiscardedFrom':
+				var card = action.a.card;
 				var pokemon = action.a.pokemon;
-				var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
-				var currentDepth = A2(
-					$elm$core$Maybe$withDefault,
-					0,
-					A2($elm$core$Dict$get, pokemon.card.id, dict));
-				var newDict = (currentDepth <= 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - 1, dict);
-				return _Utils_eq(pokemon.player, red) ? _Utils_update(
-					evo,
-					{red: newDict}) : _Utils_update(
-					evo,
-					{blue: newDict});
+				if (!A2($elm$core$Set$member, card.id, evo.preEvoIds)) {
+					return evo;
+				} else {
+					var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
+					var currentDepth = A2(
+						$elm$core$Maybe$withDefault,
+						0,
+						A2($elm$core$Dict$get, pokemon.card.id, dict));
+					var newDict = (currentDepth <= 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - 1, dict);
+					return _Utils_eq(pokemon.player, red) ? _Utils_update(
+						evo,
+						{red: newDict}) : _Utils_update(
+						evo,
+						{blue: newDict});
+				}
 			default:
 				return evo;
 		}
@@ -7061,20 +7236,6 @@ var $elm$core$List$isEmpty = function (xs) {
 		return false;
 	}
 };
-var $elm$core$Dict$member = F2(
-	function (key, dict) {
-		var _v0 = A2($elm$core$Dict$get, key, dict);
-		if (_v0.$ === 'Just') {
-			return true;
-		} else {
-			return false;
-		}
-	});
-var $elm$core$Set$member = F2(
-	function (key, _v0) {
-		var dict = _v0.a;
-		return A2($elm$core$Dict$member, key, dict);
-	});
 var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F4(
 	function (red, pokemon, bullets, evo) {
 		var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
@@ -7982,10 +8143,18 @@ var $author$project$CardCountCheck$checkGroups = F3(
 				function (indexed, _v0) {
 					var gs = _v0.a;
 					var kos = _v0.b;
-					var newGs = A4($author$project$CardCountCheck$stepGroup, red, indexed.isSetup, indexed.group, gs);
-					var redBD = A2($author$project$CardCountCheck$breakdownForRed, red, newGs);
-					var blueBD = A3($author$project$CardCountCheck$breakdownForBlue, red, blue, newGs);
+					var warns = _v0.c;
 					var ambig = A3($author$project$CardCountCheck$detectAmbiguousKO, red, indexed, gs);
+					var _v1 = A4($author$project$CardCountCheck$detectAndCorrectGroup, red, blue, indexed, gs);
+					var correctedGroup = _v1.a;
+					var newWarnings = _v1.b;
+					var correctedIndexed = _Utils_update(
+						indexed,
+						{group: correctedGroup});
+					var newGs = A4($author$project$CardCountCheck$stepGroup, red, correctedIndexed.isSetup, correctedIndexed.group, gs);
+					var blueBD = A3($author$project$CardCountCheck$breakdownForBlue, red, blue, newGs);
+					var redBD = A2($author$project$CardCountCheck$breakdownForRed, red, newGs);
+					var allWarns = _Utils_ap(warns, newWarnings);
 					return ((redBD.total !== 60) || (blueBD.total !== 60)) ? $elm$core$Result$Err(
 						{
 							blueBreakdown: blueBD,
@@ -7998,19 +8167,26 @@ var $author$project$CardCountCheck$checkGroups = F3(
 							groupRaw: indexed.group.raw,
 							redBreakdown: redBD,
 							redDuplicates: A2($author$project$CardCountCheck$duplicatesOnBoard, gs.bench.red, gs.active.red),
-							sectionIndex: indexed.sectionIndex
+							sectionIndex: indexed.sectionIndex,
+							warnings: allWarns
 						}) : $elm$core$Result$Ok(
-						_Utils_Tuple2(
+						_Utils_Tuple3(
 							newGs,
 							_Utils_ap(
 								kos,
 								A2(
 									$elm$core$Maybe$withDefault,
 									_List_Nil,
-									A2($elm$core$Maybe$map, $elm$core$List$singleton, ambig)))));
+									A2($elm$core$Maybe$map, $elm$core$List$singleton, ambig))),
+							allWarns));
 				}),
-			_Utils_Tuple2($author$project$CardCountCheck$initialState, _List_Nil),
+			_Utils_Tuple3($author$project$CardCountCheck$initialState, _List_Nil, _List_Nil),
 			groups);
+	});
+var $elm$core$Basics$composeL = F3(
+	function (g, f, x) {
+		return g(
+			f(x));
 	});
 var $author$project$CardCountCheck$formatAmbiguousKOs = function (kos) {
 	return $elm$core$List$isEmpty(kos) ? '' : A2(
@@ -8387,14 +8563,25 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 		if (result.$ === 'Ok') {
 			var _v2 = result.a;
 			var ambigKOs = _v2.b;
+			var warns = _v2.c;
+			var warnsStr = $elm$core$List$isEmpty(warns) ? '' : A2($elm$core$String$join, '\n', warns);
 			var ambigStr = $author$project$CardCountCheck$formatAmbiguousKOs(ambigKOs);
+			var extras = A2(
+				$elm$core$String$join,
+				'\n',
+				A2(
+					$elm$core$List$filter,
+					A2($elm$core$Basics$composeL, $elm$core$Basics$not, $elm$core$String$isEmpty),
+					_List_fromArray(
+						[ambigStr, warnsStr])));
 			return {
 				ok: true,
 				output: '✓  ' + (flags.name + ('  (' + ($elm$core$String$fromInt(
-					$elm$core$List$length(groups)) + (' groups)' + ($elm$core$String$isEmpty(ambigStr) ? '\n' : ('\n' + (ambigStr + '\n')))))))
+					$elm$core$List$length(groups)) + (' groups)' + ($elm$core$String$isEmpty(extras) ? '\n' : ('\n' + (extras + '\n')))))))
 			};
 		} else {
 			var fail = result.a;
+			var warnsStr = $elm$core$List$isEmpty(fail.warnings) ? '' : A2($elm$core$String$join, '\n', fail.warnings);
 			var visualUrl = $elm$core$String$isEmpty(flags.replayUrl) ? '  (provide --url to get a visual link)' : ('  Visual: http://localhost:8000/?replay_url=' + ($elm$url$Url$percentEncode(flags.replayUrl) + ('&section=' + ($elm$core$String$fromInt(fail.sectionIndex) + ('&group=' + $elm$core$String$fromInt(fail.groupIndex))))));
 			return {
 				ok: false,
@@ -8410,6 +8597,7 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 							A2($author$project$CardCountCheck$formatBreakdown, 'blue (' + (players.red + ')'), fail.redBreakdown),
 							A4($author$project$CardCountCheck$formatDuplicates, players.blue, players.red, fail.blueDuplicates, fail.redDuplicates),
 							$author$project$CardCountCheck$formatBlueUnknowns(fail.blueHasUnknowns),
+							warnsStr,
 							visualUrl,
 							''
 						]))
