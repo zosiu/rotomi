@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
