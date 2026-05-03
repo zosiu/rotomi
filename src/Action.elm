@@ -164,10 +164,15 @@ groupHelp lines acc =
                 -- by one TopLine per card ("(id) Card was added to X's hand." /
                 -- "A card was added to X's hand.").  Absorb those into this group
                 -- as details so they appear as a single entry in the log.
-                ( prizeDetails, finalRemaining ) =
+                -- KO lines are similarly followed by top-level discard lines for
+                -- any attached cards — absorb those too so the full KO event is one group.
+                ( extraDetails, finalRemaining ) =
                     case action of
                         TookPrize _ ->
                             collectCardAddedToHand remaining []
+
+                        KnockedOut { pokemon } ->
+                            collectKODiscards pokemon remaining []
 
                         _ ->
                             ( [], remaining )
@@ -175,7 +180,7 @@ groupHelp lines acc =
             groupHelp finalRemaining
                 ({ raw = raw
                  , action = action
-                 , details = details ++ prizeDetails
+                 , details = details ++ extraDetails
                  }
                     :: acc
                 )
@@ -198,6 +203,43 @@ collectCardAddedToHand lines acc =
 
                 _ ->
                     ( List.reverse acc, lines )
+
+        _ ->
+            ( List.reverse acc, lines )
+
+
+{-| After a KnockedOut group, greedily absorb any following top-level
+CardDiscardedFrom / NCardsDiscardedFrom lines for the same pokemon as details.
+This keeps the full KO event (knockout + attachment discards) in one group.
+-}
+collectKODiscards : PokemonRef -> List ReplayLine -> List DetailAction -> ( List DetailAction, List ReplayLine )
+collectKODiscards koPokemon lines acc =
+    case lines of
+        (TopLine raw) :: rest ->
+            let
+                isMatchingDiscard =
+                    case parseAction raw of
+                        CardDiscardedFrom { pokemon } ->
+                            pokemon.player == koPokemon.player && pokemon.card.id == koPokemon.card.id
+
+                        NCardsDiscardedFrom { pokemon } ->
+                            pokemon.player == koPokemon.player && pokemon.card.id == koPokemon.card.id
+
+                        _ ->
+                            False
+            in
+            if isMatchingDiscard then
+                let
+                    ( bullets, remaining ) =
+                        collectBullets rest []
+
+                    detail =
+                        { raw = raw, action = parseAction raw, bullets = bullets }
+                in
+                collectKODiscards koPokemon remaining (detail :: acc)
+
+            else
+                ( List.reverse acc, lines )
 
         _ ->
             ( List.reverse acc, lines )

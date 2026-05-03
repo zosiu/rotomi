@@ -5279,6 +5279,54 @@ var $author$project$Action$collectDetails = F2(
 			}
 		}
 	});
+var $author$project$Action$collectKODiscards = F3(
+	function (koPokemon, lines, acc) {
+		collectKODiscards:
+		while (true) {
+			if (lines.b && (lines.a.$ === 'TopLine')) {
+				var raw = lines.a.a;
+				var rest = lines.b;
+				var isMatchingDiscard = function () {
+					var _v2 = $author$project$Action$parseAction(raw);
+					switch (_v2.$) {
+						case 'CardDiscardedFrom':
+							var pokemon = _v2.a.pokemon;
+							return _Utils_eq(pokemon.player, koPokemon.player) && _Utils_eq(pokemon.card.id, koPokemon.card.id);
+						case 'NCardsDiscardedFrom':
+							var pokemon = _v2.a.pokemon;
+							return _Utils_eq(pokemon.player, koPokemon.player) && _Utils_eq(pokemon.card.id, koPokemon.card.id);
+						default:
+							return false;
+					}
+				}();
+				if (isMatchingDiscard) {
+					var _v1 = A2($author$project$Action$collectBullets, rest, _List_Nil);
+					var bullets = _v1.a;
+					var remaining = _v1.b;
+					var detail = {
+						action: $author$project$Action$parseAction(raw),
+						bullets: bullets,
+						raw: raw
+					};
+					var $temp$koPokemon = koPokemon,
+						$temp$lines = remaining,
+						$temp$acc = A2($elm$core$List$cons, detail, acc);
+					koPokemon = $temp$koPokemon;
+					lines = $temp$lines;
+					acc = $temp$acc;
+					continue collectKODiscards;
+				} else {
+					return _Utils_Tuple2(
+						$elm$core$List$reverse(acc),
+						lines);
+				}
+			} else {
+				return _Utils_Tuple2(
+					$elm$core$List$reverse(acc),
+					lines);
+			}
+		}
+	});
 var $author$project$Action$groupHelp = F2(
 	function (lines, acc) {
 		groupHelp:
@@ -5294,20 +5342,24 @@ var $author$project$Action$groupHelp = F2(
 					var details = _v1.a;
 					var remaining = _v1.b;
 					var _v2 = function () {
-						if (action.$ === 'TookPrize') {
-							return A2($author$project$Action$collectCardAddedToHand, remaining, _List_Nil);
-						} else {
-							return _Utils_Tuple2(_List_Nil, remaining);
+						switch (action.$) {
+							case 'TookPrize':
+								return A2($author$project$Action$collectCardAddedToHand, remaining, _List_Nil);
+							case 'KnockedOut':
+								var pokemon = action.a.pokemon;
+								return A3($author$project$Action$collectKODiscards, pokemon, remaining, _List_Nil);
+							default:
+								return _Utils_Tuple2(_List_Nil, remaining);
 						}
 					}();
-					var prizeDetails = _v2.a;
+					var extraDetails = _v2.a;
 					var finalRemaining = _v2.b;
 					var $temp$lines = finalRemaining,
 						$temp$acc = A2(
 						$elm$core$List$cons,
 						{
 							action: action,
-							details: _Utils_ap(details, prizeDetails),
+							details: _Utils_ap(details, extraDetails),
 							raw: raw
 						},
 						acc);
