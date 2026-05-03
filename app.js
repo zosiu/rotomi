@@ -14899,33 +14899,43 @@ var $author$project$Main$viewHandRow = F6(
 					$elm$html$Html$div,
 					_List_fromArray(
 						[
-							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-							A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-							A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-							A2($elm$html$Html$Attributes$style, 'gap', '0.35rem'),
 							A2($elm$html$Html$Attributes$style, 'overflow-x', 'auto'),
 							A2($elm$html$Html$Attributes$style, 'flex', '1'),
 							A2($elm$html$Html$Attributes$style, 'min-width', '0'),
 							A2($elm$html$Html$Attributes$style, 'min-height', $author$project$Main$handCardH),
 							(alignItems === 'flex-end') ? A2($elm$html$Html$Attributes$style, 'padding-top', '4px') : A2($elm$html$Html$Attributes$style, 'padding-bottom', '4px')
 						]),
-					A2(
-						$elm$core$List$map,
-						function (item) {
-							if (!item.$) {
-								var card = item.a;
-								return A4(
-									$author$project$Main$viewHandCard,
-									upsideDown,
-									color,
-									imageFor,
-									$elm$core$Maybe$Just(card));
-							} else {
-								var n = item.a;
-								return A4($author$project$Main$viewUnknownCardBack, $author$project$Main$handCardW, $author$project$Main$handCardH, upsideDown, n);
-							}
-						},
-						$author$project$Main$collapseUnknowns(cards)))
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$div,
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+									A2($elm$html$Html$Attributes$style, 'gap', '0.35rem'),
+									A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+									A2($elm$html$Html$Attributes$style, 'margin', '0 auto'),
+									A2($elm$html$Html$Attributes$style, 'width', 'fit-content')
+								]),
+							A2(
+								$elm$core$List$map,
+								function (item) {
+									if (!item.$) {
+										var card = item.a;
+										return A4(
+											$author$project$Main$viewHandCard,
+											upsideDown,
+											color,
+											imageFor,
+											$elm$core$Maybe$Just(card));
+									} else {
+										var n = item.a;
+										return A4($author$project$Main$viewUnknownCardBack, $author$project$Main$handCardW, $author$project$Main$handCardH, upsideDown, n);
+									}
+								},
+								$author$project$Main$collapseUnknowns(cards)))
+						]))
 				]));
 	});
 var $author$project$Main$viewPileStack = F4(
