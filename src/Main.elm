@@ -2026,15 +2026,16 @@ and position=BenchSpot; their ordinal within the bench list disambiguates them
 at render time.
 -}
 type alias AttachmentEntry =
-    { cardId : String
+    { player : String
+    , cardId : String
     , position : Action.Position
     , items : List Action.CardRef
     }
 
 
 {-| Ordered list of per-instance attachment entries. Order matters: the Nth
-entry with a given (cardId, position) pair corresponds to the Nth pokemon with
-that card id at that position.
+entry with a given (player, cardId, position) triple corresponds to the Nth
+pokemon with that card id at that position for that player.
 -}
 type alias AttachmentState =
     List AttachmentEntry
@@ -2045,12 +2046,12 @@ emptyAttachments =
     []
 
 
-{-| Index of the first entry matching the given card id and position, or Nothing. -}
-findEntryIndex : String -> Action.Position -> AttachmentState -> Maybe Int
-findEntryIndex cardId position state =
+{-| Index of the first entry matching the given player, card id and position. -}
+findEntryIndex : String -> String -> Action.Position -> AttachmentState -> Maybe Int
+findEntryIndex player cardId position state =
     state
         |> List.indexedMap Tuple.pair
-        |> List.filter (\( _, e ) -> e.cardId == cardId && e.position == position)
+        |> List.filter (\( _, e ) -> e.player == player && e.cardId == cardId && e.position == position)
         |> List.head
         |> Maybe.map Tuple.first
 
@@ -2070,23 +2071,23 @@ updateAt idx f list =
 
 
 {-| Return the items attached to the Nth pokemon (by ordinal) with the given
-card id at the given position. Ordinal 0 = first occurrence, 1 = second, etc.
+player, card id and position. Ordinal 0 = first occurrence, 1 = second, etc.
 -}
-lookupAttachments : AttachmentState -> String -> Action.Position -> Int -> List Action.CardRef
-lookupAttachments state cardId position ordinal =
+lookupAttachments : AttachmentState -> String -> String -> Action.Position -> Int -> List Action.CardRef
+lookupAttachments state player cardId position ordinal =
     state
-        |> List.filter (\e -> e.cardId == cardId && e.position == position)
+        |> List.filter (\e -> e.player == player && e.cardId == cardId && e.position == position)
         |> List.drop ordinal
         |> List.head
         |> Maybe.map .items
         |> Maybe.withDefault []
 
 
-{-| Move the first attachment entry for the given card from one position to
-another, e.g. BenchSpot → ActiveSpot when a bench pokemon becomes Active. -}
-moveAttachments : String -> Action.Position -> Action.Position -> AttachmentState -> AttachmentState
-moveAttachments cardId fromPos toPos state =
-    case findEntryIndex cardId fromPos state of
+{-| Move the first attachment entry for the given player's card from one
+position to another, e.g. BenchSpot → ActiveSpot when a pokemon becomes Active. -}
+moveAttachments : String -> String -> Action.Position -> Action.Position -> AttachmentState -> AttachmentState
+moveAttachments player cardId fromPos toPos state =
+    case findEntryIndex player cardId fromPos state of
         Just idx ->
             updateAt idx (\e -> { e | position = toPos }) state
 
@@ -2097,19 +2098,19 @@ moveAttachments cardId fromPos toPos state =
 applyActionToAttachments : Action.Action -> AttachmentState -> AttachmentState
 applyActionToAttachments action state =
     case action of
-        Action.Attached { item, target, position } ->
-            case findEntryIndex target.card.id position state of
+        Action.Attached { player, item, target, position } ->
+            case findEntryIndex player target.card.id position state of
                 Just idx ->
                     updateAt idx (\e -> { e | items = item :: e.items }) state
 
                 Nothing ->
-                    state ++ [ { cardId = target.card.id, position = position, items = [ item ] } ]
+                    state ++ [ { player = player, cardId = target.card.id, position = position, items = [ item ] } ]
 
         Action.KnockedOut { pokemon } ->
             -- No position in KnockedOut: remove the first active entry, then bench.
             let
-                removeFirst cardId pos st =
-                    case findEntryIndex cardId pos st of
+                removeFirst plyr cardId pos st =
+                    case findEntryIndex plyr cardId pos st of
                         Just idx ->
                             List.take idx st ++ List.drop (idx + 1) st
 
@@ -2117,11 +2118,11 @@ applyActionToAttachments action state =
                             st
             in
             state
-                |> removeFirst pokemon.card.id Action.ActiveSpot
-                |> removeFirst pokemon.card.id Action.BenchSpot
+                |> removeFirst pokemon.player pokemon.card.id Action.ActiveSpot
+                |> removeFirst pokemon.player pokemon.card.id Action.BenchSpot
 
-        Action.Evolved { from, to, position } ->
-            case findEntryIndex from.id position state of
+        Action.Evolved { player, from, to, position } ->
+            case findEntryIndex player from.id position state of
                 Just idx ->
                     updateAt idx (\e -> { e | cardId = to.id }) state
 
@@ -2132,7 +2133,7 @@ applyActionToAttachments action state =
             -- No position: try active first, then bench.
             let
                 tryRemove pos =
-                    case findEntryIndex pokemon.card.id pos state of
+                    case findEntryIndex pokemon.player pokemon.card.id pos state of
                         Just idx ->
                             let
                                 entry =
@@ -2165,27 +2166,27 @@ applyActionToAttachments action state =
                             state
 
         -- Bench ↔ Active movements: carry attachments along with the pokemon.
-        Action.Switched { from, to } ->
+        Action.Switched { player, from, to } ->
             state
-                |> moveAttachments from.id Action.BenchSpot Action.ActiveSpot
+                |> moveAttachments player from.id Action.BenchSpot Action.ActiveSpot
                 |> (if String.isEmpty to.id then
                         identity
 
                     else
-                        moveAttachments to.id Action.ActiveSpot Action.BenchSpot
+                        moveAttachments player to.id Action.ActiveSpot Action.BenchSpot
                    )
 
         Action.MovedToActive { pokemon } ->
             -- Skip if already at ActiveSpot — a preceding Switched already moved it.
-            case findEntryIndex pokemon.card.id Action.ActiveSpot state of
+            case findEntryIndex pokemon.player pokemon.card.id Action.ActiveSpot state of
                 Just _ ->
                     state
 
                 Nothing ->
-                    moveAttachments pokemon.card.id Action.BenchSpot Action.ActiveSpot state
+                    moveAttachments pokemon.player pokemon.card.id Action.BenchSpot Action.ActiveSpot state
 
-        Action.Retreated { card } ->
-            moveAttachments card.id Action.ActiveSpot Action.BenchSpot state
+        Action.Retreated { player, card } ->
+            moveAttachments player card.id Action.ActiveSpot Action.BenchSpot state
 
         _ ->
             state
@@ -2537,9 +2538,9 @@ viewHandState players cache flipOpponent hand bench active maybeStadium attachme
                 , style "min-width" "0"
                 ]
                 [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
-                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" attachments benchBlueDisplay
+                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" attachments players.blue benchBlueDisplay
                 , viewActiveZone players cache flipOpponent active maybeStadium attachments maybePlay
-                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" attachments benchRedDisplay
+                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" attachments players.red benchRedDisplay
                 , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
@@ -2769,8 +2770,8 @@ viewHandCard upsideDown color imageFor maybeCard =
                 []
 
 
-viewBenchRow : Bool -> Dict String CardData -> String -> AttachmentState -> List Action.CardRef -> Html Msg
-viewBenchRow upsideDown cache bgColor attachments cards =
+viewBenchRow : Bool -> Dict String CardData -> String -> AttachmentState -> String -> List Action.CardRef -> Html Msg
+viewBenchRow upsideDown cache bgColor attachments player cards =
     div
         [ style "display" "flex"
         , style "align-items" "center"
@@ -2818,7 +2819,7 @@ viewBenchRow upsideDown cache bgColor attachments cards =
 
                             cardHtml =
                                 viewBenchCard upsideDown cache
-                                    (lookupAttachments attachments card.id Action.BenchSpot ordinal)
+                                    (lookupAttachments attachments player card.id Action.BenchSpot ordinal)
                                     card
                         in
                         ( rendered ++ [ cardHtml ]
@@ -3069,11 +3070,11 @@ viewActiveZone players cache flipOpponent active maybeStadium attachments maybeP
                         ]
                         []
 
-        activeCard upsideDown maybeCard =
+        activeCard upsideDown activePlayer maybeCard =
             case maybeCard of
                 Just card ->
                     viewBenchCard upsideDown cache
-                        (lookupAttachments attachments card.id Action.ActiveSpot 0)
+                        (lookupAttachments attachments activePlayer card.id Action.ActiveSpot 0)
                         card
 
                 Nothing ->
@@ -3188,14 +3189,14 @@ viewActiveZone players cache flipOpponent active maybeStadium attachments maybeP
                 [ style "grid-column" "3"
                 , style "grid-row" "1"
                 ]
-                [ activeCard flipOpponent active.blue ]
+                [ activeCard flipOpponent players.blue active.blue ]
 
             -- Red active: col 3, row 2
             , div
                 [ style "grid-column" "3"
                 , style "grid-row" "2"
                 ]
-                [ activeCard False active.red ]
+                [ activeCard False players.red active.red ]
 
             -- Blue play info: col 5, row 1  (clip so tall content never bleeds into the other row)
             , div

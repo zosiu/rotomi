@@ -5516,8 +5516,8 @@ var $elm$core$List$filter = F2(
 			_List_Nil,
 			list);
 	});
-var $author$project$Main$lookupAttachments = F4(
-	function (state, cardId, position, ordinal) {
+var $author$project$Main$lookupAttachments = F5(
+	function (state, player, cardId, position, ordinal) {
 		return A2(
 			$elm$core$Maybe$withDefault,
 			_List_Nil,
@@ -5533,17 +5533,17 @@ var $author$project$Main$lookupAttachments = F4(
 						A2(
 							$elm$core$List$filter,
 							function (e) {
-								return _Utils_eq(e.cardId, cardId) && _Utils_eq(e.position, position);
+								return _Utils_eq(e.player, player) && (_Utils_eq(e.cardId, cardId) && _Utils_eq(e.position, position));
 							},
 							state)))));
 	});
-var $author$project$CardCountCheck$attachmentCountForSide = F3(
-	function (benchCards, maybeActive, state) {
+var $author$project$CardCountCheck$attachmentCountForSide = F4(
+	function (player, benchCards, maybeActive, state) {
 		var activeCount = function () {
 			if (maybeActive.$ === 'Just') {
 				var card = maybeActive.a;
 				return $elm$core$List$length(
-					A4($author$project$Main$lookupAttachments, state, card.id, $author$project$Action$ActiveSpot, 0));
+					A5($author$project$Main$lookupAttachments, state, player, card.id, $author$project$Action$ActiveSpot, 0));
 			} else {
 				return 0;
 			}
@@ -5559,7 +5559,7 @@ var $author$project$CardCountCheck$attachmentCountForSide = F3(
 						0,
 						A2($elm$core$Dict$get, card.id, counts));
 					var itemCount = $elm$core$List$length(
-						A4($author$project$Main$lookupAttachments, state, card.id, $author$project$Action$BenchSpot, ordinal));
+						A5($author$project$Main$lookupAttachments, state, player, card.id, $author$project$Action$BenchSpot, ordinal));
 					return _Utils_Tuple2(
 						total + itemCount,
 						A3($elm$core$Dict$insert, card.id, ordinal + 1, counts));
@@ -5569,8 +5569,8 @@ var $author$project$CardCountCheck$attachmentCountForSide = F3(
 		var benchCount = _v0.a;
 		return activeCount + benchCount;
 	});
-var $author$project$CardCountCheck$breakdownForBlue = F2(
-	function (red, gs) {
+var $author$project$CardCountCheck$breakdownForBlue = F3(
+	function (red, blue, gs) {
 		var stadiumVal = function () {
 			var _v1 = gs.stadium;
 			if (_v1.$ === 'Just') {
@@ -5585,7 +5585,7 @@ var $author$project$CardCountCheck$breakdownForBlue = F2(
 		var discardVal = gs.piles.discardBlue;
 		var deckVal = gs.piles.deckBlue;
 		var benchVal = $elm$core$List$length(gs.bench.blue);
-		var attachmentsVal = A3($author$project$CardCountCheck$attachmentCountForSide, gs.bench.blue, gs.active.blue, gs.attachments);
+		var attachmentsVal = A4($author$project$CardCountCheck$attachmentCountForSide, blue, gs.bench.blue, gs.active.blue, gs.attachments);
 		var activeVal = function () {
 			var _v0 = gs.active.blue;
 			if (_v0.$ === 'Just') {
@@ -5613,7 +5613,7 @@ var $author$project$CardCountCheck$breakdownForRed = F2(
 		var discardVal = gs.piles.discardRed;
 		var deckVal = gs.piles.deckRed;
 		var benchVal = $elm$core$List$length(gs.bench.red);
-		var attachmentsVal = A3($author$project$CardCountCheck$attachmentCountForSide, gs.bench.red, gs.active.red, gs.attachments);
+		var attachmentsVal = A4($author$project$CardCountCheck$attachmentCountForSide, red, gs.bench.red, gs.active.red, gs.attachments);
 		var activeVal = function () {
 			var _v0 = gs.active.red;
 			if (_v0.$ === 'Just') {
@@ -5782,8 +5782,8 @@ var $elm$core$Tuple$pair = F2(
 	function (a, b) {
 		return _Utils_Tuple2(a, b);
 	});
-var $author$project$Main$findEntryIndex = F3(
-	function (cardId, position, state) {
+var $author$project$Main$findEntryIndex = F4(
+	function (player, cardId, position, state) {
 		return A2(
 			$elm$core$Maybe$map,
 			$elm$core$Tuple$first,
@@ -5792,7 +5792,7 @@ var $author$project$Main$findEntryIndex = F3(
 					$elm$core$List$filter,
 					function (_v0) {
 						var e = _v0.b;
-						return _Utils_eq(e.cardId, cardId) && _Utils_eq(e.position, position);
+						return _Utils_eq(e.player, player) && (_Utils_eq(e.cardId, cardId) && _Utils_eq(e.position, position));
 					},
 					A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, state))));
 	});
@@ -5809,9 +5809,9 @@ var $author$project$Main$updateAt = F3(
 				}),
 			list);
 	});
-var $author$project$Main$moveAttachments = F4(
-	function (cardId, fromPos, toPos, state) {
-		var _v0 = A3($author$project$Main$findEntryIndex, cardId, fromPos, state);
+var $author$project$Main$moveAttachments = F5(
+	function (player, cardId, fromPos, toPos, state) {
+		var _v0 = A4($author$project$Main$findEntryIndex, player, cardId, fromPos, state);
 		if (_v0.$ === 'Just') {
 			var idx = _v0.a;
 			return A3(
@@ -5970,10 +5970,11 @@ var $author$project$Main$applyActionToAttachments = F2(
 	function (action, state) {
 		switch (action.$) {
 			case 'Attached':
+				var player = action.a.player;
 				var item = action.a.item;
 				var target = action.a.target;
 				var position = action.a.position;
-				var _v1 = A3($author$project$Main$findEntryIndex, target.card.id, position, state);
+				var _v1 = A4($author$project$Main$findEntryIndex, player, target.card.id, position, state);
 				if (_v1.$ === 'Just') {
 					var idx = _v1.a;
 					return A3(
@@ -5996,15 +5997,16 @@ var $author$project$Main$applyActionToAttachments = F2(
 								cardId: target.card.id,
 								items: _List_fromArray(
 									[item]),
+								player: player,
 								position: position
 							}
 							]));
 				}
 			case 'KnockedOut':
 				var pokemon = action.a.pokemon;
-				var removeFirst = F3(
-					function (cardId, pos, st) {
-						var _v2 = A3($author$project$Main$findEntryIndex, cardId, pos, st);
+				var removeFirst = F4(
+					function (plyr, cardId, pos, st) {
+						var _v2 = A4($author$project$Main$findEntryIndex, plyr, cardId, pos, st);
 						if (_v2.$ === 'Just') {
 							var idx = _v2.a;
 							return _Utils_ap(
@@ -6014,16 +6016,18 @@ var $author$project$Main$applyActionToAttachments = F2(
 							return st;
 						}
 					});
-				return A3(
+				return A4(
 					removeFirst,
+					pokemon.player,
 					pokemon.card.id,
 					$author$project$Action$BenchSpot,
-					A3(removeFirst, pokemon.card.id, $author$project$Action$ActiveSpot, state));
+					A4(removeFirst, pokemon.player, pokemon.card.id, $author$project$Action$ActiveSpot, state));
 			case 'Evolved':
+				var player = action.a.player;
 				var from = action.a.from;
 				var to = action.a.to;
 				var position = action.a.position;
-				var _v3 = A3($author$project$Main$findEntryIndex, from.id, position, state);
+				var _v3 = A4($author$project$Main$findEntryIndex, player, from.id, position, state);
 				if (_v3.$ === 'Just') {
 					var idx = _v3.a;
 					return A3(
@@ -6042,7 +6046,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 				var card = action.a.card;
 				var pokemon = action.a.pokemon;
 				var tryRemove = function (pos) {
-					var _v6 = A3($author$project$Main$findEntryIndex, pokemon.card.id, pos, state);
+					var _v6 = A4($author$project$Main$findEntryIndex, pokemon.player, pokemon.card.id, pos, state);
 					if (_v6.$ === 'Just') {
 						var idx = _v6.a;
 						var entry = $elm$core$List$head(
@@ -6087,21 +6091,23 @@ var $author$project$Main$applyActionToAttachments = F2(
 					}
 				}
 			case 'Switched':
+				var player = action.a.player;
 				var from = action.a.from;
 				var to = action.a.to;
-				return ($elm$core$String$isEmpty(to.id) ? $elm$core$Basics$identity : A3($author$project$Main$moveAttachments, to.id, $author$project$Action$ActiveSpot, $author$project$Action$BenchSpot))(
-					A4($author$project$Main$moveAttachments, from.id, $author$project$Action$BenchSpot, $author$project$Action$ActiveSpot, state));
+				return ($elm$core$String$isEmpty(to.id) ? $elm$core$Basics$identity : A4($author$project$Main$moveAttachments, player, to.id, $author$project$Action$ActiveSpot, $author$project$Action$BenchSpot))(
+					A5($author$project$Main$moveAttachments, player, from.id, $author$project$Action$BenchSpot, $author$project$Action$ActiveSpot, state));
 			case 'MovedToActive':
 				var pokemon = action.a.pokemon;
-				var _v8 = A3($author$project$Main$findEntryIndex, pokemon.card.id, $author$project$Action$ActiveSpot, state);
+				var _v8 = A4($author$project$Main$findEntryIndex, pokemon.player, pokemon.card.id, $author$project$Action$ActiveSpot, state);
 				if (_v8.$ === 'Just') {
 					return state;
 				} else {
-					return A4($author$project$Main$moveAttachments, pokemon.card.id, $author$project$Action$BenchSpot, $author$project$Action$ActiveSpot, state);
+					return A5($author$project$Main$moveAttachments, pokemon.player, pokemon.card.id, $author$project$Action$BenchSpot, $author$project$Action$ActiveSpot, state);
 				}
 			case 'Retreated':
+				var player = action.a.player;
 				var card = action.a.card;
-				return A4($author$project$Main$moveAttachments, card.id, $author$project$Action$ActiveSpot, $author$project$Action$BenchSpot, state);
+				return A5($author$project$Main$moveAttachments, player, card.id, $author$project$Action$ActiveSpot, $author$project$Action$BenchSpot, state);
 			default:
 				return state;
 		}
@@ -6915,15 +6921,15 @@ var $author$project$CardCountCheck$stepGroup = F4(
 			stadium: A2($author$project$Main$applyGroupToStadium, gs.stadium, group)
 		};
 	});
-var $author$project$CardCountCheck$checkGroups = F2(
-	function (red, groups) {
+var $author$project$CardCountCheck$checkGroups = F3(
+	function (red, blue, groups) {
 		return A3(
 			$author$project$CardCountCheck$foldUntilError,
 			F2(
 				function (indexed, gs) {
 					var newGs = A4($author$project$CardCountCheck$stepGroup, red, indexed.isSetup, indexed.group, gs);
 					var redBD = A2($author$project$CardCountCheck$breakdownForRed, red, newGs);
-					var blueBD = A2($author$project$CardCountCheck$breakdownForBlue, red, newGs);
+					var blueBD = A3($author$project$CardCountCheck$breakdownForBlue, red, blue, newGs);
 					return ((redBD.total !== 60) || (blueBD.total !== 60)) ? $elm$core$Result$Err(
 						{blueBreakdown: blueBD, groupIndex: indexed.groupIndex, groupRaw: indexed.group.raw, redBreakdown: redBD, sectionIndex: indexed.sectionIndex}) : $elm$core$Result$Ok(newGs);
 				}),
@@ -7255,7 +7261,7 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 	} else {
 		var players = _v0.a;
 		var groups = A2($author$project$CardCountCheck$allGroupsIndexed, players, replay);
-		var result = A2($author$project$CardCountCheck$checkGroups, players.red, groups);
+		var result = A3($author$project$CardCountCheck$checkGroups, players.red, players.blue, groups);
 		if (result.$ === 'Ok') {
 			return {
 				ok: true,

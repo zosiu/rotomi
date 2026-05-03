@@ -103,16 +103,17 @@ type alias PlayerBreakdown =
 
 
 attachmentCountForSide :
-    List Action.CardRef
+    String
+    -> List Action.CardRef
     -> Maybe Action.CardRef
     -> AttachmentState
     -> Int
-attachmentCountForSide benchCards maybeActive state =
+attachmentCountForSide player benchCards maybeActive state =
     let
         activeCount =
             case maybeActive of
                 Just card ->
-                    List.length (lookupAttachments state card.id Action.ActiveSpot 0)
+                    List.length (lookupAttachments state player card.id Action.ActiveSpot 0)
 
                 Nothing ->
                     0
@@ -125,7 +126,7 @@ attachmentCountForSide benchCards maybeActive state =
                             Dict.get card.id counts |> Maybe.withDefault 0
 
                         itemCount =
-                            List.length (lookupAttachments state card.id Action.BenchSpot ordinal)
+                            List.length (lookupAttachments state player card.id Action.BenchSpot ordinal)
                     in
                     ( total + itemCount, Dict.insert card.id (ordinal + 1) counts )
                 )
@@ -162,7 +163,7 @@ breakdownForRed red gs =
             List.length gs.bench.red
 
         attachmentsVal =
-            attachmentCountForSide gs.bench.red gs.active.red gs.attachments
+            attachmentCountForSide red gs.bench.red gs.active.red gs.attachments
 
         stadiumVal =
             case gs.stadium of
@@ -191,8 +192,8 @@ breakdownForRed red gs =
     }
 
 
-breakdownForBlue : String -> GameState -> PlayerBreakdown
-breakdownForBlue red gs =
+breakdownForBlue : String -> String -> GameState -> PlayerBreakdown
+breakdownForBlue red blue gs =
     let
         deckVal =
             gs.piles.deckBlue
@@ -218,7 +219,7 @@ breakdownForBlue red gs =
             List.length gs.bench.blue
 
         attachmentsVal =
-            attachmentCountForSide gs.bench.blue gs.active.blue gs.attachments
+            attachmentCountForSide blue gs.bench.blue gs.active.blue gs.attachments
 
         stadiumVal =
             case gs.stadium of
@@ -315,8 +316,8 @@ foldUntilError f acc list =
                     foldUntilError f newAcc rest
 
 
-checkGroups : String -> List IndexedGroup -> Result FailInfo GameState
-checkGroups red groups =
+checkGroups : String -> String -> List IndexedGroup -> Result FailInfo GameState
+checkGroups red blue groups =
     foldUntilError
         (\indexed gs ->
             let
@@ -327,7 +328,7 @@ checkGroups red groups =
                     breakdownForRed red newGs
 
                 blueBD =
-                    breakdownForBlue red newGs
+                    breakdownForBlue red blue newGs
             in
             if redBD.total /= 60 || blueBD.total /= 60 then
                 Err
@@ -407,7 +408,7 @@ checkFile flags =
                     allGroupsIndexed players replay
 
                 result =
-                    checkGroups players.red groups
+                    checkGroups players.red players.blue groups
             in
             case result of
                 Ok _ ->
