@@ -9262,21 +9262,6 @@ var $author$project$Main$collectAllGroups = F3(
 					}),
 				replay.v));
 	});
-var $author$project$Main$actionPlayer = function (action) {
-	switch (action.$) {
-		case 11:
-			var player = action.a.d;
-			return player;
-		case 32:
-			var player = action.a.d;
-			return player;
-		case 31:
-			var player = action.a.d;
-			return player;
-		default:
-			return '';
-	}
-};
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
 		any:
@@ -9373,35 +9358,63 @@ var $author$project$Main$correctDetailPlayer = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
-		var topActionPlayer = function () {
-			var _v3 = group.L;
-			switch (_v3.$) {
-				case 6:
-					var player = _v3.a.d;
-					return $elm$core$Maybe$Just(player);
-				case 9:
-					var player = _v3.a.d;
-					return $elm$core$Maybe$Just(player);
-				case 7:
-					var player = _v3.a.d;
-					return $elm$core$Maybe$Just(player);
-				default:
-					return $elm$core$Maybe$Nothing;
+		var singleDrewPlayer = function () {
+			var drewDetails = A2(
+				$elm$core$List$filterMap,
+				function (d) {
+					var _v6 = d.L;
+					if (_v6.$ === 11) {
+						var player = _v6.a.d;
+						return $elm$core$Maybe$Just(player);
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				group.bu);
+			if (drewDetails.b && (!drewDetails.b.b)) {
+				var p = drewDetails.a;
+				return $elm$core$Maybe$Just(p);
+			} else {
+				return $elm$core$Maybe$Nothing;
 			}
 		}();
 		var shuffleDeckPlayer = $elm$core$List$head(
 			A2(
 				$elm$core$List$filterMap,
 				function (d) {
-					var _v2 = d.L;
-					if (_v2.$ === 33) {
-						var player = _v2.a.d;
+					var _v4 = d.L;
+					if (_v4.$ === 33) {
+						var player = _v4.a.d;
 						return $elm$core$Maybe$Just(player);
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
 				},
 				group.bu));
+		var hasRevealedShuffleFor = function (player) {
+			return A2(
+				$elm$core$List$any,
+				function (d) {
+					var _v2 = d.L;
+					if (_v2.$ === 32) {
+						var info = _v2.a;
+						return _Utils_eq(info.d, player) && A2(
+							$elm$core$List$any,
+							function (b) {
+								var _v3 = b.L;
+								if (_v3.$ === 48) {
+									return true;
+								} else {
+									return false;
+								}
+							},
+							d.av);
+					} else {
+						return false;
+					}
+				},
+				group.bu);
+		};
 		var correctDetail = function (detail) {
 			var _v0 = detail.L;
 			switch (_v0.$) {
@@ -9423,22 +9436,19 @@ var $author$project$Main$correctGroupPlayers = F2(
 							return detail;
 						}
 					} else {
-						return _Utils_eq(
-							topActionPlayer,
-							$elm$core$Maybe$Just(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail);
+						return (_Utils_eq(
+							singleDrewPlayer,
+							$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail);
 					}
 				case 32:
+					var player = _v0.a.d;
 					var card = _v0.a.f;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (_Utils_eq(
-						topActionPlayer,
-						$elm$core$Maybe$Just(
-							$author$project$Main$actionPlayer(detail.L))) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? ((_Utils_eq(
+						singleDrewPlayer,
+						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
 				case 31:
 					var card = _v0.a.f;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (_Utils_eq(
-						topActionPlayer,
-						$elm$core$Maybe$Just(
-							$author$project$Main$actionPlayer(detail.L))) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				default:
 					return detail;
 			}
