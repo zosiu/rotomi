@@ -5779,7 +5779,14 @@ var $author$project$CardCountCheck$foldUntilError = F3(
 var $author$project$Main$emptyActive = {blue: $elm$core$Maybe$Nothing, red: $elm$core$Maybe$Nothing};
 var $author$project$Main$emptyAttachments = _List_Nil;
 var $author$project$Main$emptyBench = {blue: _List_Nil, red: _List_Nil};
-var $author$project$CardCountCheck$emptyEvolution = {blue: $elm$core$Dict$empty, red: $elm$core$Dict$empty};
+var $elm$core$Basics$identity = function (x) {
+	return x;
+};
+var $elm$core$Set$Set_elm_builtin = function (a) {
+	return {$: 'Set_elm_builtin', a: a};
+};
+var $elm$core$Set$empty = $elm$core$Set$Set_elm_builtin($elm$core$Dict$empty);
+var $author$project$CardCountCheck$emptyEvolution = {blue: $elm$core$Dict$empty, preEvoIds: $elm$core$Set$empty, red: $elm$core$Dict$empty};
 var $author$project$Main$emptyHand = {blue: _List_Nil, red: _List_Nil};
 var $author$project$Main$emptyPiles = {deckBlue: 60, deckRed: 60, discardBlue: 0, discardRed: 0, prizesBlue: 0, prizesRed: 0};
 var $author$project$CardCountCheck$initialState = {active: $author$project$Main$emptyActive, attachments: $author$project$Main$emptyAttachments, bench: $author$project$Main$emptyBench, evolution: $author$project$CardCountCheck$emptyEvolution, hand: $author$project$Main$emptyHand, piles: $author$project$Main$emptyPiles, stadium: $elm$core$Maybe$Nothing};
@@ -5922,9 +5929,6 @@ var $author$project$Main$findEntryIndex = F4(
 					},
 					A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, state))));
 	});
-var $elm$core$Basics$identity = function (x) {
-	return x;
-};
 var $author$project$Main$updateAt = F3(
 	function (idx, f, list) {
 		return A2(
@@ -6443,6 +6447,12 @@ var $author$project$Main$applyGroupToBench = F4(
 			bench1,
 			group.details);
 	});
+var $elm$core$Set$insert = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return $elm$core$Set$Set_elm_builtin(
+			A3($elm$core$Dict$insert, key, _Utils_Tuple0, dict));
+	});
 var $elm$core$Dict$getMin = function (dict) {
 	getMin:
 	while (true) {
@@ -6828,9 +6838,15 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 					A2($elm$core$Dict$remove, from.id, dict));
 				return _Utils_eq(player, red) ? _Utils_update(
 					evo,
-					{red: newDict}) : _Utils_update(
+					{
+						preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds),
+						red: newDict
+					}) : _Utils_update(
 					evo,
-					{blue: newDict});
+					{
+						blue: newDict,
+						preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds)
+					});
 			case 'KnockedOut':
 				return evo;
 			case 'CardDiscardedFrom':
@@ -6846,23 +6862,74 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 					{red: newDict}) : _Utils_update(
 					evo,
 					{blue: newDict});
-			case 'NCardsDiscardedFrom':
-				var pokemon = action.a.pokemon;
-				var count = action.a.count;
-				var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
-				var currentDepth = A2(
-					$elm$core$Maybe$withDefault,
-					0,
-					A2($elm$core$Dict$get, pokemon.card.id, dict));
-				var newDict = (_Utils_cmp(currentDepth, count) < 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - count, dict);
-				return _Utils_eq(pokemon.player, red) ? _Utils_update(
-					evo,
-					{red: newDict}) : _Utils_update(
-					evo,
-					{blue: newDict});
 			default:
 				return evo;
 		}
+	});
+var $elm$core$List$concatMap = F2(
+	function (f, list) {
+		return $elm$core$List$concat(
+			A2($elm$core$List$map, f, list));
+	});
+var $elm$core$List$isEmpty = function (xs) {
+	if (!xs.b) {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Dict$member = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$get, key, dict);
+		if (_v0.$ === 'Just') {
+			return true;
+		} else {
+			return false;
+		}
+	});
+var $elm$core$Set$member = F2(
+	function (key, _v0) {
+		var dict = _v0.a;
+		return A2($elm$core$Dict$member, key, dict);
+	});
+var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F4(
+	function (red, pokemon, bullets, evo) {
+		var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
+		var currentDepth = A2(
+			$elm$core$Maybe$withDefault,
+			0,
+			A2($elm$core$Dict$get, pokemon.card.id, dict));
+		var newDict = function (n) {
+			return (_Utils_cmp(currentDepth, n) < 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - n, dict);
+		};
+		var cardListCards = A2(
+			$elm$core$List$concatMap,
+			function (b) {
+				var _v0 = b.action;
+				if (_v0.$ === 'CardList') {
+					var cards = _v0.a;
+					return cards;
+				} else {
+					return _List_Nil;
+				}
+			},
+			bullets);
+		var preEvoCount = $elm$core$List$isEmpty(cardListCards) ? (-1) : $elm$core$List$length(
+			A2(
+				$elm$core$List$filter,
+				function (card) {
+					return A2($elm$core$Set$member, card.id, evo.preEvoIds);
+				},
+				cardListCards));
+		return _Utils_eq(preEvoCount, -1) ? evo : ((!preEvoCount) ? evo : (_Utils_eq(pokemon.player, red) ? _Utils_update(
+			evo,
+			{
+				red: newDict(preEvoCount)
+			}) : _Utils_update(
+			evo,
+			{
+				blue: newDict(preEvoCount)
+			})));
 	});
 var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 	function (red, evo, group) {
@@ -6871,14 +6938,20 @@ var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 			$elm$core$List$foldl,
 			F2(
 				function (detail, acc) {
-					return A3(
-						$elm$core$List$foldl,
-						F2(
-							function (bullet, a) {
-								return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
-							}),
-						A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
-						detail.bullets);
+					var _v0 = detail.action;
+					if (_v0.$ === 'NCardsDiscardedFrom') {
+						var pokemon = _v0.a.pokemon;
+						return A4($author$project$CardCountCheck$applyNCardsDiscardedToEvolution, red, pokemon, detail.bullets, acc);
+					} else {
+						return A3(
+							$elm$core$List$foldl,
+							F2(
+								function (bullet, a) {
+									return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+								}),
+							A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+							detail.bullets);
+					}
 				}),
 			evo1,
 			group.details);
@@ -6949,13 +7022,6 @@ var $author$project$Main$addUnknowns = F4(
 			hand,
 			A2($elm$core$List$repeat, n, _Utils_Tuple0));
 	});
-var $elm$core$List$isEmpty = function (xs) {
-	if (!xs.b) {
-		return true;
-	} else {
-		return false;
-	}
-};
 var $author$project$Main$removeById = F4(
 	function (red, player, cardId, hand) {
 		var removeFallback = function (list) {
@@ -7140,11 +7206,6 @@ var $author$project$Main$applyDetailAction = F3(
 			default:
 				return hand;
 		}
-	});
-var $elm$core$List$concatMap = F2(
-	function (f, list) {
-		return $elm$core$List$concat(
-			A2($elm$core$List$map, f, list));
 	});
 var $author$project$Main$bulletCardList = function (group) {
 	return $elm$core$List$concat(
@@ -7593,8 +7654,8 @@ var $author$project$CardCountCheck$formatBlueUnknowns = function (flag) {
 var $author$project$CardCountCheck$formatBreakdown = F2(
 	function (label, bd) {
 		var wrong = (bd.total !== 60) ? ('  ← WRONG (off by ' + ($elm$core$String$fromInt(bd.total - 60) + ')')) : '';
-		var stadiumStr = (bd.stadium > 0) ? ('  stadium=' + $elm$core$String$fromInt(bd.stadium)) : '';
-		var evoStr = (bd.evolutionBuried > 0) ? ('  evo-buried=' + $elm$core$String$fromInt(bd.evolutionBuried)) : '';
+		var stadiumStr = '  stadium=' + $elm$core$String$fromInt(bd.stadium);
+		var evoStr = '  evo-buried=' + $elm$core$String$fromInt(bd.evolutionBuried);
 		return '  ' + (label + (':' + ('  deck=' + ($elm$core$String$fromInt(bd.deck) + ('  prizes=' + ($elm$core$String$fromInt(bd.prizes) + ('  hand=' + ($elm$core$String$fromInt(bd.hand) + ('  active=' + ($elm$core$String$fromInt(bd.active) + ('  bench=' + ($elm$core$String$fromInt(bd.bench) + ('  attach=' + ($elm$core$String$fromInt(bd.attachments) + ('  discard=' + ($elm$core$String$fromInt(bd.discard) + (stadiumStr + (evoStr + ('  = ' + ($elm$core$String$fromInt(bd.total) + wrong))))))))))))))))))));
 	});
 var $author$project$CardCountCheck$formatDuplicates = F4(

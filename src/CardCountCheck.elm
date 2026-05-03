@@ -2,6 +2,7 @@ port module CardCountCheck exposing (main)
 
 import Action
 import Dict exposing (Dict)
+import Set exposing (Set)
 import Main
     exposing
         ( ActiveState
@@ -67,12 +68,13 @@ type alias GameState =
 type alias EvolutionState =
     { red : Dict String Int
     , blue : Dict String Int
+    , preEvoIds : Set String
     }
 
 
 emptyEvolution : EvolutionState
 emptyEvolution =
-    { red = Dict.empty, blue = Dict.empty }
+    { red = Dict.empty, blue = Dict.empty, preEvoIds = Set.empty }
 
 
 initialState : GameState
@@ -111,10 +113,10 @@ applyActionToEvolution red action evo =
                         |> Dict.insert to.id (existingToDepth + fromDepth + 1)
             in
             if player == red then
-                { evo | red = newDict }
+                { evo | red = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
 
             else
-                { evo | blue = newDict }
+                { evo | blue = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
 
         Action.KnockedOut _ ->
             evo
@@ -144,33 +146,64 @@ applyActionToEvolution red action evo =
             else
                 { evo | blue = newDict }
 
-        Action.NCardsDiscardedFrom { pokemon, count } ->
-            let
-                dict =
-                    if pokemon.player == red then
-                        evo.red
-
-                    else
-                        evo.blue
-
-                currentDepth =
-                    Dict.get pokemon.card.id dict |> Maybe.withDefault 0
-
-                newDict =
-                    if currentDepth <= count then
-                        Dict.remove pokemon.card.id dict
-
-                    else
-                        Dict.insert pokemon.card.id (currentDepth - count) dict
-            in
-            if pokemon.player == red then
-                { evo | red = newDict }
-
-            else
-                { evo | blue = newDict }
-
         _ ->
             evo
+
+
+applyNCardsDiscardedToEvolution : String -> Action.PokemonRef -> List Action.BulletAction -> EvolutionState -> EvolutionState
+applyNCardsDiscardedToEvolution red pokemon bullets evo =
+    let
+        dict =
+            if pokemon.player == red then
+                evo.red
+
+            else
+                evo.blue
+
+        cardListCards =
+            bullets
+                |> List.concatMap
+                    (\b ->
+                        case b.action of
+                            Action.CardList cards ->
+                                cards
+
+                            _ ->
+                                []
+                    )
+
+        preEvoCount =
+            if List.isEmpty cardListCards then
+                -- No CardList revealed: fall back to decrementing by full count
+                -- (tracked via the old NCardsDiscardedFrom count in the action itself — handled at call site)
+                -1
+
+            else
+                cardListCards
+                    |> List.filter (\card -> Set.member card.id evo.preEvoIds)
+                    |> List.length
+
+        currentDepth =
+            Dict.get pokemon.card.id dict |> Maybe.withDefault 0
+
+        newDict n =
+            if currentDepth <= n then
+                Dict.remove pokemon.card.id dict
+
+            else
+                Dict.insert pokemon.card.id (currentDepth - n) dict
+    in
+    if preEvoCount == -1 then
+        evo
+
+    else if preEvoCount == 0 then
+        evo
+
+    else if pokemon.player == red then
+        { evo | red = newDict preEvoCount }
+
+    else
+        { evo | blue = newDict preEvoCount }
 
 
 applyGroupToEvolution : String -> EvolutionState -> Action.ActionGroup -> EvolutionState
@@ -181,10 +214,15 @@ applyGroupToEvolution red evo group =
     in
     List.foldl
         (\detail acc ->
-            List.foldl
-                (\bullet a -> applyActionToEvolution red bullet.action a)
-                (applyActionToEvolution red detail.action acc)
-                detail.bullets
+            case detail.action of
+                Action.NCardsDiscardedFrom { pokemon } ->
+                    applyNCardsDiscardedToEvolution red pokemon detail.bullets acc
+
+                _ ->
+                    List.foldl
+                        (\bullet a -> applyActionToEvolution red bullet.action a)
+                        (applyActionToEvolution red detail.action acc)
+                        detail.bullets
         )
         evo1
         group.details
@@ -560,18 +598,10 @@ formatBreakdown label bd =
                 ""
 
         stadiumStr =
-            if bd.stadium > 0 then
-                "  stadium=" ++ String.fromInt bd.stadium
-
-            else
-                ""
+            "  stadium=" ++ String.fromInt bd.stadium
 
         evoStr =
-            if bd.evolutionBuried > 0 then
-                "  evo-buried=" ++ String.fromInt bd.evolutionBuried
-
-            else
-                ""
+            "  evo-buried=" ++ String.fromInt bd.evolutionBuried
     in
     "  "
         ++ label
