@@ -1484,6 +1484,23 @@ correctGroupPlayers players group =
                     )
                 |> List.head
 
+        -- Player who performed the top-level action (played/used a card).
+        -- When a draw or shuffle detail is already attributed to this player,
+        -- trust the raw log — the effect belongs to the card's owner.
+        topActionPlayer =
+            case group.action of
+                Action.PlayedPokemon { player } ->
+                    Just player
+
+                Action.PlayedTrainer { player } ->
+                    Just player
+
+                Action.PlayedStadium { player } ->
+                    Just player
+
+                _ ->
+                    Nothing
+
         correctDetail detail =
             case detail.action of
                 Action.DrewCount { player, count } ->
@@ -1501,18 +1518,30 @@ correctGroupPlayers players group =
                                 detail
 
                         Nothing ->
-                            correctDetailPlayer players detail
+                            if topActionPlayer == Just player then
+                                detail
+
+                            else
+                                correctDetailPlayer players detail
 
                 Action.ShuffledInto { card } ->
                     if card == Nothing then
-                        correctDetailPlayer players detail
+                        if topActionPlayer == Just (actionPlayer detail.action) then
+                            detail
+
+                        else
+                            correctDetailPlayer players detail
 
                     else
                         detail
 
                 Action.PutOnBottom { card } ->
                     if card == Nothing then
-                        correctDetailPlayer players detail
+                        if topActionPlayer == Just (actionPlayer detail.action) then
+                            detail
+
+                        else
+                            correctDetailPlayer players detail
 
                     else
                         detail
@@ -1521,6 +1550,22 @@ correctGroupPlayers players group =
                     detail
     in
     { group | details = List.map correctDetail group.details }
+
+
+actionPlayer : Action.Action -> String
+actionPlayer action =
+    case action of
+        Action.DrewCount { player } ->
+            player
+
+        Action.ShuffledInto { player } ->
+            player
+
+        Action.PutOnBottom { player } ->
+            player
+
+        _ ->
+            ""
 
 
 collectAndCorrectGroups : Replay.Players -> Replay.Replay -> Int -> Int -> List Action.ActionGroup
@@ -3077,7 +3122,25 @@ viewBenchCard upsideDown cache cardAttachments card =
     in
     let
         energyAttachments =
-            List.filter (isEnergyAttachment cache) cardAttachments
+            cardAttachments
+                |> List.filter (isEnergyAttachment cache)
+                |> List.sortWith
+                    (\a b ->
+                        let
+                            rank x =
+                                if basicEnergyImageUrl x.name /= Nothing then
+                                    0
+
+                                else
+                                    1
+                        in
+                        case compare (rank a) (rank b) of
+                            EQ ->
+                                compare a.name b.name
+
+                            other ->
+                                other
+                    )
 
         toolAttachments =
             List.filter (\a -> not (isEnergyAttachment cache a)) cardAttachments
