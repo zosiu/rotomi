@@ -1299,6 +1299,10 @@ applyDetailAction red hand detail =
         Action.PlayedTrainer { player, card } ->
             removeById red player card.id hand
 
+        Action.Evolved { player, to } ->
+            -- Rare Candy and similar effects trigger Evolved as a detail of PlayedTrainer.
+            removeById red player to.id hand
+
         _ ->
             hand
 

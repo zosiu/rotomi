@@ -7078,6 +7078,10 @@ var $author$project$Main$applyDetailAction = F3(
 				var player = _v0.a.player;
 				var card = _v0.a.card;
 				return A4($author$project$Main$removeById, red, player, card.id, hand);
+			case 'Evolved':
+				var player = _v0.a.player;
+				var to = _v0.a.to;
+				return A4($author$project$Main$removeById, red, player, to.id, hand);
 			default:
 				return hand;
 		}
