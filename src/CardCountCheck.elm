@@ -23,6 +23,7 @@ import Main
         , emptyBench
         , emptyHand
         , emptyPiles
+        , isPokemonAbilityGroup
         , lookupAttachments
         , sectionLines
         )
@@ -209,6 +210,9 @@ applyNCardsDiscardedToEvolution red pokemon bullets evo =
 applyGroupToEvolution : String -> EvolutionState -> Action.ActionGroup -> EvolutionState
 applyGroupToEvolution red evo group =
     let
+        isPokemonAbility =
+            isPokemonAbilityGroup group
+
         evo1 =
             applyActionToEvolution red group.action evo
     in
@@ -217,6 +221,36 @@ applyGroupToEvolution red evo group =
             case detail.action of
                 Action.NCardsDiscardedFrom { pokemon } ->
                     applyNCardsDiscardedToEvolution red pokemon detail.bullets acc
+
+                Action.ShuffledInto { player } ->
+                    if isPokemonAbility then
+                        -- Cards from bench/evo-buried go to deck. Remove the
+                        -- evolved Pokémon entry from the evo dict so evo-buried
+                        -- is decremented for the buried pre-evos going with it.
+                        let
+                            cardIds =
+                                detail.bullets
+                                    |> List.concatMap
+                                        (\b ->
+                                            case b.action of
+                                                Action.CardList cards ->
+                                                    List.map .id cards
+
+                                                _ ->
+                                                    []
+                                        )
+                        in
+                        if player == red then
+                            { acc | red = List.foldl Dict.remove acc.red cardIds }
+
+                        else
+                            { acc | blue = List.foldl Dict.remove acc.blue cardIds }
+
+                    else
+                        List.foldl
+                            (\bullet a -> applyActionToEvolution red bullet.action a)
+                            (applyActionToEvolution red detail.action acc)
+                            detail.bullets
 
                 _ ->
                     List.foldl

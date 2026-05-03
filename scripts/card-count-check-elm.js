@@ -6511,8 +6511,53 @@ var $author$project$Main$detailCardList = function (detail) {
 			},
 			detail.bullets));
 };
+var $author$project$Main$isPokemonAbilityGroup = function (group) {
+	var _v0 = group.action;
+	if (_v0.$ === 'PlayedTrainer') {
+		var card = _v0.a.card;
+		return A2(
+			$elm$core$List$any,
+			function (d) {
+				var _v1 = d.action;
+				if (_v1.$ === 'ShuffledInto') {
+					var info = _v1.a;
+					return _Utils_eq(info.card, $elm$core$Maybe$Nothing) && A2(
+						$elm$core$List$any,
+						function (b) {
+							var _v2 = b.action;
+							if (_v2.$ === 'CardList') {
+								var cards = _v2.a;
+								return A2(
+									$elm$core$List$any,
+									function (c) {
+										return _Utils_eq(c.id, card.id);
+									},
+									cards);
+							} else {
+								return false;
+							}
+						},
+						d.bullets);
+				} else {
+					return false;
+				}
+			},
+			group.details);
+	} else {
+		return false;
+	}
+};
 var $author$project$Main$applyGroupToBench = F4(
 	function (red, active, bench, group) {
+		var pokemonAbilityCardId = function () {
+			var _v3 = group.action;
+			if (_v3.$ === 'PlayedTrainer') {
+				var card = _v3.a.card;
+				return $author$project$Main$isPokemonAbilityGroup(group) ? $elm$core$Maybe$Just(card.id) : $elm$core$Maybe$Nothing;
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var bench1 = A4($author$project$Main$applyActionToBench, red, active, group.action, bench);
 		return A3(
 			$elm$core$List$foldl,
@@ -6520,20 +6565,29 @@ var $author$project$Main$applyGroupToBench = F4(
 				function (detail, b) {
 					var b1 = function () {
 						var _v0 = detail.action;
-						if (_v0.$ === 'DrewAndPlayed') {
-							var player = _v0.a.player;
-							var position = _v0.a.position;
-							if (position.$ === 'BenchSpot') {
-								return A3(
-									$elm$core$List$foldl,
-									A2($author$project$Main$addToBench, red, player),
-									b,
-									$author$project$Main$detailCardList(detail));
-							} else {
-								return b;
-							}
-						} else {
-							return A4($author$project$Main$applyActionToBench, red, active, detail.action, b);
+						switch (_v0.$) {
+							case 'DrewAndPlayed':
+								var player = _v0.a.player;
+								var position = _v0.a.position;
+								if (position.$ === 'BenchSpot') {
+									return A3(
+										$elm$core$List$foldl,
+										A2($author$project$Main$addToBench, red, player),
+										b,
+										$author$project$Main$detailCardList(detail));
+								} else {
+									return b;
+								}
+							case 'ShuffledInto':
+								var player = _v0.a.player;
+								if (pokemonAbilityCardId.$ === 'Just') {
+									var cardId = pokemonAbilityCardId.a;
+									return A4($author$project$Main$removeFromBench, red, player, cardId, b);
+								} else {
+									return A4($author$project$Main$applyActionToBench, red, active, detail.action, b);
+								}
+							default:
+								return A4($author$project$Main$applyActionToBench, red, active, detail.action, b);
 						}
 					}();
 					return A3(
@@ -7034,24 +7088,65 @@ var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F4(
 	});
 var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 	function (red, evo, group) {
+		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
 		var evo1 = A3($author$project$CardCountCheck$applyActionToEvolution, red, group.action, evo);
 		return A3(
 			$elm$core$List$foldl,
 			F2(
 				function (detail, acc) {
 					var _v0 = detail.action;
-					if (_v0.$ === 'NCardsDiscardedFrom') {
-						var pokemon = _v0.a.pokemon;
-						return A4($author$project$CardCountCheck$applyNCardsDiscardedToEvolution, red, pokemon, detail.bullets, acc);
-					} else {
-						return A3(
-							$elm$core$List$foldl,
-							F2(
-								function (bullet, a) {
-									return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
-								}),
-							A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
-							detail.bullets);
+					switch (_v0.$) {
+						case 'NCardsDiscardedFrom':
+							var pokemon = _v0.a.pokemon;
+							return A4($author$project$CardCountCheck$applyNCardsDiscardedToEvolution, red, pokemon, detail.bullets, acc);
+						case 'ShuffledInto':
+							var player = _v0.a.player;
+							if (isPokemonAbility) {
+								var cardIds = A2(
+									$elm$core$List$concatMap,
+									function (b) {
+										var _v1 = b.action;
+										if (_v1.$ === 'CardList') {
+											var cards = _v1.a;
+											return A2(
+												$elm$core$List$map,
+												function ($) {
+													return $.id;
+												},
+												cards);
+										} else {
+											return _List_Nil;
+										}
+									},
+									detail.bullets);
+								return _Utils_eq(player, red) ? _Utils_update(
+									acc,
+									{
+										red: A3($elm$core$List$foldl, $elm$core$Dict$remove, acc.red, cardIds)
+									}) : _Utils_update(
+									acc,
+									{
+										blue: A3($elm$core$List$foldl, $elm$core$Dict$remove, acc.blue, cardIds)
+									});
+							} else {
+								return A3(
+									$elm$core$List$foldl,
+									F2(
+										function (bullet, a) {
+											return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+										}),
+									A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+									detail.bullets);
+							}
+						default:
+							return A3(
+								$elm$core$List$foldl,
+								F2(
+									function (bullet, a) {
+										return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+									}),
+								A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+								detail.bullets);
 					}
 				}),
 			evo1,
@@ -7304,6 +7399,18 @@ var $author$project$Main$applyDetailAction = F3(
 				var player = _v0.a.player;
 				var to = _v0.a.to;
 				return A4($author$project$Main$removeById, red, player, to.id, hand);
+			case 'MovedToDiscard':
+				var owner = _v0.a.owner;
+				var count = _v0.a.count;
+				var known = $author$project$Main$detailCardList(detail);
+				return $elm$core$List$isEmpty(known) ? A4($author$project$Main$removeN, red, owner, count, hand) : A3(
+					$elm$core$List$foldl,
+					F2(
+						function (card, h) {
+							return A4($author$project$Main$removeById, red, owner, card.id, h);
+						}),
+					hand,
+					known);
 			default:
 				return hand;
 		}
@@ -7487,7 +7594,8 @@ var $elm$core$List$member = F2(
 	});
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
-		var hand1 = A3($author$project$Main$applyTopAction, red, hand, group);
+		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
+		var hand1 = isPokemonAbility ? hand : A3($author$project$Main$applyTopAction, red, hand, group);
 		var details = function () {
 			var _v2 = group.action;
 			if (_v2.$ === 'PlayedStadium') {
@@ -7523,11 +7631,14 @@ var $author$project$Main$applyGroupToHand = F3(
 			F2(
 				function (detail, h) {
 					var _v0 = detail.action;
-					if (_v0.$ === 'Attached') {
-						var player = _v0.a.player;
-						return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
-					} else {
-						return A3($author$project$Main$applyDetailAction, red, h, detail);
+					switch (_v0.$) {
+						case 'Attached':
+							var player = _v0.a.player;
+							return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+						case 'ShuffledInto':
+							return isPokemonAbility ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+						default:
+							return A3($author$project$Main$applyDetailAction, red, h, detail);
 					}
 				}),
 			hand1,
@@ -7669,7 +7780,7 @@ var $author$project$Main$applyActionToPiles = F4(
 	});
 var $author$project$Main$applyGroupToPiles = F4(
 	function (red, isSetup, piles, group) {
-		var piles1 = A4($author$project$Main$applyActionToPiles, red, isSetup, group.action, piles);
+		var piles1 = $author$project$Main$isPokemonAbilityGroup(group) ? piles : A4($author$project$Main$applyActionToPiles, red, isSetup, group.action, piles);
 		var deckAttachPlayers = A2(
 			$elm$core$List$filterMap,
 			function (d) {

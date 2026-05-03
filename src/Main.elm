@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
@@ -1303,15 +1303,69 @@ applyDetailAction red hand detail =
             -- Rare Candy and similar effects trigger Evolved as a detail of PlayedTrainer.
             removeById red player to.id hand
 
+        Action.MovedToDiscard { owner, count } ->
+            let
+                known =
+                    detailCardList detail
+            in
+            if List.isEmpty known then
+                removeN red owner count hand
+
+            else
+                List.foldl (\card h -> removeById red owner card.id h) hand known
+
         _ ->
             hand
+
+
+{-| True when the group represents a Pokémon ability play (e.g. Dudunsparce
+"Run Away Draw") where the played card ID appears in a ShuffledInto CardList.
+These are logged as PlayedTrainer but the card was on the bench, not in hand,
+and the shuffled cards come from bench/evo-buried rather than hand.
+-}
+isPokemonAbilityGroup : Action.ActionGroup -> Bool
+isPokemonAbilityGroup group =
+    case group.action of
+        Action.PlayedTrainer { card } ->
+            List.any
+                (\d ->
+                    case d.action of
+                        Action.ShuffledInto info ->
+                            info.card
+                                == Nothing
+                                && List.any
+                                    (\b ->
+                                        case b.action of
+                                            Action.CardList cards ->
+                                                List.any (\c -> c.id == card.id) cards
+
+                                            _ ->
+                                                False
+                                    )
+                                    d.bullets
+
+                        _ ->
+                            False
+                )
+                group.details
+
+        _ ->
+            False
 
 
 applyGroupToHand : String -> HandState -> Action.ActionGroup -> HandState
 applyGroupToHand red hand group =
     let
+        isPokemonAbility =
+            isPokemonAbilityGroup group
+
         hand1 =
-            applyTopAction red hand group
+            if isPokemonAbility then
+                -- Card was on bench, not in hand — skip the hand removal.
+                hand
+
+            else
+                applyTopAction red hand group
 
         details =
             case group.action of
@@ -1351,6 +1405,14 @@ applyGroupToHand red hand group =
             case detail.action of
                 Action.Attached { player } ->
                     if List.member player deckAttachPlayers then
+                        h
+
+                    else
+                        applyDetailAction red h detail
+
+                Action.ShuffledInto _ ->
+                    if isPokemonAbility then
+                        -- Cards come from bench/evo-buried, not hand.
                         h
 
                     else
@@ -1756,7 +1818,13 @@ applyGroupToPiles : String -> Bool -> PileState -> Action.ActionGroup -> PileSta
 applyGroupToPiles red isSetup piles group =
     let
         piles1 =
-            applyActionToPiles red isSetup group.action piles
+            if isPokemonAbilityGroup group then
+                -- The played card was on bench (not a trainer going to discard);
+                -- deck changes are handled entirely by the ShuffledInto detail.
+                piles
+
+            else
+                applyActionToPiles red isSetup group.action piles
 
         deckAttachPlayers =
             group.details
@@ -1960,6 +2028,20 @@ applyGroupToBench red active bench group =
     -- by a prior group's Switched, MovedToActive here is a redundant
     -- confirmation and should not touch the bench.
     let
+        -- For a Pokemon ability group, record the played card so the ShuffledInto
+        -- detail knows which bench slot to remove.
+        pokemonAbilityCardId =
+            case group.action of
+                Action.PlayedTrainer { card } ->
+                    if isPokemonAbilityGroup group then
+                        Just card.id
+
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
+
         bench1 =
             applyActionToBench red active group.action bench
     in
@@ -1977,6 +2059,16 @@ applyGroupToBench red active bench group =
 
                                 _ ->
                                     b
+
+                        Action.ShuffledInto { player } ->
+                            case pokemonAbilityCardId of
+                                Just cardId ->
+                                    -- Only the evolved Pokémon (played card) leaves the bench.
+                                    -- The evo-buried pre-evo is tracked in evolution state, not bench.
+                                    removeFromBench red player cardId b
+
+                                Nothing ->
+                                    applyActionToBench red active detail.action b
 
                         _ ->
                             applyActionToBench red active detail.action b
