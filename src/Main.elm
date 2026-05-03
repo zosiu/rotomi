@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
@@ -75,6 +75,7 @@ type alias CardData =
     { imageUrl : Maybe String
     , attacks : List CardAttack
     , abilities : List CardAbility
+    , category : Maybe String
     }
 
 
@@ -636,6 +637,10 @@ fetchHandCards maybePlayers replay si gi cache =
                         |> Maybe.map List.singleton
                         |> Maybe.withDefault []
 
+                attachmentRefs =
+                    computeAttachments players replay si gi
+                        |> List.concatMap .items
+
                 -- Also fetch the played card + all known panel cards so images load without a click
                 playRefs =
                     getCurrentGroup replay si gi
@@ -663,7 +668,7 @@ fetchHandCards maybePlayers replay si gi cache =
 
                 -- Unique IDs not already in cache
                 knownIds =
-                    (handRefs ++ benchRefs ++ activeRefs ++ stadiumRef ++ playRefs)
+                    (handRefs ++ benchRefs ++ activeRefs ++ stadiumRef ++ attachmentRefs ++ playRefs)
                         |> List.map .id
                         |> List.foldl
                             (\id acc ->
@@ -861,7 +866,7 @@ decodeCardData body =
                 (Decode.field "effect" Decode.string)
 
         cardDecoder =
-            Decode.map3 CardData
+            Decode.map4 CardData
                 (Decode.maybe (Decode.field "image" Decode.string))
                 (Decode.oneOf
                     [ Decode.field "attacks" (Decode.list attackDecoder)
@@ -871,6 +876,7 @@ decodeCardData body =
                     [ Decode.field "abilities" (Decode.list abilityDecoder)
                     , Decode.succeed []
                     ])
+                (Decode.maybe (Decode.field "category" Decode.string))
     in
     Decode.decodeString cardDecoder body |> Result.toMaybe
 
@@ -1729,8 +1735,8 @@ replaceOnBench red player fromId to bench =
         { bench | blue = replaceFirst bench.blue }
 
 
-applyActionToBench : String -> Action.Action -> BenchState -> BenchState
-applyActionToBench red action bench =
+applyActionToBench : String -> ActiveState -> Action.Action -> BenchState -> BenchState
+applyActionToBench red active action bench =
     case action of
         Action.PlayedPokemon { player, card, position } ->
             case position of
@@ -1760,7 +1766,20 @@ applyActionToBench red action bench =
             removeFromBench red pokemon.player pokemon.card.id bench
 
         Action.MovedToActive { pokemon } ->
-            removeFromBench red pokemon.player pokemon.card.id bench
+            -- Guard: if the pokemon is already in the active spot (set by a Switched
+            -- action earlier in this same fold pass), skip the removal so we don't
+            -- accidentally remove a second bench pokemon with the same card id.
+            let
+                alreadyActive =
+                    (if pokemon.player == red then active.red else active.blue)
+                        |> Maybe.map .id
+                        |> (==) (Just pokemon.card.id)
+            in
+            if alreadyActive then
+                bench
+
+            else
+                removeFromBench red pokemon.player pokemon.card.id bench
 
         Action.Retreated { player, card } ->
             addToBench red player card bench
@@ -1775,11 +1794,16 @@ applyActionToBench red action bench =
             bench
 
 
-applyGroupToBench : String -> BenchState -> Action.ActionGroup -> BenchState
-applyGroupToBench red bench group =
+applyGroupToBench : String -> ActiveState -> BenchState -> Action.ActionGroup -> BenchState
+applyGroupToBench red active bench group =
+    -- `active` is the accumulated state *before* this group. Switched and
+    -- MovedToActive always appear in separate groups, so checking the incoming
+    -- active state is the right guard: if the pokemon was already made active
+    -- by a prior group's Switched, MovedToActive here is a redundant
+    -- confirmation and should not touch the bench.
     let
         bench1 =
-            applyActionToBench red group.action bench
+            applyActionToBench red active group.action bench
     in
     List.foldl
         (\detail b ->
@@ -1797,10 +1821,10 @@ applyGroupToBench red bench group =
                                     b
 
                         _ ->
-                            applyActionToBench red detail.action b
+                            applyActionToBench red active detail.action b
             in
             List.foldl
-                (\bullet bb -> applyActionToBench red bullet.action bb)
+                (\bullet bb -> applyActionToBench red active bullet.action bb)
                 b1
                 detail.bullets
         )
@@ -1810,8 +1834,15 @@ applyGroupToBench red bench group =
 
 computeBench : Replay.Players -> Replay.Replay -> Int -> Int -> BenchState
 computeBench players replay sectionIndex groupIndex =
-    List.foldl (\group b -> applyGroupToBench players.red b group) emptyBench
+    List.foldl
+        (\group ( b, a ) ->
+            ( applyGroupToBench players.red a b group
+            , applyGroupToActive players.red a group
+            )
+        )
+        ( emptyBench, emptyActive )
         (collectAndCorrectGroups players replay sectionIndex groupIndex)
+        |> Tuple.first
 
 
 -- ACTIVE STATE
@@ -1983,6 +2014,217 @@ applyGroupToStadium stadium group =
 computeStadium : Replay.Players -> Replay.Replay -> Int -> Int -> Maybe StadiumState
 computeStadium players replay sectionIndex groupIndex =
     List.foldl (\group st -> applyGroupToStadium st group) Nothing
+        (collectAndCorrectGroups players replay sectionIndex groupIndex)
+
+
+-- ATTACHMENT STATE
+
+
+{-| One attachment-list entry per pokemon instance.
+Two Staryus on the bench produce two separate entries both with cardId="sv4_123"
+and position=BenchSpot; their ordinal within the bench list disambiguates them
+at render time.
+-}
+type alias AttachmentEntry =
+    { cardId : String
+    , position : Action.Position
+    , items : List Action.CardRef
+    }
+
+
+{-| Ordered list of per-instance attachment entries. Order matters: the Nth
+entry with a given (cardId, position) pair corresponds to the Nth pokemon with
+that card id at that position.
+-}
+type alias AttachmentState =
+    List AttachmentEntry
+
+
+emptyAttachments : AttachmentState
+emptyAttachments =
+    []
+
+
+{-| Index of the first entry matching the given card id and position, or Nothing. -}
+findEntryIndex : String -> Action.Position -> AttachmentState -> Maybe Int
+findEntryIndex cardId position state =
+    state
+        |> List.indexedMap Tuple.pair
+        |> List.filter (\( _, e ) -> e.cardId == cardId && e.position == position)
+        |> List.head
+        |> Maybe.map Tuple.first
+
+
+{-| Update the element at the given index in a list. -}
+updateAt : Int -> (a -> a) -> List a -> List a
+updateAt idx f list =
+    List.indexedMap
+        (\i x ->
+            if i == idx then
+                f x
+
+            else
+                x
+        )
+        list
+
+
+{-| Return the items attached to the Nth pokemon (by ordinal) with the given
+card id at the given position. Ordinal 0 = first occurrence, 1 = second, etc.
+-}
+lookupAttachments : AttachmentState -> String -> Action.Position -> Int -> List Action.CardRef
+lookupAttachments state cardId position ordinal =
+    state
+        |> List.filter (\e -> e.cardId == cardId && e.position == position)
+        |> List.drop ordinal
+        |> List.head
+        |> Maybe.map .items
+        |> Maybe.withDefault []
+
+
+{-| Move the first attachment entry for the given card from one position to
+another, e.g. BenchSpot → ActiveSpot when a bench pokemon becomes Active. -}
+moveAttachments : String -> Action.Position -> Action.Position -> AttachmentState -> AttachmentState
+moveAttachments cardId fromPos toPos state =
+    case findEntryIndex cardId fromPos state of
+        Just idx ->
+            updateAt idx (\e -> { e | position = toPos }) state
+
+        Nothing ->
+            state
+
+
+applyActionToAttachments : Action.Action -> AttachmentState -> AttachmentState
+applyActionToAttachments action state =
+    case action of
+        Action.Attached { item, target, position } ->
+            case findEntryIndex target.card.id position state of
+                Just idx ->
+                    updateAt idx (\e -> { e | items = item :: e.items }) state
+
+                Nothing ->
+                    state ++ [ { cardId = target.card.id, position = position, items = [ item ] } ]
+
+        Action.KnockedOut { pokemon } ->
+            -- No position in KnockedOut: remove the first active entry, then bench.
+            let
+                removeFirst cardId pos st =
+                    case findEntryIndex cardId pos st of
+                        Just idx ->
+                            List.take idx st ++ List.drop (idx + 1) st
+
+                        Nothing ->
+                            st
+            in
+            state
+                |> removeFirst pokemon.card.id Action.ActiveSpot
+                |> removeFirst pokemon.card.id Action.BenchSpot
+
+        Action.Evolved { from, to, position } ->
+            case findEntryIndex from.id position state of
+                Just idx ->
+                    updateAt idx (\e -> { e | cardId = to.id }) state
+
+                Nothing ->
+                    state
+
+        Action.CardDiscardedFrom { card, pokemon } ->
+            -- No position: try active first, then bench.
+            let
+                tryRemove pos =
+                    case findEntryIndex pokemon.card.id pos state of
+                        Just idx ->
+                            let
+                                entry =
+                                    List.drop idx state |> List.head
+                            in
+                            case entry of
+                                Just e ->
+                                    if List.any (\c -> c.id == card.id) e.items then
+                                        Just (updateAt idx (\en -> { en | items = removeFirstById card.id en.items }) state)
+
+                                    else
+                                        Nothing
+
+                                Nothing ->
+                                    Nothing
+
+                        Nothing ->
+                            Nothing
+            in
+            case tryRemove Action.ActiveSpot of
+                Just updated ->
+                    updated
+
+                Nothing ->
+                    case tryRemove Action.BenchSpot of
+                        Just updated ->
+                            updated
+
+                        Nothing ->
+                            state
+
+        -- Bench ↔ Active movements: carry attachments along with the pokemon.
+        Action.Switched { from, to } ->
+            state
+                |> moveAttachments from.id Action.BenchSpot Action.ActiveSpot
+                |> (if String.isEmpty to.id then
+                        identity
+
+                    else
+                        moveAttachments to.id Action.ActiveSpot Action.BenchSpot
+                   )
+
+        Action.MovedToActive { pokemon } ->
+            -- Skip if already at ActiveSpot — a preceding Switched already moved it.
+            case findEntryIndex pokemon.card.id Action.ActiveSpot state of
+                Just _ ->
+                    state
+
+                Nothing ->
+                    moveAttachments pokemon.card.id Action.BenchSpot Action.ActiveSpot state
+
+        Action.Retreated { card } ->
+            moveAttachments card.id Action.ActiveSpot Action.BenchSpot state
+
+        _ ->
+            state
+
+
+{-| Remove the first occurrence of a card with the given id from a list. -}
+removeFirstById : String -> List Action.CardRef -> List Action.CardRef
+removeFirstById targetId list =
+    case list of
+        [] ->
+            []
+
+        c :: rest ->
+            if c.id == targetId then
+                rest
+
+            else
+                c :: removeFirstById targetId rest
+
+
+applyGroupToAttachments : Action.ActionGroup -> AttachmentState -> AttachmentState
+applyGroupToAttachments group state =
+    let
+        state1 =
+            applyActionToAttachments group.action state
+    in
+    List.foldl
+        (\detail s ->
+            List.foldl (\bullet bs -> applyActionToAttachments bullet.action bs)
+                (applyActionToAttachments detail.action s)
+                detail.bullets
+        )
+        state1
+        group.details
+
+
+computeAttachments : Replay.Players -> Replay.Replay -> Int -> Int -> AttachmentState
+computeAttachments players replay sectionIndex groupIndex =
+    List.foldl applyGroupToAttachments emptyAttachments
         (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
@@ -2209,8 +2451,8 @@ currentPlayFromGroup players group =
             Nothing
 
 
-viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> PileState -> Maybe CurrentPlay -> Html Msg
-viewHandState players cache flipOpponent hand bench active maybeStadium piles maybePlay =
+viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> AttachmentState -> PileState -> Maybe CurrentPlay -> Html Msg
+viewHandState players cache flipOpponent hand bench active maybeStadium attachments piles maybePlay =
     let
         -- When True, drawn cards are hidden from the hand panel and shown only
         -- in the played panel below. Disabled for now.
@@ -2295,9 +2537,9 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
                 , style "min-width" "0"
                 ]
                 [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
-                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" benchBlueDisplay
-                , viewActiveZone players cache flipOpponent active maybeStadium maybePlay
-                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" benchRedDisplay
+                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" attachments benchBlueDisplay
+                , viewActiveZone players cache flipOpponent active maybeStadium attachments maybePlay
+                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" attachments benchRedDisplay
                 , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
@@ -2527,8 +2769,8 @@ viewHandCard upsideDown color imageFor maybeCard =
                 []
 
 
-viewBenchRow : Bool -> Dict String CardData -> String -> List Action.CardRef -> Html Msg
-viewBenchRow upsideDown cache bgColor cards =
+viewBenchRow : Bool -> Dict String CardData -> String -> AttachmentState -> List Action.CardRef -> Html Msg
+viewBenchRow upsideDown cache bgColor attachments cards =
     div
         [ style "display" "flex"
         , style "align-items" "center"
@@ -2558,16 +2800,35 @@ viewBenchRow upsideDown cache bgColor cards =
             [ style "display" "flex"
             , style "align-items" "center"
             , style "justify-content" "center"
-            , style "gap" "0.35rem"
+            , style "gap" "14px"
             , style "overflow-x" "auto"
             , style "flex" "1"
             , style "min-width" "0"
             , style "min-height" cardH
-            , style "padding" "6px 8px"
+            , style "padding" "10px 10px 14px 14px"
             , style "background" bgColor
             , style "border-radius" "6px"
             ]
-            (List.map (viewBenchCard upsideDown cache) cards)
+            (Tuple.first
+                (List.foldl
+                    (\card ( rendered, counts ) ->
+                        let
+                            ordinal =
+                                Dict.get card.id counts |> Maybe.withDefault 0
+
+                            cardHtml =
+                                viewBenchCard upsideDown cache
+                                    (lookupAttachments attachments card.id Action.BenchSpot ordinal)
+                                    card
+                        in
+                        ( rendered ++ [ cardHtml ]
+                        , Dict.insert card.id (ordinal + 1) counts
+                        )
+                    )
+                    ( [], Dict.empty )
+                    cards
+                )
+            )
         ]
 
 
@@ -2594,13 +2855,103 @@ viewNoImageCard extraStyles name =
         [ text name ]
 
 
-viewBenchCard : Bool -> Dict String CardData -> Action.CardRef -> Html Msg
-viewBenchCard upsideDown cache card =
+{-| True if the attachment item is an Energy card.
+Checks the cached category first; falls back to name-based heuristic when the
+card is not yet in the cache (or has no category). -}
+isEnergyAttachment : Dict String CardData -> Action.CardRef -> Bool
+isEnergyAttachment cache item =
+    case Dict.get item.id cache of
+        Just cardData ->
+            case cardData.category of
+                Just cat ->
+                    cat == "Energy"
+
+                Nothing ->
+                    String.contains "energy" (String.toLower item.name)
+
+        Nothing ->
+            String.contains "energy" (String.toLower item.name)
+
+
+viewAttachmentCircle : Dict String CardData -> Action.CardRef -> Html Msg
+viewAttachmentCircle cache item =
+    let
+        maybeUrl =
+            Dict.get item.id cache
+                |> Maybe.andThen .imageUrl
+                |> Maybe.map (\u -> u ++ "/high.webp")
+    in
+    div
+        [ style "width" "18px"
+        , style "height" "18px"
+        , style "border-radius" "50%"
+        , style "flex-shrink" "0"
+        , style "background-color" "#e2e8f0"
+        , style "border" "1.5px solid rgba(255,255,255,0.85)"
+        , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
+        , style "overflow" "hidden"
+        , style "cursor" "pointer"
+        , onClick (CardClicked item.id)
+        ]
+        [ case maybeUrl of
+            Just u ->
+                div
+                    [ style "width" "100%"
+                    , style "height" "100%"
+                    , style "background-image" ("url('" ++ u ++ "')")
+                    , style "background-size" "150%"
+                    , style "background-position" "center 20%"
+                    ]
+                    []
+
+            Nothing ->
+                text ""
+        ]
+
+
+viewAttachmentRect : Dict String CardData -> Action.CardRef -> Html Msg
+viewAttachmentRect cache item =
+    let
+        maybeUrl =
+            Dict.get item.id cache
+                |> Maybe.andThen .imageUrl
+                |> Maybe.map (\u -> u ++ "/high.webp")
+    in
+    div
+        [ style "width" "20px"
+        , style "height" "14px"
+        , style "border-radius" "2px"
+        , style "flex-shrink" "0"
+        , style "background-color" "#e2e8f0"
+        , style "border" "1.5px solid rgba(255,255,255,0.85)"
+        , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
+        , style "overflow" "hidden"
+        , style "cursor" "pointer"
+        , onClick (CardClicked item.id)
+        ]
+        [ case maybeUrl of
+            Just u ->
+                div
+                    [ style "width" "100%"
+                    , style "height" "100%"
+                    , style "background-image" ("url('" ++ u ++ "')")
+                    , style "background-size" "150%"
+                    , style "background-position" "center 20%"
+                    ]
+                    []
+
+            Nothing ->
+                text ""
+        ]
+
+
+viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Action.CardRef -> Html Msg
+viewBenchCard upsideDown cache cardAttachments card =
     let
         maybeUrl =
             Dict.get card.id cache
                 |> Maybe.andThen .imageUrl
-                |> Maybe.map (\u -> u ++ "/low.webp")
+                |> Maybe.map (\u -> u ++ "/high.webp")
 
         rotStyles =
             if upsideDown then
@@ -2609,31 +2960,78 @@ viewBenchCard upsideDown cache card =
             else
                 []
 
-        baseStyles =
-            [ style "width" cardW
-            , style "height" cardH
+        -- Styles for the card image itself (fills the wrapper)
+        cardStyles =
+            [ style "width" "100%"
+            , style "height" "100%"
             , style "border-radius" "4px"
-            , style "flex-shrink" "0"
             , style "box-sizing" "border-box"
             , style "cursor" "pointer"
             , onClick (CardClicked card.id)
             ]
-    in
-    case maybeUrl of
-        Just u ->
-            div
-                (baseStyles
-                    ++ rotStyles
-                    ++ [ style "background-image" ("url('" ++ u ++ "')")
-                       , style "background-size" "cover"
-                       , style "background-position" "center"
-                       , style "background-color" "#e2e8f0"
-                       ]
-                )
-                []
 
-        Nothing ->
-            viewNoImageCard (baseStyles ++ rotStyles) card.name
+        cardDiv =
+            case maybeUrl of
+                Just u ->
+                    div
+                        (cardStyles
+                            ++ rotStyles
+                            ++ [ style "background-image" ("url('" ++ u ++ "')")
+                               , style "background-size" "cover"
+                               , style "background-position" "center"
+                               , style "background-color" "#e2e8f0"
+                               ]
+                        )
+                        []
+
+                Nothing ->
+                    viewNoImageCard (cardStyles ++ rotStyles) card.name
+
+    in
+    let
+        energyAttachments =
+            List.filter (isEnergyAttachment cache) cardAttachments
+
+        toolAttachments =
+            List.filter (\a -> not (isEnergyAttachment cache a)) cardAttachments
+
+        energyOverlay =
+            if List.isEmpty energyAttachments then
+                []
+            else
+                [ div
+                    [ style "position" "absolute"
+                    , style "bottom" "-9px"
+                    , style "left" "-9px"
+                    , style "display" "flex"
+                    , style "flex-direction" "row"
+                    , style "gap" "2px"
+                    ]
+                    (List.map (viewAttachmentCircle cache) energyAttachments)
+                ]
+
+        toolOverlay =
+            if List.isEmpty toolAttachments then
+                []
+            else
+                [ div
+                    [ style "position" "absolute"
+                    , style "top" "25%"
+                    , style "left" "-10px"
+                    , style "display" "flex"
+                    , style "flex-direction" "column"
+                    , style "gap" "2px"
+                    ]
+                    (List.map (viewAttachmentRect cache) toolAttachments)
+                ]
+    in
+    div
+        [ style "position" "relative"
+        , style "width" cardW
+        , style "height" cardH
+        , style "flex-shrink" "0"
+        ]
+        (cardDiv :: energyOverlay ++ toolOverlay)
 
 
 
@@ -2641,8 +3039,8 @@ viewBenchCard upsideDown cache card =
 Active spots are stacked vertically in the center. Stadium slots sit two card-widths
 out on each side: blue's on the left (upside-down), red's on the right.
 -}
-viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> Maybe CurrentPlay -> Html Msg
-viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
+viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> AttachmentState -> Maybe CurrentPlay -> Html Msg
+viewActiveZone players cache flipOpponent active maybeStadium attachments maybePlay =
     let
         red =
             players.red
@@ -2658,7 +3056,7 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
                         , style "box-shadow" ("0 0 0 4px " ++ shadowColor)
                         , style "overflow" "hidden"
                         ]
-                        [ viewBenchCard upsideDown cache card ]
+                        [ viewBenchCard upsideDown cache [] card ]
 
                 Nothing ->
                     div
@@ -2674,7 +3072,9 @@ viewActiveZone players cache flipOpponent active maybeStadium maybePlay =
         activeCard upsideDown maybeCard =
             case maybeCard of
                 Just card ->
-                    viewBenchCard upsideDown cache card
+                    viewBenchCard upsideDown cache
+                        (lookupAttachments attachments card.id Action.ActiveSpot 0)
+                        card
 
                 Nothing ->
                     div
@@ -3124,11 +3524,14 @@ view model =
                                     piles =
                                         computePiles players replay sectionIndex groupIndex
 
+                                    attachments =
+                                        computeAttachments players replay sectionIndex groupIndex
+
                                     maybePlay =
                                         getCurrentGroup replay sectionIndex groupIndex
                                             |> Maybe.andThen (currentPlayFromGroup players)
                                 in
-                                viewHandState players cache flip hand bench activeSpots stadium piles maybePlay
+                                viewHandState players cache flip hand bench activeSpots stadium attachments piles maybePlay
 
                             Nothing ->
                                 text ""

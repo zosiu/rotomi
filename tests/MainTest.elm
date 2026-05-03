@@ -4,14 +4,14 @@ import Dict
 import Expect
 import Http
 import Action exposing (CardRef)
-import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, init, update)
+import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, ActiveState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, emptyActive, init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
 
 cardDataWithImage : String -> CardData
 cardDataWithImage url =
-    { imageUrl = Just url, attacks = [], abilities = [] }
+    { imageUrl = Just url, attacks = [], abilities = [], category = Nothing }
 
 
 suite : Test
@@ -364,7 +364,7 @@ suite =
                             Replay.parse "Setup\nSome setup.\n"
 
                         emptyCardData =
-                            { imageUrl = Nothing, attacks = [], abilities = [] }
+                            { imageUrl = Nothing, attacks = [], abilities = [], category = Nothing }
                     in
                     update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty True)
                         |> Tuple.first
@@ -405,7 +405,7 @@ suite =
                     let
                         replay = Replay.parse "Setup\nSome setup.\n"
                         ability = { abilityType = "Ability", name = "Recon Directive", effect = "Once during your turn..." }
-                        cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ] }
+                        cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ], category = Nothing }
                         cache = Dict.fromList [ ( "sv8-5_72_sph", cardData ) ]
                     in
                     update (MoveClicked "sv8-5_72_sph" "Recon Directive") (Loaded "url" replay 0 0 Nothing cache True)
@@ -424,7 +424,7 @@ suite =
                     let
                         replay = Replay.parse "Setup\nSome setup.\n"
                         json = "{\"image\":\"https://assets.tcgdex.net/en/sv/sv04/160\",\"attacks\":[{\"name\":\"Tackle\",\"cost\":[\"Colorless\"],\"damage\":10}],\"abilities\":[]}"
-                        expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [] }
+                        expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [], category = Nothing }
                     in
                     update (GotCardImage "sv04_160" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty True)
                         |> Tuple.first
@@ -438,6 +438,7 @@ suite =
                             { imageUrl = Just "https://example.com/img"
                             , attacks = [ { name = "Scratch", cost = [ "Colorless" ], damage = "10", effect = "" } ]
                             , abilities = [ { abilityType = "Ability", name = "Swift Run", effect = "Once per turn." } ]
+                            , category = Nothing
                             }
                     in
                     update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_001")) Dict.empty True)
@@ -1234,7 +1235,7 @@ suite =
                                 |> Maybe.withDefault
                                     { raw = "", action = Action.UnknownAction "", details = [] }
                         bench =
-                            applyGroupToBench "A" emptyBench group
+                            applyGroupToBench "A" emptyActive emptyBench group
                     in
                     bench.red
                         |> Expect.equalLists [ fanRotom, froakie ]
