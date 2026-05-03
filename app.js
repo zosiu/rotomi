@@ -9358,6 +9358,27 @@ var $author$project$Main$correctDetailPlayer = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
+		var singleShuffledIntoPlayer = function () {
+			var shufflePlayers = A2(
+				$elm$core$List$filterMap,
+				function (d) {
+					var _v8 = d.L;
+					if (_v8.$ === 32) {
+						var player = _v8.a.d;
+						var card = _v8.a.f;
+						return _Utils_eq(card, $elm$core$Maybe$Nothing) ? $elm$core$Maybe$Just(player) : $elm$core$Maybe$Nothing;
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				group.bu);
+			if (shufflePlayers.b && (!shufflePlayers.b.b)) {
+				var p = shufflePlayers.a;
+				return $elm$core$Maybe$Just(p);
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var singleDrewPlayer = function () {
 			var drewDetails = A2(
 				$elm$core$List$filterMap,
@@ -9445,7 +9466,9 @@ var $author$project$Main$correctGroupPlayers = F2(
 					var card = _v0.a.f;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? ((_Utils_eq(
 						singleDrewPlayer,
-						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
+						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : (_Utils_eq(
+						singleShuffledIntoPlayer,
+						$elm$core$Maybe$Just(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail))) : detail;
 				case 31:
 					var card = _v0.a.f;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
@@ -9890,7 +9913,51 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 		return false;
 	} else {
 		var cardId = _v0.a;
-		return A2(
+		var orderIsAbility = function () {
+			var _v3 = group.L;
+			if (_v3.$ === 9) {
+				var indexed = A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, group.bu);
+				var firstShuffleIndex = $elm$core$List$head(
+					A2(
+						$elm$core$List$filterMap,
+						function (_v7) {
+							var i = _v7.a;
+							var d = _v7.b;
+							var _v8 = d.L;
+							if (_v8.$ === 32) {
+								return $elm$core$Maybe$Just(i);
+							} else {
+								return $elm$core$Maybe$Nothing;
+							}
+						},
+						indexed));
+				var firstDrewIndex = $elm$core$List$head(
+					A2(
+						$elm$core$List$filterMap,
+						function (_v5) {
+							var i = _v5.a;
+							var d = _v5.b;
+							var _v6 = d.L;
+							if (_v6.$ === 11) {
+								return $elm$core$Maybe$Just(i);
+							} else {
+								return $elm$core$Maybe$Nothing;
+							}
+						},
+						indexed));
+				var _v4 = _Utils_Tuple2(firstDrewIndex, firstShuffleIndex);
+				if ((!_v4.a.$) && (!_v4.b.$)) {
+					var di = _v4.a.a;
+					var si = _v4.b.a;
+					return _Utils_cmp(di, si) < 0;
+				} else {
+					return true;
+				}
+			} else {
+				return true;
+			}
+		}();
+		var hasMatchingShuffleBack = A2(
 			$elm$core$List$any,
 			function (d) {
 				var _v1 = d.L;
@@ -9918,6 +9985,7 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 				}
 			},
 			group.bu);
+		return hasMatchingShuffleBack && orderIsAbility;
 	}
 };
 var $author$project$Main$applyGroupToBench = F4(
@@ -10211,12 +10279,20 @@ var $author$project$Main$applyDetailAction = F3(
 					var c = card.a;
 					return A4($author$project$Main$removeById, red, player, c.ad, hand);
 				} else {
-					return A4(
+					var known = $author$project$Main$detailCardList(detail);
+					return $elm$core$List$isEmpty(known) ? A4(
 						$author$project$Main$removeN,
 						red,
 						player,
 						A2($elm$core$Maybe$withDefault, 1, count),
-						hand);
+						hand) : A3(
+						$elm$core$List$foldl,
+						F2(
+							function (c, h) {
+								return A4($author$project$Main$removeById, red, player, c.ad, h);
+							}),
+						hand,
+						known);
 				}
 			case 31:
 				var player = _v0.a.d;
@@ -10434,6 +10510,15 @@ var $author$project$Main$applyTopAction = F3(
 				return hand;
 		}
 	});
+var $author$project$Main$isDiscardShuffleGroup = function (group) {
+	var _v0 = group.L;
+	if (_v0.$ === 9) {
+		var card = _v0.a.f;
+		return card.aP === 'Energy Recycler';
+	} else {
+		return false;
+	}
+};
 var $elm$core$List$member = F2(
 	function (x, xs) {
 		return A2(
@@ -10446,6 +10531,7 @@ var $elm$core$List$member = F2(
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
 		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
+		var isDiscardShuffle = $author$project$Main$isDiscardShuffleGroup(group);
 		var hand1 = isPokemonAbility ? hand : A3($author$project$Main$applyTopAction, red, hand, group);
 		var details = function () {
 			var _v2 = group.L;
@@ -10487,7 +10573,7 @@ var $author$project$Main$applyGroupToHand = F3(
 							var player = _v0.a.d;
 							return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
 						case 32:
-							return isPokemonAbility ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+							return (isPokemonAbility || isDiscardShuffle) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
 						default:
 							return A3($author$project$Main$applyDetailAction, red, h, detail);
 					}
@@ -12043,9 +12129,9 @@ var $author$project$Main$applyGroupToPiles = F4(
 		var deckAttachPlayers = A2(
 			$elm$core$List$filterMap,
 			function (d) {
-				var _v1 = d.L;
-				if (_v1.$ === 33) {
-					var player = _v1.a.d;
+				var _v3 = d.L;
+				if (_v3.$ === 33) {
+					var player = _v3.a.d;
 					return $elm$core$Maybe$Just(player);
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -12057,12 +12143,38 @@ var $author$project$Main$applyGroupToPiles = F4(
 			F2(
 				function (detail, p) {
 					var p1 = function () {
-						var _v0 = detail.L;
-						if (_v0.$ === 14) {
-							var player = _v0.a.d;
+						var _v2 = detail.L;
+						if (_v2.$ === 14) {
+							var player = _v2.a.d;
 							return A2($elm$core$List$member, player, deckAttachPlayers) ? A4($author$project$Main$pilesDeckDelta, red, player, -1, p) : A4($author$project$Main$applyActionToPiles, red, isSetup, detail.L, p);
 						} else {
 							return A4($author$project$Main$applyActionToPiles, red, isSetup, detail.L, p);
+						}
+					}();
+					var p2 = function () {
+						if ($author$project$Main$isDiscardShuffleGroup(group)) {
+							var _v0 = detail.L;
+							if (_v0.$ === 32) {
+								var player = _v0.a.d;
+								var card = _v0.a.f;
+								var count = _v0.a.i;
+								return A4(
+									$author$project$Main$pilesDiscardDelta,
+									red,
+									player,
+									-function () {
+										if (!card.$) {
+											return 1;
+										} else {
+											return A2($elm$core$Maybe$withDefault, 1, count);
+										}
+									}(),
+									p1);
+							} else {
+								return p1;
+							}
+						} else {
+							return p1;
 						}
 					}();
 					return A3(
@@ -12071,7 +12183,7 @@ var $author$project$Main$applyGroupToPiles = F4(
 							function (bullet, bp) {
 								return A4($author$project$Main$applyActionToPiles, red, isSetup, bullet.L, bp);
 							}),
-						p1,
+						p2,
 						detail.av);
 				}),
 			piles1,
