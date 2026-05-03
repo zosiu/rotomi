@@ -5679,6 +5679,54 @@ var $author$project$CardCountCheck$breakdownForRed = F2(
 		var totalVal = (((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal) + evolutionBuriedVal;
 		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, evolutionBuried: evolutionBuriedVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
 	});
+var $elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var $elm$core$List$sortBy = _List_sortBy;
+var $author$project$CardCountCheck$duplicatesOnBoard = F2(
+	function (bench, maybeActive) {
+		var folder = F2(
+			function (card, acc) {
+				var _v2 = A2($elm$core$Dict$get, card.id, acc);
+				if (_v2.$ === 'Just') {
+					var _v3 = _v2.a;
+					var existing = _v3.a;
+					var n = _v3.b;
+					return A3(
+						$elm$core$Dict$insert,
+						card.id,
+						_Utils_Tuple2(existing, n + 1),
+						acc);
+				} else {
+					return A3(
+						$elm$core$Dict$insert,
+						card.id,
+						_Utils_Tuple2(card, 1),
+						acc);
+				}
+			});
+		var all = _Utils_ap(
+			bench,
+			A2(
+				$elm$core$Maybe$withDefault,
+				_List_Nil,
+				A2($elm$core$Maybe$map, $elm$core$List$singleton, maybeActive)));
+		return A2(
+			$elm$core$List$sortBy,
+			function (_v1) {
+				var n = _v1.b;
+				return -n;
+			},
+			A2(
+				$elm$core$List$filter,
+				function (_v0) {
+					var n = _v0.b;
+					return n > 1;
+				},
+				$elm$core$Dict$values(
+					A3($elm$core$List$foldl, folder, $elm$core$Dict$empty, all))));
+	});
 var $author$project$CardCountCheck$foldUntilError = F3(
 	function (f, acc, list) {
 		foldUntilError:
@@ -7423,7 +7471,15 @@ var $author$project$CardCountCheck$checkGroups = F3(
 					var redBD = A2($author$project$CardCountCheck$breakdownForRed, red, newGs);
 					var blueBD = A3($author$project$CardCountCheck$breakdownForBlue, red, blue, newGs);
 					return ((redBD.total !== 60) || (blueBD.total !== 60)) ? $elm$core$Result$Err(
-						{blueBreakdown: blueBD, groupIndex: indexed.groupIndex, groupRaw: indexed.group.raw, redBreakdown: redBD, sectionIndex: indexed.sectionIndex}) : $elm$core$Result$Ok(newGs);
+						{
+							blueBreakdown: blueBD,
+							blueDuplicates: A2($author$project$CardCountCheck$duplicatesOnBoard, gs.bench.blue, gs.active.blue),
+							groupIndex: indexed.groupIndex,
+							groupRaw: indexed.group.raw,
+							redBreakdown: redBD,
+							redDuplicates: A2($author$project$CardCountCheck$duplicatesOnBoard, gs.bench.red, gs.active.red),
+							sectionIndex: indexed.sectionIndex
+						}) : $elm$core$Result$Ok(newGs);
 				}),
 			$author$project$CardCountCheck$initialState,
 			groups);
@@ -7434,6 +7490,37 @@ var $author$project$CardCountCheck$formatBreakdown = F2(
 		var stadiumStr = (bd.stadium > 0) ? ('  stadium=' + $elm$core$String$fromInt(bd.stadium)) : '';
 		var evoStr = (bd.evolutionBuried > 0) ? ('  evo-buried=' + $elm$core$String$fromInt(bd.evolutionBuried)) : '';
 		return '  ' + (label + (':' + ('  deck=' + ($elm$core$String$fromInt(bd.deck) + ('  prizes=' + ($elm$core$String$fromInt(bd.prizes) + ('  hand=' + ($elm$core$String$fromInt(bd.hand) + ('  active=' + ($elm$core$String$fromInt(bd.active) + ('  bench=' + ($elm$core$String$fromInt(bd.bench) + ('  attach=' + ($elm$core$String$fromInt(bd.attachments) + ('  discard=' + ($elm$core$String$fromInt(bd.discard) + (stadiumStr + (evoStr + ('  = ' + ($elm$core$String$fromInt(bd.total) + wrong))))))))))))))))))));
+	});
+var $author$project$CardCountCheck$formatDuplicates = F4(
+	function (red, blue, redDups, blueDups) {
+		if ($elm$core$List$isEmpty(redDups) && $elm$core$List$isEmpty(blueDups)) {
+			return '';
+		} else {
+			var formatOne = function (_v0) {
+				var card = _v0.a;
+				var n = _v0.b;
+				return card.name + (' ×' + $elm$core$String$fromInt(n));
+			};
+			var formatSide = F2(
+				function (label, dups) {
+					return $elm$core$List$isEmpty(dups) ? _List_Nil : _List_fromArray(
+						[
+							'  ⚠  ' + (label + (': ' + A2(
+							$elm$core$String$join,
+							', ',
+							A2($elm$core$List$map, formatOne, dups))))
+						]);
+				});
+			return A2(
+				$elm$core$String$join,
+				'\n',
+				_Utils_ap(
+					_List_fromArray(
+						['  ⚠  Duplicate card IDs in play — attachment placement may be inaccurate:']),
+					_Utils_ap(
+						A2(formatSide, 'red (' + (red + ')'), redDups),
+						A2(formatSide, 'blue (' + (blue + ')'), blueDups))));
+		}
 	});
 var $author$project$Replay$emptyState = {currentKind: $elm$core$Maybe$Nothing, currentLines: _List_Nil, sections: _List_Nil, turnCount: 0};
 var $author$project$Replay$ResultSection = function (a) {
@@ -7776,6 +7863,7 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 							'  Action: ' + fail.groupRaw,
 							A2($author$project$CardCountCheck$formatBreakdown, 'red (' + (players.red + ')'), fail.redBreakdown),
 							A2($author$project$CardCountCheck$formatBreakdown, 'blue (' + (players.blue + ')'), fail.blueBreakdown),
+							A4($author$project$CardCountCheck$formatDuplicates, players.red, players.blue, fail.redDuplicates, fail.blueDuplicates),
 							visualUrl,
 							''
 						]))

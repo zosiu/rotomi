@@ -354,7 +354,32 @@ type alias FailInfo =
     , groupRaw : String
     , redBreakdown : PlayerBreakdown
     , blueBreakdown : PlayerBreakdown
+    , redDuplicates : List ( Action.CardRef, Int )
+    , blueDuplicates : List ( Action.CardRef, Int )
     }
+
+
+{-| Cards whose ID appears more than once across bench + active for a player.
+Returns (representative CardRef, count) pairs, sorted by count descending.
+-}
+duplicatesOnBoard : List Action.CardRef -> Maybe Action.CardRef -> List ( Action.CardRef, Int )
+duplicatesOnBoard bench maybeActive =
+    let
+        all =
+            bench ++ (Maybe.map List.singleton maybeActive |> Maybe.withDefault [])
+
+        folder card acc =
+            case Dict.get card.id acc of
+                Just ( existing, n ) ->
+                    Dict.insert card.id ( existing, n + 1 ) acc
+
+                Nothing ->
+                    Dict.insert card.id ( card, 1 ) acc
+    in
+    List.foldl folder Dict.empty all
+        |> Dict.values
+        |> List.filter (\( _, n ) -> n > 1)
+        |> List.sortBy (\( _, n ) -> -n)
 
 
 allGroupsIndexed : Replay.Players -> Replay.Replay -> List IndexedGroup
@@ -425,6 +450,8 @@ checkGroups red blue groups =
                     , groupRaw = indexed.group.raw
                     , redBreakdown = redBD
                     , blueBreakdown = blueBD
+                    , redDuplicates = duplicatesOnBoard gs.bench.red gs.active.red
+                    , blueDuplicates = duplicatesOnBoard gs.bench.blue gs.active.blue
                     }
 
             else
@@ -486,6 +513,35 @@ formatBreakdown label bd =
         ++ wrong
 
 
+formatDuplicates :
+    String
+    -> String
+    -> List ( Action.CardRef, Int )
+    -> List ( Action.CardRef, Int )
+    -> String
+formatDuplicates red blue redDups blueDups =
+    if List.isEmpty redDups && List.isEmpty blueDups then
+        ""
+
+    else
+        let
+            formatOne ( card, n ) =
+                card.name ++ " ×" ++ String.fromInt n
+
+            formatSide label dups =
+                if List.isEmpty dups then
+                    []
+
+                else
+                    [ "  ⚠  " ++ label ++ ": " ++ String.join ", " (List.map formatOne dups) ]
+        in
+        String.join "\n"
+            ([ "  ⚠  Duplicate card IDs in play — attachment placement may be inaccurate:" ]
+                ++ formatSide ("red (" ++ red ++ ")") redDups
+                ++ formatSide ("blue (" ++ blue ++ ")") blueDups
+            )
+
+
 checkFile : FileInput -> { output : String, ok : Bool }
 checkFile flags =
     let
@@ -541,6 +597,7 @@ checkFile flags =
                             , "  Action: " ++ fail.groupRaw
                             , formatBreakdown ("red (" ++ players.red ++ ")") fail.redBreakdown
                             , formatBreakdown ("blue (" ++ players.blue ++ ")") fail.blueBreakdown
+                            , formatDuplicates players.red players.blue fail.redDuplicates fail.blueDuplicates
                             , visualUrl
                             , ""
                             ]
