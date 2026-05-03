@@ -113,7 +113,10 @@ applyActionToEvolution red action evo =
             else
                 { evo | blue = newDict }
 
-        Action.KnockedOut { pokemon } ->
+        Action.KnockedOut _ ->
+            evo
+
+        Action.CardDiscardedFrom { pokemon } ->
             let
                 dict =
                     if pokemon.player == red then
@@ -122,8 +125,40 @@ applyActionToEvolution red action evo =
                     else
                         evo.blue
 
+                currentDepth =
+                    Dict.get pokemon.card.id dict |> Maybe.withDefault 0
+
                 newDict =
-                    Dict.remove pokemon.card.id dict
+                    if currentDepth <= 1 then
+                        Dict.remove pokemon.card.id dict
+
+                    else
+                        Dict.insert pokemon.card.id (currentDepth - 1) dict
+            in
+            if pokemon.player == red then
+                { evo | red = newDict }
+
+            else
+                { evo | blue = newDict }
+
+        Action.NCardsDiscardedFrom { pokemon, count } ->
+            let
+                dict =
+                    if pokemon.player == red then
+                        evo.red
+
+                    else
+                        evo.blue
+
+                currentDepth =
+                    Dict.get pokemon.card.id dict |> Maybe.withDefault 0
+
+                newDict =
+                    if currentDepth <= count then
+                        Dict.remove pokemon.card.id dict
+
+                    else
+                        Dict.insert pokemon.card.id (currentDepth - count) dict
             in
             if pokemon.player == red then
                 { evo | red = newDict }

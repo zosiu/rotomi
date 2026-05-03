@@ -6756,9 +6756,29 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 					evo,
 					{blue: newDict});
 			case 'KnockedOut':
+				return evo;
+			case 'CardDiscardedFrom':
 				var pokemon = action.a.pokemon;
 				var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
-				var newDict = A2($elm$core$Dict$remove, pokemon.card.id, dict);
+				var currentDepth = A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Dict$get, pokemon.card.id, dict));
+				var newDict = (currentDepth <= 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - 1, dict);
+				return _Utils_eq(pokemon.player, red) ? _Utils_update(
+					evo,
+					{red: newDict}) : _Utils_update(
+					evo,
+					{blue: newDict});
+			case 'NCardsDiscardedFrom':
+				var pokemon = action.a.pokemon;
+				var count = action.a.count;
+				var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
+				var currentDepth = A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Dict$get, pokemon.card.id, dict));
+				var newDict = (_Utils_cmp(currentDepth, count) < 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - count, dict);
 				return _Utils_eq(pokemon.player, red) ? _Utils_update(
 					evo,
 					{red: newDict}) : _Utils_update(
