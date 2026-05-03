@@ -2922,12 +2922,6 @@ var $elm$core$List$concat = function (lists) {
 var $author$project$Action$DrewCount = function (a) {
 	return {$: 'DrewCount', a: a};
 };
-var $author$project$Action$PutOnBottom = function (a) {
-	return {$: 'PutOnBottom', a: a};
-};
-var $author$project$Action$ShuffledInto = function (a) {
-	return {$: 'ShuffledInto', a: a};
-};
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
 		any:
@@ -2949,6 +2943,12 @@ var $elm$core$List$any = F2(
 			}
 		}
 	});
+var $author$project$Action$PutOnBottom = function (a) {
+	return {$: 'PutOnBottom', a: a};
+};
+var $author$project$Action$ShuffledInto = function (a) {
+	return {$: 'ShuffledInto', a: a};
+};
 var $elm$core$String$length = _String_length;
 var $elm$core$String$slice = _String_slice;
 var $elm$core$String$dropLeft = F2(
@@ -3084,19 +3084,63 @@ var $elm$core$List$map = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
+		var singleDrewPlayer = function () {
+			var drewDetails = A2(
+				$elm$core$List$filterMap,
+				function (d) {
+					var _v6 = d.action;
+					if (_v6.$ === 'DrewCount') {
+						var player = _v6.a.player;
+						return $elm$core$Maybe$Just(player);
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				group.details);
+			if (drewDetails.b && (!drewDetails.b.b)) {
+				var p = drewDetails.a;
+				return $elm$core$Maybe$Just(p);
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var shuffleDeckPlayer = $elm$core$List$head(
 			A2(
 				$elm$core$List$filterMap,
 				function (d) {
-					var _v2 = d.action;
-					if (_v2.$ === 'ShuffledDeck') {
-						var player = _v2.a.player;
+					var _v4 = d.action;
+					if (_v4.$ === 'ShuffledDeck') {
+						var player = _v4.a.player;
 						return $elm$core$Maybe$Just(player);
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
 				},
 				group.details));
+		var hasRevealedShuffleFor = function (player) {
+			return A2(
+				$elm$core$List$any,
+				function (d) {
+					var _v2 = d.action;
+					if (_v2.$ === 'ShuffledInto') {
+						var info = _v2.a;
+						return _Utils_eq(info.player, player) && A2(
+							$elm$core$List$any,
+							function (b) {
+								var _v3 = b.action;
+								if (_v3.$ === 'CardList') {
+									return true;
+								} else {
+									return false;
+								}
+							},
+							d.bullets);
+					} else {
+						return false;
+					}
+				},
+				group.details);
+		};
 		var correctDetail = function (detail) {
 			var _v0 = detail.action;
 			switch (_v0.$) {
@@ -3118,11 +3162,16 @@ var $author$project$Main$correctGroupPlayers = F2(
 							return detail;
 						}
 					} else {
-						return A2($author$project$Main$correctDetailPlayer, players, detail);
+						return (_Utils_eq(
+							singleDrewPlayer,
+							$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail);
 					}
 				case 'ShuffledInto':
+					var player = _v0.a.player;
 					var card = _v0.a.card;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? ((_Utils_eq(
+						singleDrewPlayer,
+						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
 				case 'PutOnBottom':
 					var card = _v0.a.card;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;

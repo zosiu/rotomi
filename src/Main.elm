@@ -1484,22 +1484,56 @@ correctGroupPlayers players group =
                     )
                 |> List.head
 
-        -- Player who performed the top-level action (played/used a card).
-        -- When a draw or shuffle detail is already attributed to this player,
-        -- trust the raw log — the effect belongs to the card's owner.
-        topActionPlayer =
-            case group.action of
-                Action.PlayedPokemon { player } ->
-                    Just player
+        -- If there is exactly one DrewCount in the group, record its player.
+        -- A single-player draw (e.g. Dudunsparce Run Away Draw) means the raw
+        -- attribution is trustworthy; a multi-player draw (e.g. Judge) means
+        -- both players' actions are logged under the card player's name and
+        -- need correctDetailPlayer.
+        singleDrewPlayer =
+            let
+                drewDetails =
+                    List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.DrewCount { player } ->
+                                    Just player
 
-                Action.PlayedTrainer { player } ->
-                    Just player
-
-                Action.PlayedStadium { player } ->
-                    Just player
+                                _ ->
+                                    Nothing
+                        )
+                        group.details
+            in
+            case drewDetails of
+                [ p ] ->
+                    Just p
 
                 _ ->
                     Nothing
+
+        -- True when the group has a ShuffledInto with a CardList bullet for
+        -- the given player — confirms the player is the recorder (cards visible).
+        hasRevealedShuffleFor player =
+            List.any
+                (\d ->
+                    case d.action of
+                        Action.ShuffledInto info ->
+                            info.player
+                                == player
+                                && List.any
+                                    (\b ->
+                                        case b.action of
+                                            Action.CardList _ ->
+                                                True
+
+                                            _ ->
+                                                False
+                                    )
+                                    d.bullets
+
+                        _ ->
+                            False
+                )
+                group.details
 
         correctDetail detail =
             case detail.action of
@@ -1518,15 +1552,22 @@ correctGroupPlayers players group =
                                 detail
 
                         Nothing ->
-                            if topActionPlayer == Just player then
+                            -- Single player drew AND has a revealed shuffle (Dudunsparce
+                            -- ability): the raw attribution is correct, don't reassign.
+                            if singleDrewPlayer == Just player && hasRevealedShuffleFor player then
                                 detail
 
                             else
                                 correctDetailPlayer players detail
 
-                Action.ShuffledInto { card } ->
+                Action.ShuffledInto { player, card } ->
                     if card == Nothing then
-                        if topActionPlayer == Just (actionPlayer detail.action) then
+                        -- Single-player draw+shuffle group: the shuffle belongs to the
+                        -- same player who drew (e.g. Dudunsparce), trust raw attribution.
+                        -- Multi-player groups (e.g. Judge): both actions are logged under
+                        -- the card player but belong to different players — run
+                        -- correctDetailPlayer.
+                        if singleDrewPlayer == Just player && hasRevealedShuffleFor player then
                             detail
 
                         else
@@ -1537,11 +1578,7 @@ correctGroupPlayers players group =
 
                 Action.PutOnBottom { card } ->
                     if card == Nothing then
-                        if topActionPlayer == Just (actionPlayer detail.action) then
-                            detail
-
-                        else
-                            correctDetailPlayer players detail
+                        correctDetailPlayer players detail
 
                     else
                         detail
