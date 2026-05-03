@@ -4103,9 +4103,14 @@ var $author$project$Action$tryMovedToHand = function (raw) {
 			var _v1 = _v0.b;
 			var rest = _v1.a;
 			var _v2 = A2($elm$core$String$split, '\'s ', rest);
-			if ((_v2.b && _v2.b.b) && (!_v2.b.b.b)) {
+			if (_v2.b && _v2.b.b) {
 				var _v3 = _v2.b;
-				var afterApos = _v3.a;
+				var second = _v3.a;
+				var moreParts = _v3.b;
+				var afterApos = A2(
+					$elm$core$String$join,
+					'\'s ',
+					A2($elm$core$List$cons, second, moreParts));
 				if (A2($elm$core$String$startsWith, '(', afterApos)) {
 					return A2(
 						$elm$core$Maybe$map,
@@ -6741,6 +6746,10 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 				var from = action.a.from;
 				var to = action.a.to;
 				var dict = _Utils_eq(player, red) ? evo.red : evo.blue;
+				var existingToDepth = A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Dict$get, to.id, dict));
 				var fromDepth = A2(
 					$elm$core$Maybe$withDefault,
 					0,
@@ -6748,7 +6757,7 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 				var newDict = A3(
 					$elm$core$Dict$insert,
 					to.id,
-					fromDepth + 1,
+					(existingToDepth + fromDepth) + 1,
 					A2($elm$core$Dict$remove, from.id, dict));
 				return _Utils_eq(player, red) ? _Utils_update(
 					evo,

@@ -1587,8 +1587,14 @@ tryMovedToHand raw =
         case String.split " moved " raw of
             [ mover, rest ] ->
                 -- rest = "PLAYER's (id) Name to their hand." or "PLAYER's N cards to their hand."
+                -- Use the first "'s " to split off the owner; rejoin the remainder so that card
+                -- names containing "'s " (e.g. "Team Rocket's Mimikyu") are preserved intact.
                 case String.split "'s " rest of
-                    [ _, afterApos ] ->
+                    _ :: second :: moreParts ->
+                        let
+                            afterApos =
+                                String.join "'s " (second :: moreParts)
+                        in
                         if String.startsWith "(" afterApos then
                             parseCardRef afterApos
                                 |> Maybe.map

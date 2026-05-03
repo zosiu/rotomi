@@ -102,10 +102,13 @@ applyActionToEvolution red action evo =
                 fromDepth =
                     Dict.get from.id dict |> Maybe.withDefault 0
 
+                existingToDepth =
+                    Dict.get to.id dict |> Maybe.withDefault 0
+
                 newDict =
                     dict
                         |> Dict.remove from.id
-                        |> Dict.insert to.id (fromDepth + 1)
+                        |> Dict.insert to.id (existingToDepth + fromDepth + 1)
             in
             if player == red then
                 { evo | red = newDict }
