@@ -1616,6 +1616,9 @@ applyActionToPiles red isSetup action piles =
         Action.CardDiscardedFrom { pokemon } ->
             pilesDiscardDelta red pokemon.player 1 piles
 
+        Action.NCardsDiscardedFrom { pokemon, count } ->
+            pilesDiscardDelta red pokemon.player count piles
+
         Action.Discarded { player, count } ->
             pilesDiscardDelta red player count piles
 

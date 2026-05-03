@@ -4263,6 +4263,40 @@ var $author$project$Action$tryMulliganTaken = function (raw) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
+var $author$project$Action$NCardsDiscardedFrom = function (a) {
+	return {$: 'NCardsDiscardedFrom', a: a};
+};
+var $author$project$Action$tryNCardsDiscardedFrom = function (raw) {
+	if (A2($elm$core$String$contains, ' cards were discarded from ', raw)) {
+		var _v0 = A2($elm$core$String$split, ' cards were discarded from ', raw);
+		if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
+			var countPart = _v0.a;
+			var _v1 = _v0.b;
+			var pokemonFull = _v1.a;
+			var _v2 = $elm$core$String$toInt(
+				$elm$core$String$trim(countPart));
+			if (_v2.$ === 'Just') {
+				var count = _v2.a;
+				var _v3 = $author$project$Action$parsePokemonRef(
+					A2($elm$core$String$dropRight, 1, pokemonFull));
+				if (_v3.$ === 'Just') {
+					var pokemon = _v3.a;
+					return $elm$core$Maybe$Just(
+						$author$project$Action$NCardsDiscardedFrom(
+							{count: count, pokemon: pokemon}));
+				} else {
+					return $elm$core$Maybe$Nothing;
+				}
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Action$OpeningDraw = function (a) {
 	return {$: 'OpeningDraw', a: a};
 };
@@ -5094,53 +5128,56 @@ var $author$project$Action$parseAction = function (raw) {
 																																			$author$project$Action$tryCardAddedToHandNamed(raw),
 																																			A2(
 																																				$author$project$Action$orTry,
-																																				$author$project$Action$tryCardDiscardedFrom(raw),
+																																				$author$project$Action$tryNCardsDiscardedFrom(raw),
 																																				A2(
 																																					$author$project$Action$orTry,
-																																					$author$project$Action$tryCardActivated(raw),
+																																					$author$project$Action$tryCardDiscardedFrom(raw),
 																																					A2(
 																																						$author$project$Action$orTry,
-																																						$author$project$Action$tryTookDamage(raw),
+																																						$author$project$Action$tryCardActivated(raw),
 																																						A2(
 																																							$author$project$Action$orTry,
-																																							$author$project$Action$tryConditionRemoved(raw),
+																																							$author$project$Action$tryTookDamage(raw),
 																																							A2(
 																																								$author$project$Action$orTry,
-																																								$author$project$Action$tryConditionApplied(raw),
+																																								$author$project$Action$tryConditionRemoved(raw),
 																																								A2(
 																																									$author$project$Action$orTry,
-																																									$author$project$Action$tryMovedToActive(raw),
+																																									$author$project$Action$tryConditionApplied(raw),
 																																									A2(
 																																										$author$project$Action$orTry,
-																																										$author$project$Action$trySwitched(raw),
+																																										$author$project$Action$tryMovedToActive(raw),
 																																										A2(
 																																											$author$project$Action$orTry,
-																																											$author$project$Action$tryRetreated(raw),
+																																											$author$project$Action$trySwitched(raw),
 																																											A2(
 																																												$author$project$Action$orTry,
-																																												$author$project$Action$tryAttached(raw),
+																																												$author$project$Action$tryRetreated(raw),
 																																												A2(
 																																													$author$project$Action$orTry,
-																																													$author$project$Action$tryEvolved(raw),
+																																													$author$project$Action$tryAttached(raw),
 																																													A2(
 																																														$author$project$Action$orTry,
-																																														$author$project$Action$tryUsedStadium(raw),
+																																														$author$project$Action$tryEvolved(raw),
 																																														A2(
 																																															$author$project$Action$orTry,
-																																															$author$project$Action$tryPlayedTrainer(raw),
+																																															$author$project$Action$tryUsedStadium(raw),
 																																															A2(
 																																																$author$project$Action$orTry,
-																																																$author$project$Action$tryPlayedStadium(raw),
+																																																$author$project$Action$tryPlayedTrainer(raw),
 																																																A2(
 																																																	$author$project$Action$orTry,
-																																																	$author$project$Action$tryPlayedPokemon(raw),
+																																																	$author$project$Action$tryPlayedStadium(raw),
 																																																	A2(
 																																																		$author$project$Action$orTry,
-																																																		$author$project$Action$tryUsedAttack(raw),
+																																																		$author$project$Action$tryPlayedPokemon(raw),
 																																																		A2(
 																																																			$author$project$Action$orTry,
-																																																			$author$project$Action$tryTurnEnded(raw),
-																																																			$author$project$Action$tryKnockedOut(raw)))))))))))))))))))))))))))))))))))))))))))))))))));
+																																																			$author$project$Action$tryUsedAttack(raw),
+																																																			A2(
+																																																				$author$project$Action$orTry,
+																																																				$author$project$Action$tryTurnEnded(raw),
+																																																				$author$project$Action$tryKnockedOut(raw))))))))))))))))))))))))))))))))))))))))))))))))))));
 };
 var $author$project$Action$collectCardAddedToHand = F2(
 	function (lines, acc) {
@@ -7281,6 +7318,10 @@ var $author$project$Main$applyActionToPiles = F4(
 			case 'CardDiscardedFrom':
 				var pokemon = action.a.pokemon;
 				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.player, 1, piles);
+			case 'NCardsDiscardedFrom':
+				var pokemon = action.a.pokemon;
+				var count = action.a.count;
+				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.player, count, piles);
 			case 'Discarded':
 				var player = action.a.player;
 				var count = action.a.count;

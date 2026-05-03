@@ -108,6 +108,7 @@ type Action
     -- Card movement
     | CardActivated { card : CardRef }
     | CardDiscardedFrom { card : CardRef, pokemon : PokemonRef }
+    | NCardsDiscardedFrom { pokemon : PokemonRef, count : Int }
     | CardAddedToHand { card : Maybe CardRef, player : String }
     | MovedToHand { player : String, card : Maybe CardRef, count : Maybe Int }
     | MovedToDiscard { mover : String, owner : String, count : Int }
@@ -263,6 +264,7 @@ parseAction raw =
         |> orTry (tryTookDamage raw)
         |> orTry (tryCardActivated raw)
         |> orTry (tryCardDiscardedFrom raw)
+        |> orTry (tryNCardsDiscardedFrom raw)
         |> orTry (tryCardAddedToHandNamed raw)
         |> orTry (tryCardAddedToHandHidden raw)
         |> orTry (trySpecialConditionImmune raw)
@@ -841,6 +843,31 @@ tryCardDiscardedFrom raw =
                         Just (CardDiscardedFrom { card = card, pokemon = pokemon })
 
                     _ ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+tryNCardsDiscardedFrom : String -> Maybe Action
+tryNCardsDiscardedFrom raw =
+    -- "N cards were discarded from PLAYER's (pokemon-id) Pokemon."
+    if String.contains " cards were discarded from " raw then
+        case String.split " cards were discarded from " raw of
+            [ countPart, pokemonFull ] ->
+                case String.toInt (String.trim countPart) of
+                    Just count ->
+                        case parsePokemonRef (String.dropRight 1 pokemonFull) of
+                            Just pokemon ->
+                                Just (NCardsDiscardedFrom { pokemon = pokemon, count = count })
+
+                            Nothing ->
+                                Nothing
+
+                    Nothing ->
                         Nothing
 
             _ ->
