@@ -60,7 +60,19 @@ type alias GameState =
     , active : ActiveState
     , stadium : Maybe StadiumState
     , attachments : AttachmentState
+    , evolution : EvolutionState
     }
+
+
+type alias EvolutionState =
+    { red : Dict String Int
+    , blue : Dict String Int
+    }
+
+
+emptyEvolution : EvolutionState
+emptyEvolution =
+    { red = Dict.empty, blue = Dict.empty }
 
 
 initialState : GameState
@@ -71,7 +83,73 @@ initialState =
     , active = emptyActive
     , stadium = Nothing
     , attachments = emptyAttachments
+    , evolution = emptyEvolution
     }
+
+
+applyActionToEvolution : String -> Action.Action -> EvolutionState -> EvolutionState
+applyActionToEvolution red action evo =
+    case action of
+        Action.Evolved { player, from, to } ->
+            let
+                dict =
+                    if player == red then
+                        evo.red
+
+                    else
+                        evo.blue
+
+                fromDepth =
+                    Dict.get from.id dict |> Maybe.withDefault 0
+
+                newDict =
+                    dict
+                        |> Dict.remove from.id
+                        |> Dict.insert to.id (fromDepth + 1)
+            in
+            if player == red then
+                { evo | red = newDict }
+
+            else
+                { evo | blue = newDict }
+
+        Action.KnockedOut { pokemon } ->
+            let
+                dict =
+                    if pokemon.player == red then
+                        evo.red
+
+                    else
+                        evo.blue
+
+                newDict =
+                    Dict.remove pokemon.card.id dict
+            in
+            if pokemon.player == red then
+                { evo | red = newDict }
+
+            else
+                { evo | blue = newDict }
+
+        _ ->
+            evo
+
+
+applyGroupToEvolution : String -> EvolutionState -> Action.ActionGroup -> EvolutionState
+applyGroupToEvolution red evo group =
+    let
+        evo1 =
+            applyActionToEvolution red group.action evo
+    in
+    List.foldl
+        (\detail acc ->
+            List.foldl
+                (\bullet a -> applyActionToEvolution red bullet.action a)
+                (applyActionToEvolution red detail.action acc)
+                detail.bullets
+        )
+        evo1
+        group.details
 
 
 stepGroup : String -> Bool -> Action.ActionGroup -> GameState -> GameState
@@ -82,6 +160,7 @@ stepGroup red isSetup group gs =
     , active = applyGroupToActive red gs.active group
     , stadium = applyGroupToStadium gs.stadium group
     , attachments = applyGroupToAttachments group gs.attachments
+    , evolution = applyGroupToEvolution red gs.evolution group
     }
 
 
@@ -98,6 +177,7 @@ type alias PlayerBreakdown =
     , bench : Int
     , attachments : Int
     , stadium : Int
+    , evolutionBuried : Int
     , total : Int
     }
 
@@ -177,8 +257,11 @@ breakdownForRed red gs =
                 Nothing ->
                     0
 
+        evolutionBuriedVal =
+            Dict.values gs.evolution.red |> List.sum
+
         totalVal =
-            deckVal + discardVal + prizesVal + handVal + activeVal + benchVal + attachmentsVal + stadiumVal
+            deckVal + discardVal + prizesVal + handVal + activeVal + benchVal + attachmentsVal + stadiumVal + evolutionBuriedVal
     in
     { deck = deckVal
     , discard = discardVal
@@ -188,6 +271,7 @@ breakdownForRed red gs =
     , bench = benchVal
     , attachments = attachmentsVal
     , stadium = stadiumVal
+    , evolutionBuried = evolutionBuriedVal
     , total = totalVal
     }
 
@@ -233,8 +317,11 @@ breakdownForBlue red blue gs =
                 Nothing ->
                     0
 
+        evolutionBuriedVal =
+            Dict.values gs.evolution.blue |> List.sum
+
         totalVal =
-            deckVal + discardVal + prizesVal + handVal + activeVal + benchVal + attachmentsVal + stadiumVal
+            deckVal + discardVal + prizesVal + handVal + activeVal + benchVal + attachmentsVal + stadiumVal + evolutionBuriedVal
     in
     { deck = deckVal
     , discard = discardVal
@@ -244,6 +331,7 @@ breakdownForBlue red blue gs =
     , bench = benchVal
     , attachments = attachmentsVal
     , stadium = stadiumVal
+    , evolutionBuried = evolutionBuriedVal
     , total = totalVal
     }
 
@@ -366,6 +454,13 @@ formatBreakdown label bd =
 
             else
                 ""
+
+        evoStr =
+            if bd.evolutionBuried > 0 then
+                "  evo-buried=" ++ String.fromInt bd.evolutionBuried
+
+            else
+                ""
     in
     "  "
         ++ label
@@ -385,6 +480,7 @@ formatBreakdown label bd =
         ++ "  discard="
         ++ String.fromInt bd.discard
         ++ stadiumStr
+        ++ evoStr
         ++ "  = "
         ++ String.fromInt bd.total
         ++ wrong

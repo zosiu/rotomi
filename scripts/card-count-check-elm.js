@@ -5569,6 +5569,19 @@ var $author$project$CardCountCheck$attachmentCountForSide = F4(
 		var benchCount = _v0.a;
 		return activeCount + benchCount;
 	});
+var $elm$core$List$sum = function (numbers) {
+	return A3($elm$core$List$foldl, $elm$core$Basics$add, 0, numbers);
+};
+var $elm$core$Dict$values = function (dict) {
+	return A3(
+		$elm$core$Dict$foldr,
+		F3(
+			function (key, value, valueList) {
+				return A2($elm$core$List$cons, value, valueList);
+			}),
+		_List_Nil,
+		dict);
+};
 var $author$project$CardCountCheck$breakdownForBlue = F3(
 	function (red, blue, gs) {
 		var stadiumVal = function () {
@@ -5582,6 +5595,8 @@ var $author$project$CardCountCheck$breakdownForBlue = F3(
 		}();
 		var prizesVal = gs.piles.prizesBlue;
 		var handVal = $elm$core$List$length(gs.hand.blue);
+		var evolutionBuriedVal = $elm$core$List$sum(
+			$elm$core$Dict$values(gs.evolution.blue));
 		var discardVal = gs.piles.discardBlue;
 		var deckVal = gs.piles.deckBlue;
 		var benchVal = $elm$core$List$length(gs.bench.blue);
@@ -5594,8 +5609,8 @@ var $author$project$CardCountCheck$breakdownForBlue = F3(
 				return 0;
 			}
 		}();
-		var totalVal = ((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal;
-		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
+		var totalVal = (((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal) + evolutionBuriedVal;
+		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, evolutionBuried: evolutionBuriedVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
 	});
 var $author$project$CardCountCheck$breakdownForRed = F2(
 	function (red, gs) {
@@ -5610,6 +5625,8 @@ var $author$project$CardCountCheck$breakdownForRed = F2(
 		}();
 		var prizesVal = gs.piles.prizesRed;
 		var handVal = $elm$core$List$length(gs.hand.red);
+		var evolutionBuriedVal = $elm$core$List$sum(
+			$elm$core$Dict$values(gs.evolution.red));
 		var discardVal = gs.piles.discardRed;
 		var deckVal = gs.piles.deckRed;
 		var benchVal = $elm$core$List$length(gs.bench.red);
@@ -5622,8 +5639,8 @@ var $author$project$CardCountCheck$breakdownForRed = F2(
 				return 0;
 			}
 		}();
-		var totalVal = ((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal;
-		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
+		var totalVal = (((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal) + evolutionBuriedVal;
+		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, evolutionBuried: evolutionBuriedVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
 	});
 var $author$project$CardCountCheck$foldUntilError = F3(
 	function (f, acc, list) {
@@ -5654,9 +5671,10 @@ var $author$project$CardCountCheck$foldUntilError = F3(
 var $author$project$Main$emptyActive = {blue: $elm$core$Maybe$Nothing, red: $elm$core$Maybe$Nothing};
 var $author$project$Main$emptyAttachments = _List_Nil;
 var $author$project$Main$emptyBench = {blue: _List_Nil, red: _List_Nil};
+var $author$project$CardCountCheck$emptyEvolution = {blue: $elm$core$Dict$empty, red: $elm$core$Dict$empty};
 var $author$project$Main$emptyHand = {blue: _List_Nil, red: _List_Nil};
 var $author$project$Main$emptyPiles = {deckBlue: 60, deckRed: 60, discardBlue: 0, discardRed: 0, prizesBlue: 0, prizesRed: 0};
-var $author$project$CardCountCheck$initialState = {active: $author$project$Main$emptyActive, attachments: $author$project$Main$emptyAttachments, bench: $author$project$Main$emptyBench, hand: $author$project$Main$emptyHand, piles: $author$project$Main$emptyPiles, stadium: $elm$core$Maybe$Nothing};
+var $author$project$CardCountCheck$initialState = {active: $author$project$Main$emptyActive, attachments: $author$project$Main$emptyAttachments, bench: $author$project$Main$emptyBench, evolution: $author$project$CardCountCheck$emptyEvolution, hand: $author$project$Main$emptyHand, piles: $author$project$Main$emptyPiles, stadium: $elm$core$Maybe$Nothing};
 var $author$project$Main$setActive = F4(
 	function (red, player, card, active) {
 		return _Utils_eq(player, red) ? _Utils_update(
@@ -6309,6 +6327,422 @@ var $author$project$Main$applyGroupToBench = F4(
 			bench1,
 			group.details);
 	});
+var $elm$core$Dict$getMin = function (dict) {
+	getMin:
+	while (true) {
+		if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+			var left = dict.d;
+			var $temp$dict = left;
+			dict = $temp$dict;
+			continue getMin;
+		} else {
+			return dict;
+		}
+	}
+};
+var $elm$core$Dict$moveRedLeft = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.e.d.$ === 'RBNode_elm_builtin') && (dict.e.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var lLeft = _v1.d;
+			var lRight = _v1.e;
+			var _v2 = dict.e;
+			var rClr = _v2.a;
+			var rK = _v2.b;
+			var rV = _v2.c;
+			var rLeft = _v2.d;
+			var _v3 = rLeft.a;
+			var rlK = rLeft.b;
+			var rlV = rLeft.c;
+			var rlL = rLeft.d;
+			var rlR = rLeft.e;
+			var rRight = _v2.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				rlK,
+				rlV,
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					rlL),
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, rK, rV, rlR, rRight));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v4 = dict.d;
+			var lClr = _v4.a;
+			var lK = _v4.b;
+			var lV = _v4.c;
+			var lLeft = _v4.d;
+			var lRight = _v4.e;
+			var _v5 = dict.e;
+			var rClr = _v5.a;
+			var rK = _v5.b;
+			var rV = _v5.c;
+			var rLeft = _v5.d;
+			var rRight = _v5.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$moveRedRight = function (dict) {
+	if (((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) && (dict.e.$ === 'RBNode_elm_builtin')) {
+		if ((dict.d.d.$ === 'RBNode_elm_builtin') && (dict.d.d.a.$ === 'Red')) {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v1 = dict.d;
+			var lClr = _v1.a;
+			var lK = _v1.b;
+			var lV = _v1.c;
+			var _v2 = _v1.d;
+			var _v3 = _v2.a;
+			var llK = _v2.b;
+			var llV = _v2.c;
+			var llLeft = _v2.d;
+			var llRight = _v2.e;
+			var lRight = _v1.e;
+			var _v4 = dict.e;
+			var rClr = _v4.a;
+			var rK = _v4.b;
+			var rV = _v4.c;
+			var rLeft = _v4.d;
+			var rRight = _v4.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				$elm$core$Dict$Red,
+				lK,
+				lV,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, llK, llV, llLeft, llRight),
+				A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					lRight,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight)));
+		} else {
+			var clr = dict.a;
+			var k = dict.b;
+			var v = dict.c;
+			var _v5 = dict.d;
+			var lClr = _v5.a;
+			var lK = _v5.b;
+			var lV = _v5.c;
+			var lLeft = _v5.d;
+			var lRight = _v5.e;
+			var _v6 = dict.e;
+			var rClr = _v6.a;
+			var rK = _v6.b;
+			var rV = _v6.c;
+			var rLeft = _v6.d;
+			var rRight = _v6.e;
+			if (clr.$ === 'Black') {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			} else {
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					$elm$core$Dict$Black,
+					k,
+					v,
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, lK, lV, lLeft, lRight),
+					A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, rK, rV, rLeft, rRight));
+			}
+		}
+	} else {
+		return dict;
+	}
+};
+var $elm$core$Dict$removeHelpPrepEQGT = F7(
+	function (targetKey, dict, color, key, value, left, right) {
+		if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Red')) {
+			var _v1 = left.a;
+			var lK = left.b;
+			var lV = left.c;
+			var lLeft = left.d;
+			var lRight = left.e;
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				lK,
+				lV,
+				lLeft,
+				A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Red, key, value, lRight, right));
+		} else {
+			_v2$2:
+			while (true) {
+				if ((right.$ === 'RBNode_elm_builtin') && (right.a.$ === 'Black')) {
+					if (right.d.$ === 'RBNode_elm_builtin') {
+						if (right.d.a.$ === 'Black') {
+							var _v3 = right.a;
+							var _v4 = right.d;
+							var _v5 = _v4.a;
+							return $elm$core$Dict$moveRedRight(dict);
+						} else {
+							break _v2$2;
+						}
+					} else {
+						var _v6 = right.a;
+						var _v7 = right.d;
+						return $elm$core$Dict$moveRedRight(dict);
+					}
+				} else {
+					break _v2$2;
+				}
+			}
+			return dict;
+		}
+	});
+var $elm$core$Dict$removeMin = function (dict) {
+	if ((dict.$ === 'RBNode_elm_builtin') && (dict.d.$ === 'RBNode_elm_builtin')) {
+		var color = dict.a;
+		var key = dict.b;
+		var value = dict.c;
+		var left = dict.d;
+		var lColor = left.a;
+		var lLeft = left.d;
+		var right = dict.e;
+		if (lColor.$ === 'Black') {
+			if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+				var _v3 = lLeft.a;
+				return A5(
+					$elm$core$Dict$RBNode_elm_builtin,
+					color,
+					key,
+					value,
+					$elm$core$Dict$removeMin(left),
+					right);
+			} else {
+				var _v4 = $elm$core$Dict$moveRedLeft(dict);
+				if (_v4.$ === 'RBNode_elm_builtin') {
+					var nColor = _v4.a;
+					var nKey = _v4.b;
+					var nValue = _v4.c;
+					var nLeft = _v4.d;
+					var nRight = _v4.e;
+					return A5(
+						$elm$core$Dict$balance,
+						nColor,
+						nKey,
+						nValue,
+						$elm$core$Dict$removeMin(nLeft),
+						nRight);
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			}
+		} else {
+			return A5(
+				$elm$core$Dict$RBNode_elm_builtin,
+				color,
+				key,
+				value,
+				$elm$core$Dict$removeMin(left),
+				right);
+		}
+	} else {
+		return $elm$core$Dict$RBEmpty_elm_builtin;
+	}
+};
+var $elm$core$Dict$removeHelp = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBEmpty_elm_builtin') {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		} else {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_cmp(targetKey, key) < 0) {
+				if ((left.$ === 'RBNode_elm_builtin') && (left.a.$ === 'Black')) {
+					var _v4 = left.a;
+					var lLeft = left.d;
+					if ((lLeft.$ === 'RBNode_elm_builtin') && (lLeft.a.$ === 'Red')) {
+						var _v6 = lLeft.a;
+						return A5(
+							$elm$core$Dict$RBNode_elm_builtin,
+							color,
+							key,
+							value,
+							A2($elm$core$Dict$removeHelp, targetKey, left),
+							right);
+					} else {
+						var _v7 = $elm$core$Dict$moveRedLeft(dict);
+						if (_v7.$ === 'RBNode_elm_builtin') {
+							var nColor = _v7.a;
+							var nKey = _v7.b;
+							var nValue = _v7.c;
+							var nLeft = _v7.d;
+							var nRight = _v7.e;
+							return A5(
+								$elm$core$Dict$balance,
+								nColor,
+								nKey,
+								nValue,
+								A2($elm$core$Dict$removeHelp, targetKey, nLeft),
+								nRight);
+						} else {
+							return $elm$core$Dict$RBEmpty_elm_builtin;
+						}
+					}
+				} else {
+					return A5(
+						$elm$core$Dict$RBNode_elm_builtin,
+						color,
+						key,
+						value,
+						A2($elm$core$Dict$removeHelp, targetKey, left),
+						right);
+				}
+			} else {
+				return A2(
+					$elm$core$Dict$removeHelpEQGT,
+					targetKey,
+					A7($elm$core$Dict$removeHelpPrepEQGT, targetKey, dict, color, key, value, left, right));
+			}
+		}
+	});
+var $elm$core$Dict$removeHelpEQGT = F2(
+	function (targetKey, dict) {
+		if (dict.$ === 'RBNode_elm_builtin') {
+			var color = dict.a;
+			var key = dict.b;
+			var value = dict.c;
+			var left = dict.d;
+			var right = dict.e;
+			if (_Utils_eq(targetKey, key)) {
+				var _v1 = $elm$core$Dict$getMin(right);
+				if (_v1.$ === 'RBNode_elm_builtin') {
+					var minKey = _v1.b;
+					var minValue = _v1.c;
+					return A5(
+						$elm$core$Dict$balance,
+						color,
+						minKey,
+						minValue,
+						left,
+						$elm$core$Dict$removeMin(right));
+				} else {
+					return $elm$core$Dict$RBEmpty_elm_builtin;
+				}
+			} else {
+				return A5(
+					$elm$core$Dict$balance,
+					color,
+					key,
+					value,
+					left,
+					A2($elm$core$Dict$removeHelp, targetKey, right));
+			}
+		} else {
+			return $elm$core$Dict$RBEmpty_elm_builtin;
+		}
+	});
+var $elm$core$Dict$remove = F2(
+	function (key, dict) {
+		var _v0 = A2($elm$core$Dict$removeHelp, key, dict);
+		if ((_v0.$ === 'RBNode_elm_builtin') && (_v0.a.$ === 'Red')) {
+			var _v1 = _v0.a;
+			var k = _v0.b;
+			var v = _v0.c;
+			var l = _v0.d;
+			var r = _v0.e;
+			return A5($elm$core$Dict$RBNode_elm_builtin, $elm$core$Dict$Black, k, v, l, r);
+		} else {
+			var x = _v0;
+			return x;
+		}
+	});
+var $author$project$CardCountCheck$applyActionToEvolution = F3(
+	function (red, action, evo) {
+		switch (action.$) {
+			case 'Evolved':
+				var player = action.a.player;
+				var from = action.a.from;
+				var to = action.a.to;
+				var dict = _Utils_eq(player, red) ? evo.red : evo.blue;
+				var fromDepth = A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Dict$get, from.id, dict));
+				var newDict = A3(
+					$elm$core$Dict$insert,
+					to.id,
+					fromDepth + 1,
+					A2($elm$core$Dict$remove, from.id, dict));
+				return _Utils_eq(player, red) ? _Utils_update(
+					evo,
+					{red: newDict}) : _Utils_update(
+					evo,
+					{blue: newDict});
+			case 'KnockedOut':
+				var pokemon = action.a.pokemon;
+				var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
+				var newDict = A2($elm$core$Dict$remove, pokemon.card.id, dict);
+				return _Utils_eq(pokemon.player, red) ? _Utils_update(
+					evo,
+					{red: newDict}) : _Utils_update(
+					evo,
+					{blue: newDict});
+			default:
+				return evo;
+		}
+	});
+var $author$project$CardCountCheck$applyGroupToEvolution = F3(
+	function (red, evo, group) {
+		var evo1 = A3($author$project$CardCountCheck$applyActionToEvolution, red, group.action, evo);
+		return A3(
+			$elm$core$List$foldl,
+			F2(
+				function (detail, acc) {
+					return A3(
+						$elm$core$List$foldl,
+						F2(
+							function (bullet, a) {
+								return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+							}),
+						A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+						detail.bullets);
+				}),
+			evo1,
+			group.details);
+	});
 var $author$project$Main$addCard = F4(
 	function (red, player, card, hand) {
 		return _Utils_eq(player, red) ? _Utils_update(
@@ -6858,6 +7292,22 @@ var $author$project$Main$applyActionToPiles = F4(
 				var player = action.a.player;
 				var count = action.a.count;
 				return A4($author$project$Main$pilesPrizeDelta, red, player, -count, piles);
+			case 'KnockedOut':
+				var pokemon = action.a.pokemon;
+				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.player, 1, piles);
+			case 'MovedToHand':
+				var player = action.a.player;
+				var count = action.a.count;
+				return A4(
+					$author$project$Main$pilesDiscardDelta,
+					red,
+					player,
+					-A2($elm$core$Maybe$withDefault, 1, count),
+					piles);
+			case 'MovedToDiscard':
+				var owner = action.a.owner;
+				var count = action.a.count;
+				return A4($author$project$Main$pilesDiscardDelta, red, owner, count, piles);
 			default:
 				return piles;
 		}
@@ -6916,6 +7366,7 @@ var $author$project$CardCountCheck$stepGroup = F4(
 			active: A3($author$project$Main$applyGroupToActive, red, gs.active, group),
 			attachments: A2($author$project$Main$applyGroupToAttachments, group, gs.attachments),
 			bench: A4($author$project$Main$applyGroupToBench, red, gs.active, gs.bench, group),
+			evolution: A3($author$project$CardCountCheck$applyGroupToEvolution, red, gs.evolution, group),
 			hand: A3($author$project$Main$applyGroupToHand, red, gs.hand, group),
 			piles: A4($author$project$Main$applyGroupToPiles, red, isSetup, gs.piles, group),
 			stadium: A2($author$project$Main$applyGroupToStadium, gs.stadium, group)
@@ -6940,7 +7391,8 @@ var $author$project$CardCountCheck$formatBreakdown = F2(
 	function (label, bd) {
 		var wrong = (bd.total !== 60) ? ('  ← WRONG (off by ' + ($elm$core$String$fromInt(bd.total - 60) + ')')) : '';
 		var stadiumStr = (bd.stadium > 0) ? ('  stadium=' + $elm$core$String$fromInt(bd.stadium)) : '';
-		return '  ' + (label + (':' + ('  deck=' + ($elm$core$String$fromInt(bd.deck) + ('  prizes=' + ($elm$core$String$fromInt(bd.prizes) + ('  hand=' + ($elm$core$String$fromInt(bd.hand) + ('  active=' + ($elm$core$String$fromInt(bd.active) + ('  bench=' + ($elm$core$String$fromInt(bd.bench) + ('  attach=' + ($elm$core$String$fromInt(bd.attachments) + ('  discard=' + ($elm$core$String$fromInt(bd.discard) + (stadiumStr + ('  = ' + ($elm$core$String$fromInt(bd.total) + wrong)))))))))))))))))));
+		var evoStr = (bd.evolutionBuried > 0) ? ('  evo-buried=' + $elm$core$String$fromInt(bd.evolutionBuried)) : '';
+		return '  ' + (label + (':' + ('  deck=' + ($elm$core$String$fromInt(bd.deck) + ('  prizes=' + ($elm$core$String$fromInt(bd.prizes) + ('  hand=' + ($elm$core$String$fromInt(bd.hand) + ('  active=' + ($elm$core$String$fromInt(bd.active) + ('  bench=' + ($elm$core$String$fromInt(bd.bench) + ('  attach=' + ($elm$core$String$fromInt(bd.attachments) + ('  discard=' + ($elm$core$String$fromInt(bd.discard) + (stadiumStr + (evoStr + ('  = ' + ($elm$core$String$fromInt(bd.total) + wrong))))))))))))))))))));
 	});
 var $author$project$Replay$emptyState = {currentKind: $elm$core$Maybe$Nothing, currentLines: _List_Nil, sections: _List_Nil, turnCount: 0};
 var $author$project$Replay$ResultSection = function (a) {

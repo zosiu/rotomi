@@ -1625,6 +1625,17 @@ applyActionToPiles red isSetup action piles =
         Action.TookPrize { player, count } ->
             pilesPrizeDelta red player -count piles
 
+        Action.KnockedOut { pokemon } ->
+            pilesDiscardDelta red pokemon.player 1 piles
+
+        Action.MovedToHand { player, count } ->
+            -- Card retrieved from discard to hand (e.g. Night Stretcher, Brock's Scouting).
+            -- When count is Nothing a single card was moved.
+            pilesDiscardDelta red player -(Maybe.withDefault 1 count) piles
+
+        Action.MovedToDiscard { owner, count } ->
+            pilesDiscardDelta red owner count piles
+
         _ ->
             piles
 
