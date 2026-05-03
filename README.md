@@ -55,15 +55,13 @@ The script steps through every action group and stops at the first violation,
 printing a per-category breakdown and a link to open that exact moment in the app.
 
 ```sh
-# Compile and run in one step (passes the fixture path after --)
-elm make src/CardCountCheck.elm --output=scripts/card-count-check-elm.js \
-  && node scripts/card-count-check.js replay_fixtures/match_022.txt
+npm run card-count-check -- replay_fixtures/match_022.txt
 ```
 
-Or build once, then run repeatedly without recompiling:
+Build once, then run repeatedly without recompiling:
 
 ```sh
-elm make src/CardCountCheck.elm --output=scripts/card-count-check-elm.js
+npm run card-count-check:build
 node scripts/card-count-check.js replay_fixtures/match_004.txt
 node scripts/card-count-check.js replay_fixtures/match_009.txt
 ```
@@ -73,7 +71,7 @@ Pass `--url <replay-url>` to embed a specific hosted URL in the visual link
 running):
 
 ```sh
-node scripts/card-count-check.js replay_fixtures/brickfest.txt \
+npm run card-count-check -- replay_fixtures/brickfest.txt \
   --url https://gist.githubusercontent.com/.../brickfest.txt
 ```
 

@@ -10,7 +10,8 @@
     "test:watch": "elm-test --watch",
     "format": "elm-format src/ tests/ --yes",
     "validate-fixtures": "elm make src/ValidateFixtures.elm --output=scripts/validate-fixtures-elm.js && node scripts/validate-fixtures.js",
-    "card-count-check": "elm make src/CardCountCheck.elm --output=scripts/card-count-check-elm.js && node scripts/card-count-check.js"
+    "card-count-check:build": "elm make src/CardCountCheck.elm --output=scripts/card-count-check-elm.js",
+    "card-count-check": "npm run card-count-check:build && node scripts/card-count-check.js"
   },
   "keywords": [],
   "author": "",
