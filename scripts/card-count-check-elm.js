@@ -7478,7 +7478,7 @@ var $author$project$CardCountCheck$checkGroups = F3(
 							blueHasUnknowns: A2(
 								$elm$core$List$any,
 								$elm$core$Basics$eq($elm$core$Maybe$Nothing),
-								newGs.hand.blue),
+								newGs.hand.red),
 							groupIndex: indexed.groupIndex,
 							groupRaw: indexed.group.raw,
 							redBreakdown: redBD,
@@ -7869,9 +7869,9 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 							'✗  ' + flags.name,
 							'  Failed at section ' + ($elm$core$String$fromInt(fail.sectionIndex) + (', group ' + $elm$core$String$fromInt(fail.groupIndex))),
 							'  Action: ' + fail.groupRaw,
-							A2($author$project$CardCountCheck$formatBreakdown, 'red (' + (players.red + ')'), fail.redBreakdown),
-							A2($author$project$CardCountCheck$formatBreakdown, 'blue (' + (players.blue + ')'), fail.blueBreakdown),
-							A4($author$project$CardCountCheck$formatDuplicates, players.red, players.blue, fail.redDuplicates, fail.blueDuplicates),
+							A2($author$project$CardCountCheck$formatBreakdown, 'red (' + (players.blue + ')'), fail.blueBreakdown),
+							A2($author$project$CardCountCheck$formatBreakdown, 'blue (' + (players.red + ')'), fail.redBreakdown),
+							A4($author$project$CardCountCheck$formatDuplicates, players.blue, players.red, fail.blueDuplicates, fail.redDuplicates),
 							$author$project$CardCountCheck$formatBlueUnknowns(fail.blueHasUnknowns),
 							visualUrl,
 							''

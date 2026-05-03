@@ -488,7 +488,7 @@ checkGroups red blue groups =
                     , blueBreakdown = blueBD
                     , redDuplicates = duplicatesOnBoard gs.bench.red gs.active.red
                     , blueDuplicates = duplicatesOnBoard gs.bench.blue gs.active.blue
-                    , blueHasUnknowns = List.any ((==) Nothing) newGs.hand.blue
+                    , blueHasUnknowns = List.any ((==) Nothing) newGs.hand.red
                     }
 
             else
@@ -641,9 +641,9 @@ checkFile flags =
                                 ++ ", group "
                                 ++ String.fromInt fail.groupIndex
                             , "  Action: " ++ fail.groupRaw
-                            , formatBreakdown ("red (" ++ players.red ++ ")") fail.redBreakdown
-                            , formatBreakdown ("blue (" ++ players.blue ++ ")") fail.blueBreakdown
-                            , formatDuplicates players.red players.blue fail.redDuplicates fail.blueDuplicates
+                            , formatBreakdown ("red (" ++ players.blue ++ ")") fail.blueBreakdown
+                            , formatBreakdown ("blue (" ++ players.red ++ ")") fail.redBreakdown
+                            , formatDuplicates players.blue players.red fail.blueDuplicates fail.redDuplicates
                             , formatBlueUnknowns fail.blueHasUnknowns
                             , visualUrl
                             , ""
