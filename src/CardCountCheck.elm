@@ -25,6 +25,7 @@ import Main
         , emptyPiles
         , isPokemonAbilityGroup
         , lookupAttachments
+        , pokemonAbilityPlayedCardId
         , sectionLines
         )
 import Platform
@@ -224,27 +225,31 @@ applyGroupToEvolution red evo group =
 
                 Action.ShuffledInto { player } ->
                     if isPokemonAbility then
-                        -- Cards from bench/evo-buried go to deck. Remove the
-                        -- evolved Pokémon entry from the evo dict so evo-buried
-                        -- is decremented for the buried pre-evos going with it.
+                        -- One evolved Pokémon + its single evo-buried pre-evo go to deck.
+                        -- Decrement the evolved card's depth by 1 (don't remove entirely:
+                        -- there may be multiple copies of the same evolution on the bench).
                         let
-                            cardIds =
-                                detail.bullets
-                                    |> List.concatMap
-                                        (\b ->
-                                            case b.action of
-                                                Action.CardList cards ->
-                                                    List.map .id cards
+                            decrementOne dict cid =
+                                case Dict.get cid dict of
+                                    Nothing ->
+                                        dict
 
-                                                _ ->
-                                                    []
-                                        )
+                                    Just 1 ->
+                                        Dict.remove cid dict
+
+                                    Just n ->
+                                        Dict.insert cid (n - 1) dict
                         in
-                        if player == red then
-                            { acc | red = List.foldl Dict.remove acc.red cardIds }
+                        case pokemonAbilityPlayedCardId group of
+                            Nothing ->
+                                acc
 
-                        else
-                            { acc | blue = List.foldl Dict.remove acc.blue cardIds }
+                            Just cid ->
+                                if player == red then
+                                    { acc | red = decrementOne acc.red cid }
+
+                                else
+                                    { acc | blue = decrementOne acc.blue cid }
 
                     else
                         List.foldl

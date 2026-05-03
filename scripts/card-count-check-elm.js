@@ -6511,10 +6511,25 @@ var $author$project$Main$detailCardList = function (detail) {
 			},
 			detail.bullets));
 };
-var $author$project$Main$isPokemonAbilityGroup = function (group) {
+var $author$project$Main$pokemonAbilityPlayedCardId = function (group) {
 	var _v0 = group.action;
-	if (_v0.$ === 'PlayedTrainer') {
-		var card = _v0.a.card;
+	switch (_v0.$) {
+		case 'PlayedTrainer':
+			var card = _v0.a.card;
+			return $elm$core$Maybe$Just(card.id);
+		case 'UsedAttack':
+			var attacker = _v0.a.attacker;
+			return $elm$core$Maybe$Just(attacker.card.id);
+		default:
+			return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$isPokemonAbilityGroup = function (group) {
+	var _v0 = $author$project$Main$pokemonAbilityPlayedCardId(group);
+	if (_v0.$ === 'Nothing') {
+		return false;
+	} else {
+		var cardId = _v0.a;
 		return A2(
 			$elm$core$List$any,
 			function (d) {
@@ -6530,7 +6545,7 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 								return A2(
 									$elm$core$List$any,
 									function (c) {
-										return _Utils_eq(c.id, card.id);
+										return _Utils_eq(c.id, cardId);
 									},
 									cards);
 							} else {
@@ -6543,21 +6558,11 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 				}
 			},
 			group.details);
-	} else {
-		return false;
 	}
 };
 var $author$project$Main$applyGroupToBench = F4(
 	function (red, active, bench, group) {
-		var pokemonAbilityCardId = function () {
-			var _v3 = group.action;
-			if (_v3.$ === 'PlayedTrainer') {
-				var card = _v3.a.card;
-				return $author$project$Main$isPokemonAbilityGroup(group) ? $elm$core$Maybe$Just(card.id) : $elm$core$Maybe$Nothing;
-			} else {
-				return $elm$core$Maybe$Nothing;
-			}
-		}();
+		var pokemonAbilityCardId = $author$project$Main$isPokemonAbilityGroup(group) ? $author$project$Main$pokemonAbilityPlayedCardId(group) : $elm$core$Maybe$Nothing;
 		var bench1 = A4($author$project$Main$applyActionToBench, red, active, group.action, bench);
 		return A3(
 			$elm$core$List$foldl,
@@ -7102,32 +7107,35 @@ var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 						case 'ShuffledInto':
 							var player = _v0.a.player;
 							if (isPokemonAbility) {
-								var cardIds = A2(
-									$elm$core$List$concatMap,
-									function (b) {
-										var _v1 = b.action;
-										if (_v1.$ === 'CardList') {
-											var cards = _v1.a;
-											return A2(
-												$elm$core$List$map,
-												function ($) {
-													return $.id;
-												},
-												cards);
+								var decrementOne = F2(
+									function (dict, cid) {
+										var _v2 = A2($elm$core$Dict$get, cid, dict);
+										if (_v2.$ === 'Nothing') {
+											return dict;
 										} else {
-											return _List_Nil;
+											if (_v2.a === 1) {
+												return A2($elm$core$Dict$remove, cid, dict);
+											} else {
+												var n = _v2.a;
+												return A3($elm$core$Dict$insert, cid, n - 1, dict);
+											}
 										}
-									},
-									detail.bullets);
-								return _Utils_eq(player, red) ? _Utils_update(
-									acc,
-									{
-										red: A3($elm$core$List$foldl, $elm$core$Dict$remove, acc.red, cardIds)
-									}) : _Utils_update(
-									acc,
-									{
-										blue: A3($elm$core$List$foldl, $elm$core$Dict$remove, acc.blue, cardIds)
 									});
+								var _v1 = $author$project$Main$pokemonAbilityPlayedCardId(group);
+								if (_v1.$ === 'Nothing') {
+									return acc;
+								} else {
+									var cid = _v1.a;
+									return _Utils_eq(player, red) ? _Utils_update(
+										acc,
+										{
+											red: A2(decrementOne, acc.red, cid)
+										}) : _Utils_update(
+										acc,
+										{
+											blue: A2(decrementOne, acc.blue, cid)
+										});
+								}
 							} else {
 								return A3(
 									$elm$core$List$foldl,
@@ -7356,7 +7364,15 @@ var $author$project$Main$applyDetailAction = F3(
 			case 'Discarded':
 				var player = _v0.a.player;
 				var count = _v0.a.count;
-				return A4($author$project$Main$removeN, red, player, count, hand);
+				var known = $author$project$Main$detailCardList(detail);
+				return $elm$core$List$isEmpty(known) ? A4($author$project$Main$removeN, red, player, count, hand) : A3(
+					$elm$core$List$foldl,
+					F2(
+						function (card, h) {
+							return A4($author$project$Main$removeById, red, player, card.id, h);
+						}),
+					hand,
+					known);
 			case 'ShuffledInto':
 				var player = _v0.a.player;
 				var card = _v0.a.card;

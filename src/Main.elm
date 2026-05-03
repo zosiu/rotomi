@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, pokemonAbilityPlayedCardId, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
@@ -1275,7 +1275,15 @@ applyDetailAction red hand detail =
             removeById red player card.id hand
 
         Action.Discarded { player, count } ->
-            removeN red player count hand
+            let
+                known =
+                    detailCardList detail
+            in
+            if List.isEmpty known then
+                removeN red player count hand
+
+            else
+                List.foldl (\card h -> removeById red player card.id h) hand known
 
         Action.ShuffledInto { player, card, count } ->
             case card of
@@ -1318,15 +1326,19 @@ applyDetailAction red hand detail =
             hand
 
 
-{-| True when the group represents a Pokémon ability play (e.g. Dudunsparce
-"Run Away Draw") where the played card ID appears in a ShuffledInto CardList.
-These are logged as PlayedTrainer but the card was on the bench, not in hand,
-and the shuffled cards come from bench/evo-buried rather than hand.
+{-| True when the group represents a Pokémon ability (e.g. Dudunsparce
+"Run Away Draw") where the ability card ID appears in a ShuffledInto CardList.
+Logged as either PlayedTrainer or UsedAttack depending on game version; in both
+cases the card was on the bench (not in hand) and shuffled cards come from
+bench/evo-buried rather than hand.
 -}
 isPokemonAbilityGroup : Action.ActionGroup -> Bool
 isPokemonAbilityGroup group =
-    case group.action of
-        Action.PlayedTrainer { card } ->
+    case pokemonAbilityPlayedCardId group of
+        Nothing ->
+            False
+
+        Just cardId ->
             List.any
                 (\d ->
                     case d.action of
@@ -1337,7 +1349,7 @@ isPokemonAbilityGroup group =
                                     (\b ->
                                         case b.action of
                                             Action.CardList cards ->
-                                                List.any (\c -> c.id == card.id) cards
+                                                List.any (\c -> c.id == cardId) cards
 
                                             _ ->
                                                 False
@@ -1349,8 +1361,21 @@ isPokemonAbilityGroup group =
                 )
                 group.details
 
+
+{-| Returns the card ID of the ability Pokémon for PlayedTrainer or UsedAttack
+top actions, Nothing otherwise.
+-}
+pokemonAbilityPlayedCardId : Action.ActionGroup -> Maybe String
+pokemonAbilityPlayedCardId group =
+    case group.action of
+        Action.PlayedTrainer { card } ->
+            Just card.id
+
+        Action.UsedAttack { attacker } ->
+            Just attacker.card.id
+
         _ ->
-            False
+            Nothing
 
 
 applyGroupToHand : String -> HandState -> Action.ActionGroup -> HandState
@@ -2031,16 +2056,11 @@ applyGroupToBench red active bench group =
         -- For a Pokemon ability group, record the played card so the ShuffledInto
         -- detail knows which bench slot to remove.
         pokemonAbilityCardId =
-            case group.action of
-                Action.PlayedTrainer { card } ->
-                    if isPokemonAbilityGroup group then
-                        Just card.id
+            if isPokemonAbilityGroup group then
+                pokemonAbilityPlayedCardId group
 
-                    else
-                        Nothing
-
-                _ ->
-                    Nothing
+            else
+                Nothing
 
         bench1 =
             applyActionToBench red active group.action bench
