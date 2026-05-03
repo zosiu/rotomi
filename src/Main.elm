@@ -3045,11 +3045,7 @@ viewHandRow playerName upsideDown color alignItems cards imageFor =
                 [ text ("(" ++ String.fromInt (List.length cards) ++ ")") ]
             ]
         , div
-            [ style "display" "flex"
-            , style "align-items" "center"
-            , style "justify-content" "center"
-            , style "gap" "0.35rem"
-            , style "overflow-x" "auto"
+            [ style "overflow-x" "auto"
             , style "flex" "1"
             , style "min-width" "0"
             , style "min-height" handCardH
@@ -3058,17 +3054,29 @@ viewHandRow playerName upsideDown color alignItems cards imageFor =
             -- flex-start (player, bench above) → padding-bottom keeps cards flush at top.
             , if alignItems == "flex-end" then style "padding-top" "4px" else style "padding-bottom" "4px"
             ]
-            (List.map
-                (\item ->
-                    case item of
-                        KnownPlayCard card ->
-                            viewHandCard upsideDown color imageFor (Just card)
+            [ div
+                -- Inner wrapper: centered via margin auto when cards fit, but
+                -- flex-shrink:0 keeps it at natural width when they overflow so
+                -- the outer scroll container can reach the first card on the left.
+                [ style "display" "flex"
+                , style "align-items" "center"
+                , style "gap" "0.35rem"
+                , style "flex-shrink" "0"
+                , style "margin" "0 auto"
+                , style "width" "fit-content"
+                ]
+                (List.map
+                    (\item ->
+                        case item of
+                            KnownPlayCard card ->
+                                viewHandCard upsideDown color imageFor (Just card)
 
-                        UnknownPlayCards n ->
-                            viewUnknownCardBack handCardW handCardH upsideDown n
+                            UnknownPlayCards n ->
+                                viewUnknownCardBack handCardW handCardH upsideDown n
+                    )
+                    (collapseUnknowns cards)
                 )
-                (collapseUnknowns cards)
-            )
+            ]
         ]
 
 
