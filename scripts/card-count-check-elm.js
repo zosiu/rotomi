@@ -7375,17 +7375,26 @@ var $author$project$Main$applyTopAction = F3(
 				return hand;
 		}
 	});
+var $elm$core$List$member = F2(
+	function (x, xs) {
+		return A2(
+			$elm$core$List$any,
+			function (a) {
+				return _Utils_eq(a, x);
+			},
+			xs);
+	});
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
 		var hand1 = A3($author$project$Main$applyTopAction, red, hand, group);
 		var details = function () {
-			var _v0 = group.action;
-			if (_v0.$ === 'PlayedStadium') {
+			var _v2 = group.action;
+			if (_v2.$ === 'PlayedStadium') {
 				return A2(
 					$elm$core$List$filter,
 					function (d) {
-						var _v1 = d.action;
-						if (_v1.$ === 'DiscardedCard') {
+						var _v3 = d.action;
+						if (_v3.$ === 'DiscardedCard') {
 							return false;
 						} else {
 							return true;
@@ -7396,11 +7405,29 @@ var $author$project$Main$applyGroupToHand = F3(
 				return group.details;
 			}
 		}();
+		var deckAttachPlayers = A2(
+			$elm$core$List$filterMap,
+			function (d) {
+				var _v1 = d.action;
+				if (_v1.$ === 'ShuffledDeck') {
+					var player = _v1.a.player;
+					return $elm$core$Maybe$Just(player);
+				} else {
+					return $elm$core$Maybe$Nothing;
+				}
+			},
+			group.details);
 		return A3(
 			$elm$core$List$foldl,
 			F2(
 				function (detail, h) {
-					return A3($author$project$Main$applyDetailAction, red, h, detail);
+					var _v0 = detail.action;
+					if (_v0.$ === 'Attached') {
+						var player = _v0.a.player;
+						return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+					} else {
+						return A3($author$project$Main$applyDetailAction, red, h, detail);
+					}
 				}),
 			hand1,
 			details);
@@ -7542,17 +7569,38 @@ var $author$project$Main$applyActionToPiles = F4(
 var $author$project$Main$applyGroupToPiles = F4(
 	function (red, isSetup, piles, group) {
 		var piles1 = A4($author$project$Main$applyActionToPiles, red, isSetup, group.action, piles);
+		var deckAttachPlayers = A2(
+			$elm$core$List$filterMap,
+			function (d) {
+				var _v1 = d.action;
+				if (_v1.$ === 'ShuffledDeck') {
+					var player = _v1.a.player;
+					return $elm$core$Maybe$Just(player);
+				} else {
+					return $elm$core$Maybe$Nothing;
+				}
+			},
+			group.details);
 		return A3(
 			$elm$core$List$foldl,
 			F2(
 				function (detail, p) {
+					var p1 = function () {
+						var _v0 = detail.action;
+						if (_v0.$ === 'Attached') {
+							var player = _v0.a.player;
+							return A2($elm$core$List$member, player, deckAttachPlayers) ? A4($author$project$Main$pilesDeckDelta, red, player, -1, p) : A4($author$project$Main$applyActionToPiles, red, isSetup, detail.action, p);
+						} else {
+							return A4($author$project$Main$applyActionToPiles, red, isSetup, detail.action, p);
+						}
+					}();
 					return A3(
 						$elm$core$List$foldl,
 						F2(
 							function (bullet, bp) {
 								return A4($author$project$Main$applyActionToPiles, red, isSetup, bullet.action, bp);
 							}),
-						A4($author$project$Main$applyActionToPiles, red, isSetup, detail.action, p),
+						p1,
 						detail.bullets);
 				}),
 			piles1,

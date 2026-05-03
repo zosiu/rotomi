@@ -1331,8 +1331,36 @@ applyGroupToHand red hand group =
 
                 _ ->
                     group.details
+
+        -- When a group contains a ShuffledDeck detail, attached items for that
+        -- player come from the deck (searched via trainer effect), not the hand.
+        deckAttachPlayers =
+            group.details
+                |> List.filterMap
+                    (\d ->
+                        case d.action of
+                            Action.ShuffledDeck { player } ->
+                                Just player
+
+                            _ ->
+                                Nothing
+                    )
     in
-    List.foldl (\detail h -> applyDetailAction red h detail) hand1 details
+    List.foldl
+        (\detail h ->
+            case detail.action of
+                Action.Attached { player } ->
+                    if List.member player deckAttachPlayers then
+                        h
+
+                    else
+                        applyDetailAction red h detail
+
+                _ ->
+                    applyDetailAction red h detail
+        )
+        hand1
+        details
 
 
 collectAllGroups : Replay.Replay -> Int -> Int -> List Action.ActionGroup
@@ -1647,12 +1675,37 @@ applyGroupToPiles red isSetup piles group =
     let
         piles1 =
             applyActionToPiles red isSetup group.action piles
+
+        deckAttachPlayers =
+            group.details
+                |> List.filterMap
+                    (\d ->
+                        case d.action of
+                            Action.ShuffledDeck { player } ->
+                                Just player
+
+                            _ ->
+                                Nothing
+                    )
     in
     List.foldl
         (\detail p ->
+            let
+                p1 =
+                    case detail.action of
+                        Action.Attached { player } ->
+                            if List.member player deckAttachPlayers then
+                                pilesDeckDelta red player -1 p
+
+                            else
+                                applyActionToPiles red isSetup detail.action p
+
+                        _ ->
+                            applyActionToPiles red isSetup detail.action p
+            in
             List.foldl
                 (\bullet bp -> applyActionToPiles red isSetup bullet.action bp)
-                (applyActionToPiles red isSetup detail.action p)
+                p1
                 detail.bullets
         )
         piles1
