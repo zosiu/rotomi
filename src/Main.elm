@@ -1378,11 +1378,70 @@ pokemonAbilityPlayedCardId group =
             Nothing
 
 
+{-| True for a PlayedTrainer group that shuffles specific cards from the
+discard pile into the deck (e.g. Energy Recycler). Signature: exactly one
+anonymous ShuffledInto with a CardList bullet and no DrewCount details.
+-}
+isDiscardShuffleGroup : Action.ActionGroup -> Bool
+isDiscardShuffleGroup group =
+    case group.action of
+        Action.PlayedTrainer _ ->
+            let
+                anonymousShuffles =
+                    List.filter
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledInto { card } ->
+                                    card == Nothing
+
+                                _ ->
+                                    False
+                        )
+                        group.details
+
+                hasDrewCount =
+                    List.any
+                        (\d ->
+                            case d.action of
+                                Action.DrewCount _ ->
+                                    True
+
+                                _ ->
+                                    False
+                        )
+                        group.details
+
+                singleShuffleHasCardList =
+                    case anonymousShuffles of
+                        [ single ] ->
+                            List.any
+                                (\b ->
+                                    case b.action of
+                                        Action.CardList _ ->
+                                            True
+
+                                        _ ->
+                                            False
+                                )
+                                single.bullets
+
+                        _ ->
+                            False
+            in
+            singleShuffleHasCardList && not hasDrewCount
+
+        _ ->
+            False
+
+
 applyGroupToHand : String -> HandState -> Action.ActionGroup -> HandState
 applyGroupToHand red hand group =
     let
         isPokemonAbility =
             isPokemonAbilityGroup group
+
+        isDiscardShuffle =
+            isDiscardShuffleGroup group
 
         hand1 =
             if isPokemonAbility then
@@ -1436,8 +1495,9 @@ applyGroupToHand red hand group =
                         applyDetailAction red h detail
 
                 Action.ShuffledInto _ ->
-                    if isPokemonAbility then
-                        -- Cards come from bench/evo-buried, not hand.
+                    if isPokemonAbility || isDiscardShuffle then
+                        -- Cards come from bench/evo-buried (ability) or discard pile
+                        -- (Energy Recycler-like trainers), not from hand.
                         h
 
                     else
@@ -1597,6 +1657,34 @@ correctGroupPlayers players group =
                 _ ->
                     Nothing
 
+        -- If the group has exactly one anonymous ShuffledInto detail, its player
+        -- is recorded here. A single shuffle is trustworthy as-is (e.g. Energy
+        -- Recycler) — only multi-player groups (e.g. Judge) need reattribution.
+        singleShuffledIntoPlayer =
+            let
+                shufflePlayers =
+                    List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledInto { player, card } ->
+                                    if card == Nothing then
+                                        Just player
+
+                                    else
+                                        Nothing
+
+                                _ ->
+                                    Nothing
+                        )
+                        group.details
+            in
+            case shufflePlayers of
+                [ p ] ->
+                    Just p
+
+                _ ->
+                    Nothing
+
         -- True when the group has a ShuffledInto with a CardList bullet for
         -- the given player — confirms the player is the recorder (cards visible).
         hasRevealedShuffleFor player =
@@ -1649,12 +1737,15 @@ correctGroupPlayers players group =
 
                 Action.ShuffledInto { player, card } ->
                     if card == Nothing then
-                        -- Single-player draw+shuffle group: the shuffle belongs to the
-                        -- same player who drew (e.g. Dudunsparce), trust raw attribution.
-                        -- Multi-player groups (e.g. Judge): both actions are logged under
+                        -- Single-player draw+shuffle (Dudunsparce) or single discard
+                        -- shuffle (Energy Recycler): the raw attribution is correct.
+                        -- Multi-player groups (e.g. Judge): both shuffles are logged under
                         -- the card player but belong to different players — run
-                        -- correctDetailPlayer.
+                        -- correctDetailPlayer to fix that.
                         if singleDrewPlayer == Just player && hasRevealedShuffleFor player then
+                            detail
+
+                        else if singleShuffledIntoPlayer == Just player then
                             detail
 
                         else
@@ -1877,10 +1968,32 @@ applyGroupToPiles red isSetup piles group =
 
                         _ ->
                             applyActionToPiles red isSetup detail.action p
+
+                -- For discard-shuffle groups (e.g. Energy Recycler), the shuffled
+                -- cards come from the discard pile, so also decrement discard.
+                p2 =
+                    if isDiscardShuffleGroup group then
+                        case detail.action of
+                            Action.ShuffledInto { player, card, count } ->
+                                pilesDiscardDelta red player
+                                    -(case card of
+                                        Just _ ->
+                                            1
+
+                                        Nothing ->
+                                            Maybe.withDefault 1 count
+                                     )
+                                    p1
+
+                            _ ->
+                                p1
+
+                    else
+                        p1
             in
             List.foldl
                 (\bullet bp -> applyActionToPiles red isSetup bullet.action bp)
-                p1
+                p2
                 detail.bullets
         )
         piles1

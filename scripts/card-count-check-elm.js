@@ -3084,6 +3084,27 @@ var $elm$core$List$map = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
+		var singleShuffledIntoPlayer = function () {
+			var shufflePlayers = A2(
+				$elm$core$List$filterMap,
+				function (d) {
+					var _v8 = d.action;
+					if (_v8.$ === 'ShuffledInto') {
+						var player = _v8.a.player;
+						var card = _v8.a.card;
+						return _Utils_eq(card, $elm$core$Maybe$Nothing) ? $elm$core$Maybe$Just(player) : $elm$core$Maybe$Nothing;
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				group.details);
+			if (shufflePlayers.b && (!shufflePlayers.b.b)) {
+				var p = shufflePlayers.a;
+				return $elm$core$Maybe$Just(p);
+			} else {
+				return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var singleDrewPlayer = function () {
 			var drewDetails = A2(
 				$elm$core$List$filterMap,
@@ -3171,7 +3192,9 @@ var $author$project$Main$correctGroupPlayers = F2(
 					var card = _v0.a.card;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? ((_Utils_eq(
 						singleDrewPlayer,
-						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
+						$elm$core$Maybe$Just(player)) && hasRevealedShuffleFor(player)) ? detail : (_Utils_eq(
+						singleShuffledIntoPlayer,
+						$elm$core$Maybe$Just(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail))) : detail;
 				case 'PutOnBottom':
 					var card = _v0.a.card;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
@@ -7599,6 +7622,55 @@ var $author$project$Main$applyTopAction = F3(
 				return hand;
 		}
 	});
+var $author$project$Main$isDiscardShuffleGroup = function (group) {
+	var _v0 = group.action;
+	if (_v0.$ === 'PlayedTrainer') {
+		var hasDrewCount = A2(
+			$elm$core$List$any,
+			function (d) {
+				var _v4 = d.action;
+				if (_v4.$ === 'DrewCount') {
+					return true;
+				} else {
+					return false;
+				}
+			},
+			group.details);
+		var anonymousShuffles = A2(
+			$elm$core$List$filter,
+			function (d) {
+				var _v3 = d.action;
+				if (_v3.$ === 'ShuffledInto') {
+					var card = _v3.a.card;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing);
+				} else {
+					return false;
+				}
+			},
+			group.details);
+		var singleShuffleHasCardList = function () {
+			if (anonymousShuffles.b && (!anonymousShuffles.b.b)) {
+				var single = anonymousShuffles.a;
+				return A2(
+					$elm$core$List$any,
+					function (b) {
+						var _v2 = b.action;
+						if (_v2.$ === 'CardList') {
+							return true;
+						} else {
+							return false;
+						}
+					},
+					single.bullets);
+			} else {
+				return false;
+			}
+		}();
+		return singleShuffleHasCardList && (!hasDrewCount);
+	} else {
+		return false;
+	}
+};
 var $elm$core$List$member = F2(
 	function (x, xs) {
 		return A2(
@@ -7611,6 +7683,7 @@ var $elm$core$List$member = F2(
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
 		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
+		var isDiscardShuffle = $author$project$Main$isDiscardShuffleGroup(group);
 		var hand1 = isPokemonAbility ? hand : A3($author$project$Main$applyTopAction, red, hand, group);
 		var details = function () {
 			var _v2 = group.action;
@@ -7652,7 +7725,7 @@ var $author$project$Main$applyGroupToHand = F3(
 							var player = _v0.a.player;
 							return A2($elm$core$List$member, player, deckAttachPlayers) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
 						case 'ShuffledInto':
-							return isPokemonAbility ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
+							return (isPokemonAbility || isDiscardShuffle) ? h : A3($author$project$Main$applyDetailAction, red, h, detail);
 						default:
 							return A3($author$project$Main$applyDetailAction, red, h, detail);
 					}
@@ -7800,9 +7873,9 @@ var $author$project$Main$applyGroupToPiles = F4(
 		var deckAttachPlayers = A2(
 			$elm$core$List$filterMap,
 			function (d) {
-				var _v1 = d.action;
-				if (_v1.$ === 'ShuffledDeck') {
-					var player = _v1.a.player;
+				var _v3 = d.action;
+				if (_v3.$ === 'ShuffledDeck') {
+					var player = _v3.a.player;
 					return $elm$core$Maybe$Just(player);
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -7814,12 +7887,38 @@ var $author$project$Main$applyGroupToPiles = F4(
 			F2(
 				function (detail, p) {
 					var p1 = function () {
-						var _v0 = detail.action;
-						if (_v0.$ === 'Attached') {
-							var player = _v0.a.player;
+						var _v2 = detail.action;
+						if (_v2.$ === 'Attached') {
+							var player = _v2.a.player;
 							return A2($elm$core$List$member, player, deckAttachPlayers) ? A4($author$project$Main$pilesDeckDelta, red, player, -1, p) : A4($author$project$Main$applyActionToPiles, red, isSetup, detail.action, p);
 						} else {
 							return A4($author$project$Main$applyActionToPiles, red, isSetup, detail.action, p);
+						}
+					}();
+					var p2 = function () {
+						if ($author$project$Main$isDiscardShuffleGroup(group)) {
+							var _v0 = detail.action;
+							if (_v0.$ === 'ShuffledInto') {
+								var player = _v0.a.player;
+								var card = _v0.a.card;
+								var count = _v0.a.count;
+								return A4(
+									$author$project$Main$pilesDiscardDelta,
+									red,
+									player,
+									-function () {
+										if (card.$ === 'Just') {
+											return 1;
+										} else {
+											return A2($elm$core$Maybe$withDefault, 1, count);
+										}
+									}(),
+									p1);
+							} else {
+								return p1;
+							}
+						} else {
+							return p1;
 						}
 					}();
 					return A3(
@@ -7828,7 +7927,7 @@ var $author$project$Main$applyGroupToPiles = F4(
 							function (bullet, bp) {
 								return A4($author$project$Main$applyActionToPiles, red, isSetup, bullet.action, bp);
 							}),
-						p1,
+						p2,
 						detail.bullets);
 				}),
 			piles1,
