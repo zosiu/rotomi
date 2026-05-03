@@ -2957,6 +2957,16 @@ viewAttachmentCircle cache item =
             Dict.get item.id cache
                 |> Maybe.andThen .imageUrl
                 |> Maybe.map (\u -> u ++ "/high.webp")
+
+        isBasicEnergy =
+            basicEnergyImageUrl item.name /= Nothing
+
+        bgPosition =
+            if isBasicEnergy then
+                "center 55%"
+
+            else
+                "center 30%"
     in
     div
         [ style "width" "18px"
@@ -2977,7 +2987,7 @@ viewAttachmentCircle cache item =
                     , style "height" "100%"
                     , style "background-image" ("url('" ++ u ++ "')")
                     , style "background-size" "150%"
-                    , style "background-position" "center 20%"
+                    , style "background-position" bgPosition
                     ]
                     []
 
