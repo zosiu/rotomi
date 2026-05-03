@@ -9262,6 +9262,21 @@ var $author$project$Main$collectAllGroups = F3(
 					}),
 				replay.v));
 	});
+var $author$project$Main$actionPlayer = function (action) {
+	switch (action.$) {
+		case 11:
+			var player = action.a.d;
+			return player;
+		case 32:
+			var player = action.a.d;
+			return player;
+		case 31:
+			var player = action.a.d;
+			return player;
+		default:
+			return '';
+	}
+};
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
 		any:
@@ -9358,6 +9373,22 @@ var $author$project$Main$correctDetailPlayer = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
+		var topActionPlayer = function () {
+			var _v3 = group.L;
+			switch (_v3.$) {
+				case 6:
+					var player = _v3.a.d;
+					return $elm$core$Maybe$Just(player);
+				case 9:
+					var player = _v3.a.d;
+					return $elm$core$Maybe$Just(player);
+				case 7:
+					var player = _v3.a.d;
+					return $elm$core$Maybe$Just(player);
+				default:
+					return $elm$core$Maybe$Nothing;
+			}
+		}();
 		var shuffleDeckPlayer = $elm$core$List$head(
 			A2(
 				$elm$core$List$filterMap,
@@ -9392,14 +9423,22 @@ var $author$project$Main$correctGroupPlayers = F2(
 							return detail;
 						}
 					} else {
-						return A2($author$project$Main$correctDetailPlayer, players, detail);
+						return _Utils_eq(
+							topActionPlayer,
+							$elm$core$Maybe$Just(player)) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail);
 					}
 				case 32:
 					var card = _v0.a.f;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (_Utils_eq(
+						topActionPlayer,
+						$elm$core$Maybe$Just(
+							$author$project$Main$actionPlayer(detail.L))) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
 				case 31:
 					var card = _v0.a.f;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (_Utils_eq(
+						topActionPlayer,
+						$elm$core$Maybe$Just(
+							$author$project$Main$actionPlayer(detail.L))) ? detail : A2($author$project$Main$correctDetailPlayer, players, detail)) : detail;
 				default:
 					return detail;
 			}
@@ -13720,6 +13759,7 @@ var $author$project$Main$isEnergyAttachment = F2(
 				$elm$core$String$toLower(item.aP));
 		}
 	});
+var $elm$core$List$sortWith = _List_sortWith;
 var $author$project$Main$viewAttachmentCircle = F2(
 	function (cache, item) {
 		var maybeUrl = A2(
@@ -13927,9 +13967,29 @@ var $author$project$Main$viewBenchCard = F4(
 					toolAttachments))
 			]);
 		var energyAttachments = A2(
-			$elm$core$List$filter,
-			$author$project$Main$isEnergyAttachment(cache),
-			cardAttachments);
+			$elm$core$List$sortWith,
+			F2(
+				function (a, b) {
+					var rank = function (x) {
+						return (!_Utils_eq(
+							$author$project$Main$basicEnergyImageUrl(x.aP),
+							$elm$core$Maybe$Nothing)) ? 0 : 1;
+					};
+					var _v0 = A2(
+						$elm$core$Basics$compare,
+						rank(a),
+						rank(b));
+					if (_v0 === 1) {
+						return A2($elm$core$Basics$compare, a.aP, b.aP);
+					} else {
+						var other = _v0;
+						return other;
+					}
+				}),
+			A2(
+				$elm$core$List$filter,
+				$author$project$Main$isEnergyAttachment(cache),
+				cardAttachments));
 		var energyOverlay = $elm$core$List$isEmpty(energyAttachments) ? _List_Nil : _List_fromArray(
 			[
 				A2(
