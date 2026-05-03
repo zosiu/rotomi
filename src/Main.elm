@@ -1443,15 +1443,37 @@ correctDetailPlayer players detail =
 correctGroupPlayers : Replay.Players -> Action.ActionGroup -> Action.ActionGroup
 correctGroupPlayers players group =
     let
-        -- For every anonymous (card-less) draw or shuffle detail, we can definitively
-        -- determine the correct player: if the detail has revealed cards (CardList
-        -- bullet) it belongs to the recorder (players.red); if it has no revealed
-        -- cards it belongs to the opponent (players.blue). Apply this unconditionally
-        -- so single-draw groups are corrected just as reliably as multi-draw groups.
+        shuffleDeckPlayer =
+            group.details
+                |> List.filterMap
+                    (\d ->
+                        case d.action of
+                            Action.ShuffledDeck { player } ->
+                                Just player
+
+                            _ ->
+                                Nothing
+                    )
+                |> List.head
+
         correctDetail detail =
             case detail.action of
-                Action.DrewCount _ ->
-                    correctDetailPlayer players detail
+                Action.DrewCount { player, count } ->
+                    case shuffleDeckPlayer of
+                        Just sp ->
+                            if player /= sp then
+                                let
+                                    raw =
+                                        detail.raw
+                                            |> String.replace (player ++ " drew") (sp ++ " drew")
+                                in
+                                { detail | action = Action.DrewCount { player = sp, count = count }, raw = raw }
+
+                            else
+                                detail
+
+                        Nothing ->
+                            correctDetailPlayer players detail
 
                 Action.ShuffledInto { card } ->
                     if card == Nothing then

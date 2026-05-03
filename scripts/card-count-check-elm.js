@@ -3041,6 +3041,33 @@ var $author$project$Main$correctDetailPlayer = F2(
 				return detail;
 		}
 	});
+var $elm$core$List$maybeCons = F3(
+	function (f, mx, xs) {
+		var _v0 = f(mx);
+		if (_v0.$ === 'Just') {
+			var x = _v0.a;
+			return A2($elm$core$List$cons, x, xs);
+		} else {
+			return xs;
+		}
+	});
+var $elm$core$List$filterMap = F2(
+	function (f, xs) {
+		return A3(
+			$elm$core$List$foldr,
+			$elm$core$List$maybeCons(f),
+			_List_Nil,
+			xs);
+	});
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $elm$core$List$map = F2(
 	function (f, xs) {
 		return A3(
@@ -3057,11 +3084,42 @@ var $elm$core$List$map = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
+		var shuffleDeckPlayer = $elm$core$List$head(
+			A2(
+				$elm$core$List$filterMap,
+				function (d) {
+					var _v2 = d.action;
+					if (_v2.$ === 'ShuffledDeck') {
+						var player = _v2.a.player;
+						return $elm$core$Maybe$Just(player);
+					} else {
+						return $elm$core$Maybe$Nothing;
+					}
+				},
+				group.details));
 		var correctDetail = function (detail) {
 			var _v0 = detail.action;
 			switch (_v0.$) {
 				case 'DrewCount':
-					return A2($author$project$Main$correctDetailPlayer, players, detail);
+					var player = _v0.a.player;
+					var count = _v0.a.count;
+					if (shuffleDeckPlayer.$ === 'Just') {
+						var sp = shuffleDeckPlayer.a;
+						if (!_Utils_eq(player, sp)) {
+							var raw = A3($elm$core$String$replace, player + ' drew', sp + ' drew', detail.raw);
+							return _Utils_update(
+								detail,
+								{
+									action: $author$project$Action$DrewCount(
+										{count: count, player: sp}),
+									raw: raw
+								});
+						} else {
+							return detail;
+						}
+					} else {
+						return A2($author$project$Main$correctDetailPlayer, players, detail);
+					}
 				case 'ShuffledInto':
 					var card = _v0.a.card;
 					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
@@ -3389,24 +3447,6 @@ var $author$project$Action$tryCardDiscardedFrom = function (raw) {
 var $author$project$Action$CardList = function (a) {
 	return {$: 'CardList', a: a};
 };
-var $elm$core$List$maybeCons = F3(
-	function (f, mx, xs) {
-		var _v0 = f(mx);
-		if (_v0.$ === 'Just') {
-			var x = _v0.a;
-			return A2($elm$core$List$cons, x, xs);
-		} else {
-			return xs;
-		}
-	});
-var $elm$core$List$filterMap = F2(
-	function (f, xs) {
-		return A3(
-			$elm$core$List$foldr,
-			$elm$core$List$maybeCons(f),
-			_List_Nil,
-			xs);
-	});
 var $elm$core$Basics$ge = _Utils_ge;
 var $author$project$Action$tryCardList = function (raw) {
 	var parts = A2($elm$core$String$startsWith, '(', raw) ? A2(
@@ -3448,15 +3488,6 @@ var $author$project$Action$tryChoseOption = function (raw) {
 };
 var $author$project$Action$CoinFlipChoice = function (a) {
 	return {$: 'CoinFlipChoice', a: a};
-};
-var $elm$core$List$head = function (list) {
-	if (list.b) {
-		var x = list.a;
-		var xs = list.b;
-		return $elm$core$Maybe$Just(x);
-	} else {
-		return $elm$core$Maybe$Nothing;
-	}
 };
 var $elm$core$Maybe$withDefault = F2(
 	function (_default, maybe) {
