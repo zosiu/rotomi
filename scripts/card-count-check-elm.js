@@ -3041,7 +3041,6 @@ var $author$project$Main$correctDetailPlayer = F2(
 				return detail;
 		}
 	});
-var $elm$core$Basics$ge = _Utils_ge;
 var $elm$core$List$map = F2(
 	function (f, xs) {
 		return A3(
@@ -3058,58 +3057,17 @@ var $elm$core$List$map = F2(
 	});
 var $author$project$Main$correctGroupPlayers = F2(
 	function (players, group) {
-		var drewCountCount = A3(
-			$elm$core$List$foldl,
-			F2(
-				function (d, acc) {
-					var _v3 = d.action;
-					if (_v3.$ === 'DrewCount') {
-						return acc + 1;
-					} else {
-						return acc;
-					}
-				}),
-			0,
-			group.details);
-		var countOnlyShuffleCount = A3(
-			$elm$core$List$foldl,
-			F2(
-				function (d, acc) {
-					var _v2 = d.action;
-					if (_v2.$ === 'ShuffledInto') {
-						var card = _v2.a.card;
-						return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (acc + 1) : acc;
-					} else {
-						return acc;
-					}
-				}),
-			0,
-			group.details);
-		var countOnlyPutOnBottomCount = A3(
-			$elm$core$List$foldl,
-			F2(
-				function (d, acc) {
-					var _v1 = d.action;
-					if (_v1.$ === 'PutOnBottom') {
-						var card = _v1.a.card;
-						return _Utils_eq(card, $elm$core$Maybe$Nothing) ? (acc + 1) : acc;
-					} else {
-						return acc;
-					}
-				}),
-			0,
-			group.details);
 		var correctDetail = function (detail) {
 			var _v0 = detail.action;
 			switch (_v0.$) {
 				case 'DrewCount':
-					return (drewCountCount >= 2) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return A2($author$project$Main$correctDetailPlayer, players, detail);
 				case 'ShuffledInto':
 					var card = _v0.a.card;
-					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && ((countOnlyShuffleCount >= 2) || (drewCountCount >= 2))) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				case 'PutOnBottom':
 					var card = _v0.a.card;
-					return (_Utils_eq(card, $elm$core$Maybe$Nothing) && ((countOnlyPutOnBottomCount >= 2) || (drewCountCount >= 2))) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
+					return _Utils_eq(card, $elm$core$Maybe$Nothing) ? A2($author$project$Main$correctDetailPlayer, players, detail) : detail;
 				default:
 					return detail;
 			}
@@ -3449,6 +3407,7 @@ var $elm$core$List$filterMap = F2(
 			_List_Nil,
 			xs);
 	});
+var $elm$core$Basics$ge = _Utils_ge;
 var $author$project$Action$tryCardList = function (raw) {
 	var parts = A2($elm$core$String$startsWith, '(', raw) ? A2(
 		$elm$core$List$indexedMap,
@@ -7496,6 +7455,10 @@ var $author$project$CardCountCheck$checkGroups = F3(
 						{
 							blueBreakdown: blueBD,
 							blueDuplicates: A2($author$project$CardCountCheck$duplicatesOnBoard, gs.bench.blue, gs.active.blue),
+							blueHasUnknowns: A2(
+								$elm$core$List$any,
+								$elm$core$Basics$eq($elm$core$Maybe$Nothing),
+								newGs.hand.blue),
 							groupIndex: indexed.groupIndex,
 							groupRaw: indexed.group.raw,
 							redBreakdown: redBD,
@@ -7506,6 +7469,9 @@ var $author$project$CardCountCheck$checkGroups = F3(
 			$author$project$CardCountCheck$initialState,
 			groups);
 	});
+var $author$project$CardCountCheck$formatBlueUnknowns = function (flag) {
+	return flag ? '  ⚠  blue hand contains unknown cards — draw attribution may be wrong' : '';
+};
 var $author$project$CardCountCheck$formatBreakdown = F2(
 	function (label, bd) {
 		var wrong = (bd.total !== 60) ? ('  ← WRONG (off by ' + ($elm$core$String$fromInt(bd.total - 60) + ')')) : '';
@@ -7886,6 +7852,7 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 							A2($author$project$CardCountCheck$formatBreakdown, 'red (' + (players.red + ')'), fail.redBreakdown),
 							A2($author$project$CardCountCheck$formatBreakdown, 'blue (' + (players.blue + ')'), fail.blueBreakdown),
 							A4($author$project$CardCountCheck$formatDuplicates, players.red, players.blue, fail.redDuplicates, fail.blueDuplicates),
+							$author$project$CardCountCheck$formatBlueUnknowns(fail.blueHasUnknowns),
 							visualUrl,
 							''
 						]))

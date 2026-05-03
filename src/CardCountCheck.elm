@@ -356,6 +356,7 @@ type alias FailInfo =
     , blueBreakdown : PlayerBreakdown
     , redDuplicates : List ( Action.CardRef, Int )
     , blueDuplicates : List ( Action.CardRef, Int )
+    , blueHasUnknowns : Bool
     }
 
 
@@ -452,6 +453,7 @@ checkGroups red blue groups =
                     , blueBreakdown = blueBD
                     , redDuplicates = duplicatesOnBoard gs.bench.red gs.active.red
                     , blueDuplicates = duplicatesOnBoard gs.bench.blue gs.active.blue
+                    , blueHasUnknowns = List.any ((==) Nothing) newGs.hand.blue
                     }
 
             else
@@ -511,6 +513,15 @@ formatBreakdown label bd =
         ++ "  = "
         ++ String.fromInt bd.total
         ++ wrong
+
+
+formatBlueUnknowns : Bool -> String
+formatBlueUnknowns flag =
+    if flag then
+        "  ⚠  blue hand contains unknown cards — draw attribution may be wrong"
+
+    else
+        ""
 
 
 formatDuplicates :
@@ -598,6 +609,7 @@ checkFile flags =
                             , formatBreakdown ("red (" ++ players.red ++ ")") fail.redBreakdown
                             , formatBreakdown ("blue (" ++ players.blue ++ ")") fail.blueBreakdown
                             , formatDuplicates players.red players.blue fail.redDuplicates fail.blueDuplicates
+                            , formatBlueUnknowns fail.blueHasUnknowns
                             , visualUrl
                             , ""
                             ]

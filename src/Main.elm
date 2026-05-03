@@ -1443,71 +1443,25 @@ correctDetailPlayer players detail =
 correctGroupPlayers : Replay.Players -> Action.ActionGroup -> Action.ActionGroup
 correctGroupPlayers players group =
     let
-        drewCountCount =
-            List.foldl
-                (\d acc ->
-                    case d.action of
-                        Action.DrewCount _ ->
-                            acc + 1
-
-                        _ ->
-                            acc
-                )
-                0
-                group.details
-
-        countOnlyShuffleCount =
-            List.foldl
-                (\d acc ->
-                    case d.action of
-                        Action.ShuffledInto { card } ->
-                            if card == Nothing then
-                                acc + 1
-
-                            else
-                                acc
-
-                        _ ->
-                            acc
-                )
-                0
-                group.details
-
-        countOnlyPutOnBottomCount =
-            List.foldl
-                (\d acc ->
-                    case d.action of
-                        Action.PutOnBottom { card } ->
-                            if card == Nothing then
-                                acc + 1
-
-                            else
-                                acc
-
-                        _ ->
-                            acc
-                )
-                0
-                group.details
-
+        -- For every anonymous (card-less) draw or shuffle detail, we can definitively
+        -- determine the correct player: if the detail has revealed cards (CardList
+        -- bullet) it belongs to the recorder (players.red); if it has no revealed
+        -- cards it belongs to the opponent (players.blue). Apply this unconditionally
+        -- so single-draw groups are corrected just as reliably as multi-draw groups.
         correctDetail detail =
             case detail.action of
                 Action.DrewCount _ ->
-                    if drewCountCount >= 2 then
-                        correctDetailPlayer players detail
-
-                    else
-                        detail
+                    correctDetailPlayer players detail
 
                 Action.ShuffledInto { card } ->
-                    if card == Nothing && (countOnlyShuffleCount >= 2 || drewCountCount >= 2) then
+                    if card == Nothing then
                         correctDetailPlayer players detail
 
                     else
                         detail
 
                 Action.PutOnBottom { card } ->
-                    if card == Nothing && (countOnlyPutOnBottomCount >= 2 || drewCountCount >= 2) then
+                    if card == Nothing then
                         correctDetailPlayer players detail
 
                     else
