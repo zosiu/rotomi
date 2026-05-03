@@ -9871,10 +9871,25 @@ var $author$project$Main$detailCardList = function (detail) {
 			},
 			detail.av));
 };
-var $author$project$Main$isPokemonAbilityGroup = function (group) {
+var $author$project$Main$pokemonAbilityPlayedCardId = function (group) {
 	var _v0 = group.L;
-	if (_v0.$ === 9) {
-		var card = _v0.a.f;
+	switch (_v0.$) {
+		case 9:
+			var card = _v0.a.f;
+			return $elm$core$Maybe$Just(card.ad);
+		case 16:
+			var attacker = _v0.a.aX;
+			return $elm$core$Maybe$Just(attacker.f.ad);
+		default:
+			return $elm$core$Maybe$Nothing;
+	}
+};
+var $author$project$Main$isPokemonAbilityGroup = function (group) {
+	var _v0 = $author$project$Main$pokemonAbilityPlayedCardId(group);
+	if (_v0.$ === 1) {
+		return false;
+	} else {
+		var cardId = _v0.a;
 		return A2(
 			$elm$core$List$any,
 			function (d) {
@@ -9890,7 +9905,7 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 								return A2(
 									$elm$core$List$any,
 									function (c) {
-										return _Utils_eq(c.ad, card.ad);
+										return _Utils_eq(c.ad, cardId);
 									},
 									cards);
 							} else {
@@ -9903,21 +9918,11 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 				}
 			},
 			group.bu);
-	} else {
-		return false;
 	}
 };
 var $author$project$Main$applyGroupToBench = F4(
 	function (red, active, bench, group) {
-		var pokemonAbilityCardId = function () {
-			var _v3 = group.L;
-			if (_v3.$ === 9) {
-				var card = _v3.a.f;
-				return $author$project$Main$isPokemonAbilityGroup(group) ? $elm$core$Maybe$Just(card.ad) : $elm$core$Maybe$Nothing;
-			} else {
-				return $elm$core$Maybe$Nothing;
-			}
-		}();
+		var pokemonAbilityCardId = $author$project$Main$isPokemonAbilityGroup(group) ? $author$project$Main$pokemonAbilityPlayedCardId(group) : $elm$core$Maybe$Nothing;
 		var bench1 = A4($author$project$Main$applyActionToBench, red, active, group.L, bench);
 		return A3(
 			$elm$core$List$foldl,
@@ -10189,7 +10194,15 @@ var $author$project$Main$applyDetailAction = F3(
 			case 35:
 				var player = _v0.a.d;
 				var count = _v0.a.i;
-				return A4($author$project$Main$removeN, red, player, count, hand);
+				var known = $author$project$Main$detailCardList(detail);
+				return $elm$core$List$isEmpty(known) ? A4($author$project$Main$removeN, red, player, count, hand) : A3(
+					$elm$core$List$foldl,
+					F2(
+						function (card, h) {
+							return A4($author$project$Main$removeById, red, player, card.ad, h);
+						}),
+					hand,
+					known);
 			case 32:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
