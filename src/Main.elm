@@ -124,12 +124,13 @@ type alias PlayerCards =
     { discarded : List (Maybe Action.CardRef)
     , shuffled : List (Maybe Action.CardRef)
     , drawn : List (Maybe Action.CardRef)
+    , benched : List (Maybe Action.CardRef)
     }
 
 
 emptyPlayerCards : PlayerCards
 emptyPlayerCards =
-    { discarded = [], shuffled = [], drawn = [] }
+    { discarded = [], shuffled = [], drawn = [], benched = [] }
 
 
 type alias CurrentPlay =
@@ -646,6 +647,7 @@ fetchHandCards maybePlayers replay si gi cache =
                                         List.filterMap identity pc.discarded
                                             ++ List.filterMap identity pc.shuffled
                                             ++ List.filterMap identity pc.drawn
+                                            ++ List.filterMap identity pc.benched
                                 in
                                 (case play.card of
                                     Just c ->
@@ -1055,9 +1057,38 @@ removeLastNUnknowns n handSide =
         |> Tuple.second
 
 
-{-| Strip all drawn cards (known and unknown) from a hand side so they appear
-only in the played panel, not in both places at once.
+{-| Remove cards that were benched this turn from the bench display, so they
+only appear in the play-info "Benched" section when that option is enabled.
+Known cards are matched by id; unknown benched cards remove from the tail.
 -}
+stripBenchedFromBenchSide : List (Maybe Action.CardRef) -> List Action.CardRef -> List Action.CardRef
+stripBenchedFromBenchSide benched benchSide =
+    let
+        knownBenched =
+            List.filterMap identity benched
+
+        unknownCount =
+            List.length (List.filter ((==) Nothing) benched)
+
+        -- Remove only the first occurrence of the given card id.
+        removeFirst ref acc =
+            case acc of
+                [] ->
+                    []
+
+                c :: rest ->
+                    if c.id == ref.id then
+                        rest
+
+                    else
+                        c :: removeFirst ref rest
+
+        afterKnown =
+            List.foldl removeFirst benchSide knownBenched
+    in
+    List.take (max 0 (List.length afterKnown - unknownCount)) afterKnown
+
+
 stripDrawnFromHandSide : List (Maybe Action.CardRef) -> List (Maybe Action.CardRef) -> List (Maybe Action.CardRef)
 stripDrawnFromHandSide drawn handSide =
     let
@@ -2001,6 +2032,9 @@ currentPlayFromGroup players group =
                         Action.MovedToHand rec ->
                             Just rec.player
 
+                        Action.DrewAndPlayed rec ->
+                            Just rec.player
+
                         _ ->
                             Nothing
 
@@ -2094,6 +2128,39 @@ currentPlayFromGroup players group =
                         )
                         ds
 
+                extractBenched ds =
+                    List.concatMap
+                        (\d ->
+                            case d.action of
+                                Action.DrewCard drewCardBench ->
+                                    case drewCardBench.andPlayed of
+                                        Just Action.BenchSpot ->
+                                            [ Just drewCardBench.card ]
+
+                                        _ ->
+                                            []
+
+                                Action.DrewAndPlayed { count, position } ->
+                                    case position of
+                                        Action.BenchSpot ->
+                                            let
+                                                known =
+                                                    detailCardList d
+                                            in
+                                            if List.isEmpty known then
+                                                List.repeat count Nothing
+
+                                            else
+                                                List.map Just known
+
+                                        _ ->
+                                            []
+
+                                _ ->
+                                    []
+                        )
+                        ds
+
                 makePlayerCards p =
                     let
                         ds =
@@ -2102,6 +2169,7 @@ currentPlayFromGroup players group =
                     { discarded = extractDiscards ds
                     , shuffled = extractShuffled ds
                     , drawn = extractDrawn ds
+                    , benched = extractBenched ds
                     }
             in
             Just
@@ -2126,7 +2194,7 @@ currentPlayFromGroup players group =
                             )
 
                 playerCards =
-                    { discarded = [], shuffled = [], drawn = drawnCards }
+                    { discarded = [], shuffled = [], drawn = drawnCards, benched = [] }
             in
             if List.isEmpty drawnCards then
                 Nothing
@@ -2172,6 +2240,35 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
 
             else
                 hand.blue
+
+        -- When True, cards benched this turn are hidden from the bench row and
+        -- shown only in the play-info "Benched" section. Disabled for now.
+        stripBenchedFromBench =
+            False
+
+        benchBlueDisplay =
+            if stripBenchedFromBench then
+                case maybePlay of
+                    Just play ->
+                        stripBenchedFromBenchSide play.blue.benched bench.blue
+
+                    Nothing ->
+                        bench.blue
+
+            else
+                bench.blue
+
+        benchRedDisplay =
+            if stripBenchedFromBench then
+                case maybePlay of
+                    Just play ->
+                        stripBenchedFromBenchSide play.red.benched bench.red
+
+                    Nothing ->
+                        bench.red
+
+            else
+                bench.red
     in
     div
         [ style "display" "flex"
@@ -2198,9 +2295,9 @@ viewHandState players cache flipOpponent hand bench active maybeStadium piles ma
                 , style "min-width" "0"
                 ]
                 [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
-                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" bench.blue
+                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" benchBlueDisplay
                 , viewActiveZone players cache flipOpponent active maybeStadium maybePlay
-                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" bench.red
+                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" benchRedDisplay
                 , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
@@ -2889,6 +2986,7 @@ viewPlayerPlayInfo cache upsideDown isTookPrize color playerCards maybePlayedCar
                     ++ optionalGroup "Discarded" playerCards.discarded
                     ++ optionalGroup "Shuffled" playerCards.shuffled
                     ++ optionalGroup "Drawn" playerCards.drawn
+                    ++ optionalGroup "Benched" playerCards.benched
     in
     if List.isEmpty cardGroups then
         text ""

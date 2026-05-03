@@ -915,8 +915,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Nothing
-                                , red = { discarded = [], shuffled = [], drawn = [ Just card1, Just card2 ] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [], drawn = [ Just card1, Just card2 ], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -946,8 +946,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Nothing
-                                , red = { discarded = [], shuffled = [], drawn = [ Nothing, Nothing ] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [], drawn = [ Nothing, Nothing ], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1001,8 +1001,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just card
-                                , red = { discarded = [], shuffled = [], drawn = [] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1034,8 +1034,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just played
-                                , red = { discarded = [ Just discardedCard ], shuffled = [], drawn = [] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [ Just discardedCard ], shuffled = [], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1074,8 +1074,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just played
-                                , red = { discarded = [ Just energy1, Just energy2 ], shuffled = [], drawn = [] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [ Just energy1, Just energy2 ], shuffled = [], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1114,8 +1114,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just played
-                                , red = { discarded = [], shuffled = [], drawn = [ Just drew1, Just drew2 ] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [], drawn = [ Just drew1, Just drew2 ], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1147,8 +1147,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just played
-                                , red = { discarded = [], shuffled = [ Just shuffled1 ], drawn = [] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [ Just shuffled1 ], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
 
@@ -1187,8 +1187,8 @@ suite =
                             (Just
                                 { player = "A"
                                 , card = Just played
-                                , red = { discarded = [], shuffled = [ Just dark, Just ultraBall ], drawn = [] }
-                                , blue = { discarded = [], shuffled = [], drawn = [] }
+                                , red = { discarded = [], shuffled = [ Just dark, Just ultraBall ], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
             ]
