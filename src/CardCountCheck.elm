@@ -398,6 +398,14 @@ type alias FailInfo =
     }
 
 
+type alias AmbiguousKO =
+    { sectionIndex : Int
+    , groupIndex : Int
+    , player : String
+    , cardName : String
+    }
+
+
 {-| Cards whose ID appears more than once across bench + active for a player.
 Returns (representative CardRef, count) pairs, sorted by count descending.
 -}
@@ -468,11 +476,47 @@ foldUntilError f acc list =
                     foldUntilError f newAcc rest
 
 
-checkGroups : String -> String -> List IndexedGroup -> Result FailInfo GameState
+detectAmbiguousKO : String -> IndexedGroup -> GameState -> Maybe AmbiguousKO
+detectAmbiguousKO red indexed gs =
+    case indexed.group.action of
+        Action.KnockedOut { pokemon } ->
+            let
+                ( maybeActive, benchList ) =
+                    if pokemon.player == red then
+                        ( gs.active.red, gs.bench.red )
+
+                    else
+                        ( gs.active.blue, gs.bench.blue )
+
+                inActive =
+                    maybeActive |> Maybe.map .id |> (==) (Just pokemon.card.id)
+
+                inBench =
+                    List.any (\c -> c.id == pokemon.card.id) benchList
+            in
+            if inActive && inBench then
+                Just
+                    { sectionIndex = indexed.sectionIndex
+                    , groupIndex = indexed.groupIndex
+                    , player = pokemon.player
+                    , cardName = pokemon.card.name
+                    }
+
+            else
+                Nothing
+
+        _ ->
+            Nothing
+
+
+checkGroups : String -> String -> List IndexedGroup -> Result FailInfo ( GameState, List AmbiguousKO )
 checkGroups red blue groups =
     foldUntilError
-        (\indexed gs ->
+        (\indexed ( gs, kos ) ->
             let
+                ambig =
+                    detectAmbiguousKO red indexed gs
+
                 newGs =
                     stepGroup red indexed.isSetup indexed.group gs
 
@@ -495,9 +539,9 @@ checkGroups red blue groups =
                     }
 
             else
-                Ok newGs
+                Ok ( newGs, kos ++ (ambig |> Maybe.map List.singleton |> Maybe.withDefault []) )
         )
-        initialState
+        ( initialState, [] )
         groups
 
 
@@ -562,6 +606,28 @@ formatBlueUnknowns flag =
         ""
 
 
+formatAmbiguousKOs : List AmbiguousKO -> String
+formatAmbiguousKOs kos =
+    if List.isEmpty kos then
+        ""
+
+    else
+        kos
+            |> List.map
+                (\ko ->
+                    "  ⚠  Ambiguous KO: "
+                        ++ ko.player
+                        ++ "'s "
+                        ++ ko.cardName
+                        ++ " (section "
+                        ++ String.fromInt ko.sectionIndex
+                        ++ ", group "
+                        ++ String.fromInt ko.groupIndex
+                        ++ ") — assumed active was knocked out (also on bench)"
+                )
+            |> String.join "\n"
+
+
 formatDuplicates :
     String
     -> String
@@ -612,13 +678,18 @@ checkFile flags =
                     checkGroups players.red players.blue groups
             in
             case result of
-                Ok _ ->
+                Ok ( _, ambigKOs ) ->
+                    let
+                        ambigStr =
+                            formatAmbiguousKOs ambigKOs
+                    in
                     { output =
                         "✓  "
                             ++ flags.name
                             ++ "  ("
                             ++ String.fromInt (List.length groups)
-                            ++ " groups)\n"
+                            ++ " groups)"
+                            ++ (if String.isEmpty ambigStr then "\n" else "\n" ++ ambigStr ++ "\n")
                     , ok = True
                     }
 

@@ -1776,7 +1776,17 @@ applyActionToBench red active action bench =
                     bench
 
         Action.KnockedOut { pokemon } ->
-            removeFromBench red pokemon.player pokemon.card.id bench
+            let
+                isActive =
+                    (if pokemon.player == red then active.red else active.blue)
+                        |> Maybe.map .id
+                        |> (==) (Just pokemon.card.id)
+            in
+            if isActive then
+                bench
+
+            else
+                removeFromBench red pokemon.player pokemon.card.id bench
 
         Action.MovedToActive { pokemon } ->
             -- Guard: if the pokemon is already in the active spot (set by a Switched

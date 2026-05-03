@@ -5674,6 +5674,34 @@ var $author$project$CardCountCheck$breakdownForRed = F2(
 		var totalVal = (((((((deckVal + discardVal) + prizesVal) + handVal) + activeVal) + benchVal) + attachmentsVal) + stadiumVal) + evolutionBuriedVal;
 		return {active: activeVal, attachments: attachmentsVal, bench: benchVal, deck: deckVal, discard: discardVal, evolutionBuried: evolutionBuriedVal, hand: handVal, prizes: prizesVal, stadium: stadiumVal, total: totalVal};
 	});
+var $author$project$CardCountCheck$detectAmbiguousKO = F3(
+	function (red, indexed, gs) {
+		var _v0 = indexed.group.action;
+		if (_v0.$ === 'KnockedOut') {
+			var pokemon = _v0.a.pokemon;
+			var _v1 = _Utils_eq(pokemon.player, red) ? _Utils_Tuple2(gs.active.red, gs.bench.red) : _Utils_Tuple2(gs.active.blue, gs.bench.blue);
+			var maybeActive = _v1.a;
+			var benchList = _v1.b;
+			var inBench = A2(
+				$elm$core$List$any,
+				function (c) {
+					return _Utils_eq(c.id, pokemon.card.id);
+				},
+				benchList);
+			var inActive = _Utils_eq(
+				$elm$core$Maybe$Just(pokemon.card.id),
+				A2(
+					$elm$core$Maybe$map,
+					function ($) {
+						return $.id;
+					},
+					maybeActive));
+			return (inActive && inBench) ? $elm$core$Maybe$Just(
+				{cardName: pokemon.card.name, groupIndex: indexed.groupIndex, player: pokemon.player, sectionIndex: indexed.sectionIndex}) : $elm$core$Maybe$Nothing;
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $elm$core$List$singleton = function (value) {
 	return _List_fromArray(
 		[value]);
@@ -6329,7 +6357,15 @@ var $author$project$Main$applyActionToBench = F4(
 				}
 			case 'KnockedOut':
 				var pokemon = action.a.pokemon;
-				return A4($author$project$Main$removeFromBench, red, pokemon.player, pokemon.card.id, bench);
+				var isActive = _Utils_eq(
+					$elm$core$Maybe$Just(pokemon.card.id),
+					A2(
+						$elm$core$Maybe$map,
+						function ($) {
+							return $.id;
+						},
+						_Utils_eq(pokemon.player, red) ? active.red : active.blue));
+				return isActive ? bench : A4($author$project$Main$removeFromBench, red, pokemon.player, pokemon.card.id, bench);
 			case 'MovedToActive':
 				var pokemon = action.a.pokemon;
 				var alreadyActive = _Utils_eq(
@@ -7507,10 +7543,13 @@ var $author$project$CardCountCheck$checkGroups = F3(
 		return A3(
 			$author$project$CardCountCheck$foldUntilError,
 			F2(
-				function (indexed, gs) {
+				function (indexed, _v0) {
+					var gs = _v0.a;
+					var kos = _v0.b;
 					var newGs = A4($author$project$CardCountCheck$stepGroup, red, indexed.isSetup, indexed.group, gs);
 					var redBD = A2($author$project$CardCountCheck$breakdownForRed, red, newGs);
 					var blueBD = A3($author$project$CardCountCheck$breakdownForBlue, red, blue, newGs);
+					var ambig = A3($author$project$CardCountCheck$detectAmbiguousKO, red, indexed, gs);
 					return ((redBD.total !== 60) || (blueBD.total !== 60)) ? $elm$core$Result$Err(
 						{
 							blueBreakdown: blueBD,
@@ -7524,11 +7563,30 @@ var $author$project$CardCountCheck$checkGroups = F3(
 							redBreakdown: redBD,
 							redDuplicates: A2($author$project$CardCountCheck$duplicatesOnBoard, gs.bench.red, gs.active.red),
 							sectionIndex: indexed.sectionIndex
-						}) : $elm$core$Result$Ok(newGs);
+						}) : $elm$core$Result$Ok(
+						_Utils_Tuple2(
+							newGs,
+							_Utils_ap(
+								kos,
+								A2(
+									$elm$core$Maybe$withDefault,
+									_List_Nil,
+									A2($elm$core$Maybe$map, $elm$core$List$singleton, ambig)))));
 				}),
-			$author$project$CardCountCheck$initialState,
+			_Utils_Tuple2($author$project$CardCountCheck$initialState, _List_Nil),
 			groups);
 	});
+var $author$project$CardCountCheck$formatAmbiguousKOs = function (kos) {
+	return $elm$core$List$isEmpty(kos) ? '' : A2(
+		$elm$core$String$join,
+		'\n',
+		A2(
+			$elm$core$List$map,
+			function (ko) {
+				return '  ⚠  Ambiguous KO: ' + (ko.player + ('\'s ' + (ko.cardName + (' (section ' + ($elm$core$String$fromInt(ko.sectionIndex) + (', group ' + ($elm$core$String$fromInt(ko.groupIndex) + ') — assumed active was knocked out (also on bench)')))))));
+			},
+			kos));
+};
 var $author$project$CardCountCheck$formatBlueUnknowns = function (flag) {
 	return flag ? '  ⚠  blue hand contains unknown cards — draw attribution may be wrong' : '';
 };
@@ -7891,10 +7949,13 @@ var $author$project$CardCountCheck$checkFile = function (flags) {
 		var groups = A2($author$project$CardCountCheck$allGroupsIndexed, players, replay);
 		var result = A3($author$project$CardCountCheck$checkGroups, players.red, players.blue, groups);
 		if (result.$ === 'Ok') {
+			var _v2 = result.a;
+			var ambigKOs = _v2.b;
+			var ambigStr = $author$project$CardCountCheck$formatAmbiguousKOs(ambigKOs);
 			return {
 				ok: true,
 				output: '✓  ' + (flags.name + ('  (' + ($elm$core$String$fromInt(
-					$elm$core$List$length(groups)) + ' groups)\n')))
+					$elm$core$List$length(groups)) + (' groups)' + ($elm$core$String$isEmpty(ambigStr) ? '\n' : ('\n' + (ambigStr + '\n')))))))
 			};
 		} else {
 			var fail = result.a;
