@@ -7258,6 +7258,24 @@ var $author$project$Main$applyTopAction = F3(
 var $author$project$Main$applyGroupToHand = F3(
 	function (red, hand, group) {
 		var hand1 = A3($author$project$Main$applyTopAction, red, hand, group);
+		var details = function () {
+			var _v0 = group.action;
+			if (_v0.$ === 'PlayedStadium') {
+				return A2(
+					$elm$core$List$filter,
+					function (d) {
+						var _v1 = d.action;
+						if (_v1.$ === 'DiscardedCard') {
+							return false;
+						} else {
+							return true;
+						}
+					},
+					group.details);
+			} else {
+				return group.details;
+			}
+		}();
 		return A3(
 			$elm$core$List$foldl,
 			F2(
@@ -7265,7 +7283,7 @@ var $author$project$Main$applyGroupToHand = F3(
 					return A3($author$project$Main$applyDetailAction, red, h, detail);
 				}),
 			hand1,
-			group.details);
+			details);
 	});
 var $author$project$Main$pilesDeckDelta = F4(
 	function (red, player, delta, piles) {

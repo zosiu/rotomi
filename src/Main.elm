@@ -1308,8 +1308,27 @@ applyGroupToHand red hand group =
     let
         hand1 =
             applyTopAction red hand group
+
+        details =
+            case group.action of
+                Action.PlayedStadium _ ->
+                    -- DiscardedCard details under PlayedStadium are displaced stadiums
+                    -- leaving the stadium zone, not hand — skip them for hand tracking.
+                    List.filter
+                        (\d ->
+                            case d.action of
+                                Action.DiscardedCard _ ->
+                                    False
+
+                                _ ->
+                                    True
+                        )
+                        group.details
+
+                _ ->
+                    group.details
     in
-    List.foldl (\detail h -> applyDetailAction red h detail) hand1 group.details
+    List.foldl (\detail h -> applyDetailAction red h detail) hand1 details
 
 
 collectAllGroups : Replay.Replay -> Int -> Int -> List Action.ActionGroup
