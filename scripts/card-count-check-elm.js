@@ -6709,7 +6709,51 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 		return false;
 	} else {
 		var cardId = _v0.a;
-		return A2(
+		var orderIsAbility = function () {
+			var _v3 = group.action;
+			if (_v3.$ === 'PlayedTrainer') {
+				var indexed = A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, group.details);
+				var firstShuffleIndex = $elm$core$List$head(
+					A2(
+						$elm$core$List$filterMap,
+						function (_v7) {
+							var i = _v7.a;
+							var d = _v7.b;
+							var _v8 = d.action;
+							if (_v8.$ === 'ShuffledInto') {
+								return $elm$core$Maybe$Just(i);
+							} else {
+								return $elm$core$Maybe$Nothing;
+							}
+						},
+						indexed));
+				var firstDrewIndex = $elm$core$List$head(
+					A2(
+						$elm$core$List$filterMap,
+						function (_v5) {
+							var i = _v5.a;
+							var d = _v5.b;
+							var _v6 = d.action;
+							if (_v6.$ === 'DrewCount') {
+								return $elm$core$Maybe$Just(i);
+							} else {
+								return $elm$core$Maybe$Nothing;
+							}
+						},
+						indexed));
+				var _v4 = _Utils_Tuple2(firstDrewIndex, firstShuffleIndex);
+				if ((_v4.a.$ === 'Just') && (_v4.b.$ === 'Just')) {
+					var di = _v4.a.a;
+					var si = _v4.b.a;
+					return _Utils_cmp(di, si) < 0;
+				} else {
+					return true;
+				}
+			} else {
+				return true;
+			}
+		}();
+		var hasMatchingShuffleBack = A2(
 			$elm$core$List$any,
 			function (d) {
 				var _v1 = d.action;
@@ -6737,6 +6781,7 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 				}
 			},
 			group.details);
+		return hasMatchingShuffleBack && orderIsAbility;
 	}
 };
 var $author$project$Main$applyGroupToBench = F4(
@@ -7565,12 +7610,20 @@ var $author$project$Main$applyDetailAction = F3(
 					var c = card.a;
 					return A4($author$project$Main$removeById, red, player, c.id, hand);
 				} else {
-					return A4(
+					var known = $author$project$Main$detailCardList(detail);
+					return $elm$core$List$isEmpty(known) ? A4(
 						$author$project$Main$removeN,
 						red,
 						player,
 						A2($elm$core$Maybe$withDefault, 1, count),
-						hand);
+						hand) : A3(
+						$elm$core$List$foldl,
+						F2(
+							function (c, h) {
+								return A4($author$project$Main$removeById, red, player, c.id, h);
+							}),
+						hand,
+						known);
 				}
 			case 'PutOnBottom':
 				var player = _v0.a.player;
@@ -7786,48 +7839,8 @@ var $author$project$Main$applyTopAction = F3(
 var $author$project$Main$isDiscardShuffleGroup = function (group) {
 	var _v0 = group.action;
 	if (_v0.$ === 'PlayedTrainer') {
-		var hasDrewCount = A2(
-			$elm$core$List$any,
-			function (d) {
-				var _v4 = d.action;
-				if (_v4.$ === 'DrewCount') {
-					return true;
-				} else {
-					return false;
-				}
-			},
-			group.details);
-		var anonymousShuffles = A2(
-			$elm$core$List$filter,
-			function (d) {
-				var _v3 = d.action;
-				if (_v3.$ === 'ShuffledInto') {
-					var card = _v3.a.card;
-					return _Utils_eq(card, $elm$core$Maybe$Nothing);
-				} else {
-					return false;
-				}
-			},
-			group.details);
-		var singleShuffleHasCardList = function () {
-			if (anonymousShuffles.b && (!anonymousShuffles.b.b)) {
-				var single = anonymousShuffles.a;
-				return A2(
-					$elm$core$List$any,
-					function (b) {
-						var _v2 = b.action;
-						if (_v2.$ === 'CardList') {
-							return true;
-						} else {
-							return false;
-						}
-					},
-					single.bullets);
-			} else {
-				return false;
-			}
-		}();
-		return singleShuffleHasCardList && (!hasDrewCount);
+		var card = _v0.a.card;
+		return card.name === 'Energy Recycler';
 	} else {
 		return false;
 	}

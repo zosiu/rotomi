@@ -1291,7 +1291,15 @@ applyDetailAction red hand detail =
                     removeById red player c.id hand
 
                 Nothing ->
-                    removeN red player (Maybe.withDefault 1 count) hand
+                    let
+                        known =
+                            detailCardList detail
+                    in
+                    if List.isEmpty known then
+                        removeN red player (Maybe.withDefault 1 count) hand
+
+                    else
+                        List.foldl (\c h -> removeById red player c.id h) hand known
 
         Action.PutOnBottom { player, card, count } ->
             case card of
@@ -1331,6 +1339,13 @@ applyDetailAction red hand detail =
 Logged as either PlayedTrainer or UsedAttack depending on game version; in both
 cases the card was on the bench (not in hand) and shuffled cards come from
 bench/evo-buried rather than hand.
+
+For PlayedTrainer groups we additionally require that the draw comes BEFORE
+the shuffle in the details list. Pokémon abilities draw first then shuffle the
+Pokémon back (Dudunsparce: "drew 3, shuffled Dudunsparce+Dunsparce"). Trainer
+cards like Lillie's Determination do the opposite (shuffle hand first, then
+draw), so they are never mistaken for abilities even when a second copy of the
+trainer happens to appear in the ShuffledInto CardList.
 -}
 isPokemonAbilityGroup : Action.ActionGroup -> Bool
 isPokemonAbilityGroup group =
@@ -1339,27 +1354,79 @@ isPokemonAbilityGroup group =
             False
 
         Just cardId ->
-            List.any
-                (\d ->
-                    case d.action of
-                        Action.ShuffledInto info ->
-                            info.card
-                                == Nothing
-                                && List.any
-                                    (\b ->
-                                        case b.action of
-                                            Action.CardList cards ->
-                                                List.any (\c -> c.id == cardId) cards
+            let
+                hasMatchingShuffleBack =
+                    List.any
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledInto info ->
+                                    info.card
+                                        == Nothing
+                                        && List.any
+                                            (\b ->
+                                                case b.action of
+                                                    Action.CardList cards ->
+                                                        List.any (\c -> c.id == cardId) cards
 
-                                            _ ->
-                                                False
-                                    )
-                                    d.bullets
+                                                    _ ->
+                                                        False
+                                            )
+                                            d.bullets
+
+                                _ ->
+                                    False
+                        )
+                        group.details
+
+                -- For PlayedTrainer groups, verify draw-before-shuffle order to
+                -- avoid false positives when a second copy of a trainer card
+                -- appears in the hand being shuffled back (e.g. Lillie's Det.).
+                orderIsAbility =
+                    case group.action of
+                        Action.PlayedTrainer _ ->
+                            let
+                                indexed =
+                                    List.indexedMap Tuple.pair group.details
+
+                                firstDrewIndex =
+                                    indexed
+                                        |> List.filterMap
+                                            (\( i, d ) ->
+                                                case d.action of
+                                                    Action.DrewCount _ ->
+                                                        Just i
+
+                                                    _ ->
+                                                        Nothing
+                                            )
+                                        |> List.head
+
+                                firstShuffleIndex =
+                                    indexed
+                                        |> List.filterMap
+                                            (\( i, d ) ->
+                                                case d.action of
+                                                    Action.ShuffledInto _ ->
+                                                        Just i
+
+                                                    _ ->
+                                                        Nothing
+                                            )
+                                        |> List.head
+                            in
+                            case ( firstDrewIndex, firstShuffleIndex ) of
+                                ( Just di, Just si ) ->
+                                    di < si
+
+                                _ ->
+                                    -- No DrewCount or no ShuffledInto — order
+                                    -- constraint doesn't apply.
+                                    True
 
                         _ ->
-                            False
-                )
-                group.details
+                            True
+            in
+            hasMatchingShuffleBack && orderIsAbility
 
 
 {-| Returns the card ID of the ability Pokémon for PlayedTrainer or UsedAttack
@@ -1384,51 +1451,11 @@ anonymous ShuffledInto with a CardList bullet and no DrewCount details.
 -}
 isDiscardShuffleGroup : Action.ActionGroup -> Bool
 isDiscardShuffleGroup group =
+    -- Energy Recycler is the only trainer that shuffles cards from the discard
+    -- pile into the deck. All other shuffle effects come from hand.
     case group.action of
-        Action.PlayedTrainer _ ->
-            let
-                anonymousShuffles =
-                    List.filter
-                        (\d ->
-                            case d.action of
-                                Action.ShuffledInto { card } ->
-                                    card == Nothing
-
-                                _ ->
-                                    False
-                        )
-                        group.details
-
-                hasDrewCount =
-                    List.any
-                        (\d ->
-                            case d.action of
-                                Action.DrewCount _ ->
-                                    True
-
-                                _ ->
-                                    False
-                        )
-                        group.details
-
-                singleShuffleHasCardList =
-                    case anonymousShuffles of
-                        [ single ] ->
-                            List.any
-                                (\b ->
-                                    case b.action of
-                                        Action.CardList _ ->
-                                            True
-
-                                        _ ->
-                                            False
-                                )
-                                single.bullets
-
-                        _ ->
-                            False
-            in
-            singleShuffleHasCardList && not hasDrewCount
+        Action.PlayedTrainer { card } ->
+            card.name == "Energy Recycler"
 
         _ ->
             False
