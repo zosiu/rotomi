@@ -3299,6 +3299,14 @@ applyGroupToDamage preInstances postInstances group state =
                         Just iid ->
                             Dict.remove iid state
 
+                Action.HealedDamage { pokemon, amount } ->
+                    case firstInstance pokemon.player pokemon.card.id postInstances of
+                        Nothing ->
+                            state
+
+                        Just iid ->
+                            addDamageHp iid (negate amount) state
+
                 Action.Evolved { player, from, to } ->
                     -- DamageState is keyed by InstanceId; transferFirstInstance keeps the same
                     -- iid under to.id in postInstances, so the entry remains valid as-is.
@@ -3385,6 +3393,14 @@ applyGroupToDamage preInstances postInstances group state =
 
                                 Just iid ->
                                     ( Dict.remove iid s, bump key )
+
+                        Action.HealedDamage { pokemon, amount } ->
+                            case firstInstance pokemon.player pokemon.card.id postInstances of
+                                Nothing ->
+                                    ( s, counts )
+
+                                Just iid ->
+                                    ( addDamageHp iid (negate amount) s, counts )
 
                         Action.Evolved { player, from, to } ->
                             -- iid persists through evolution; no ordinal needed.
