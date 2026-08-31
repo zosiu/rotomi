@@ -11,7 +11,7 @@ import Test exposing (Test, describe, test)
 
 cardDataWithImage : String -> CardData
 cardDataWithImage url =
-    { imageUrl = Just url, attacks = [], abilities = [], category = Nothing }
+    { imageUrl = Just url, attacks = [], abilities = [], category = Nothing, name = Nothing }
 
 
 suite : Test
@@ -31,6 +31,42 @@ suite =
                         |> .sections
                         |> List.map sectionKind
                         |> Expect.equalLists [ "setup", "turn", "checkup" ]
+            , test "win line followed by post-game actions produces ResultSection" <|
+                \_ ->
+                    Replay.parse "Turn # 1 - A's Turn\nA drew a card.\nB wins.\nBoomerang Energy triggered.\n- Something happened.\n"
+                        |> .sections
+                        |> List.map sectionKind
+                        |> Expect.equalLists [ "turn", "result" ]
+            , test "win line followed by post-game actions: turn section retains post-game lines but not win line" <|
+                \_ ->
+                    Replay.parse "Turn # 1 - A's Turn\nA drew a card.\nB wins.\nBoomerang Energy triggered.\n- Something happened.\n"
+                        |> .sections
+                        |> List.filterMap
+                            (\s ->
+                                case s of
+                                    TurnSection _ lines ->
+                                        Just lines
+
+                                    _ ->
+                                        Nothing
+                            )
+                        |> List.head
+                        |> Expect.equal (Just [ TopLine "A drew a card.", TopLine "Boomerang Energy triggered.", DetailLine "Something happened." ])
+            , test "win line followed by post-game actions: result winner is correct" <|
+                \_ ->
+                    Replay.parse "Turn # 1 - A's Turn\nA drew a card.\nB wins.\nBoomerang Energy triggered.\n"
+                        |> .sections
+                        |> List.filterMap
+                            (\s ->
+                                case s of
+                                    ResultSection r ->
+                                        Just r.winner
+
+                                    _ ->
+                                        Nothing
+                            )
+                        |> List.head
+                        |> Expect.equal (Just "B")
             ]
         , describe "turn header"
             [ test "numbered format: extracts turn number" <|
@@ -364,7 +400,7 @@ suite =
                             Replay.parse "Setup\nSome setup.\n"
 
                         emptyCardData =
-                            { imageUrl = Nothing, attacks = [], abilities = [], category = Nothing }
+                            { imageUrl = Nothing, attacks = [], abilities = [], category = Nothing, name = Nothing }
                     in
                     update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty True)
                         |> Tuple.first
@@ -405,7 +441,7 @@ suite =
                     let
                         replay = Replay.parse "Setup\nSome setup.\n"
                         ability = { abilityType = "Ability", name = "Recon Directive", effect = "Once during your turn..." }
-                        cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ], category = Nothing }
+                        cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ], category = Nothing, name = Nothing }
                         cache = Dict.fromList [ ( "sv8-5_72_sph", cardData ) ]
                     in
                     update (MoveClicked "sv8-5_72_sph" "Recon Directive") (Loaded "url" replay 0 0 Nothing cache True)
@@ -424,7 +460,7 @@ suite =
                     let
                         replay = Replay.parse "Setup\nSome setup.\n"
                         json = "{\"image\":\"https://assets.tcgdex.net/en/sv/sv04/160\",\"attacks\":[{\"name\":\"Tackle\",\"cost\":[\"Colorless\"],\"damage\":10}],\"abilities\":[]}"
-                        expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [], category = Nothing }
+                        expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [], category = Nothing, name = Nothing }
                     in
                     update (GotCardImage "sv04_160" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty True)
                         |> Tuple.first
@@ -439,6 +475,7 @@ suite =
                             , attacks = [ { name = "Scratch", cost = [ "Colorless" ], damage = "10", effect = "" } ]
                             , abilities = [ { abilityType = "Ability", name = "Swift Run", effect = "Once per turn." } ]
                             , category = Nothing
+                            , name = Nothing
                             }
                     in
                     update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_001")) Dict.empty True)
@@ -1192,6 +1229,69 @@ suite =
                                 , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
                                 }
                             )
+
+            , test "UsedAttack with DiscardedCard detail returns Just with discards" <|
+                \_ ->
+                    let
+                        players =
+                            { red = "A", blue = "B" }
+
+                        attacker =
+                            { player = "A", card = { id = "sv7_58", name = "Slowking" } }
+
+                        discardedCard =
+                            { id = "me4_61_ph", name = "Metagross" }
+
+                        group =
+                            { raw = "A's (sv7_58) Slowking used Seek Inspiration on B's (sv8-5_27) Wellspring Mask Ogerpon ex for 300 damage."
+                            , action =
+                                Action.UsedAttack
+                                    { attacker = attacker
+                                    , move = "Seek Inspiration"
+                                    , target = Nothing
+                                    , modifier = Nothing
+                                    }
+                            , details =
+                                [ { raw = "A discarded (me4_61_ph) Metagross."
+                                  , action = Action.DiscardedCard { player = "A", card = discardedCard }
+                                  , bullets = []
+                                  }
+                                ]
+                            }
+                    in
+                    currentPlayFromGroup players group
+                        |> Expect.equal
+                            (Just
+                                { player = "A"
+                                , card = Nothing
+                                , red = { discarded = [ Just discardedCard ], shuffled = [], drawn = [], benched = [] }
+                                , blue = { discarded = [], shuffled = [], drawn = [], benched = [] }
+                                }
+                            )
+
+            , test "UsedAttack with no discard details returns Nothing" <|
+                \_ ->
+                    let
+                        players =
+                            { red = "A", blue = "B" }
+
+                        attacker =
+                            { player = "A", card = { id = "sv7_58", name = "Slowking" } }
+
+                        group =
+                            { raw = "A's (sv7_58) Slowking used Seek Inspiration on B's (sv8-5_27) Wellspring Mask Ogerpon ex for 300 damage."
+                            , action =
+                                Action.UsedAttack
+                                    { attacker = attacker
+                                    , move = "Seek Inspiration"
+                                    , target = Nothing
+                                    , modifier = Nothing
+                                    }
+                            , details = []
+                            }
+                    in
+                    currentPlayFromGroup players group
+                        |> Expect.equal Nothing
             ]
         , describe "bench state"
             [ test "DrewAndPlayed parses correctly" <|

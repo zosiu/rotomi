@@ -207,23 +207,65 @@ extractResult : List Section -> List Section
 extractResult sections =
     case List.reverse sections of
         (TurnSection turn lines) :: rest ->
-            case List.reverse lines of
-                (TopLine text) :: otherLines ->
-                    case parseMatchResult text of
-                        Just result ->
-                            List.reverse rest
-                                ++ [ TurnSection turn (List.reverse otherLines)
-                                   , ResultSection result
-                                   ]
+            -- Scan lines in reverse for a match-result TopLine.
+            -- Some logs emit post-game actions (e.g. ability triggers) after the
+            -- win line, so the result is not necessarily the very last line.
+            -- Everything after the result line is discarded (post-game noise).
+            case findMatchResult lines of
+                Just ( result, linesBeforeResult ) ->
+                    List.reverse rest
+                        ++ [ TurnSection turn linesBeforeResult
+                           , ResultSection result
+                           ]
 
-                        Nothing ->
-                            sections
-
-                _ ->
+                Nothing ->
                     sections
 
         _ ->
             sections
+
+
+{-| Find the last TopLine that parses as a match result.
+Returns the result and all other lines (both before and after the result line),
+so post-game actions remain in the turn section and display before the result.
+-}
+findMatchResult : List ReplayLine -> Maybe ( MatchResult, List ReplayLine )
+findMatchResult lines =
+    let
+        indexed =
+            List.indexedMap Tuple.pair lines
+
+        lastResult =
+            indexed
+                |> List.filterMap
+                    (\( i, line ) ->
+                        case line of
+                            TopLine text ->
+                                Maybe.map (\r -> ( i, r )) (parseMatchResult text)
+
+                            _ ->
+                                Nothing
+                    )
+                |> List.reverse
+                |> List.head
+    in
+    case lastResult of
+        Nothing ->
+            Nothing
+
+        Just ( idx, result ) ->
+            Just
+                ( result
+                , List.filterMap
+                    (\( i, line ) ->
+                        if i == idx then
+                            Nothing
+
+                        else
+                            Just line
+                    )
+                    indexed
+                )
 
 
 parseMatchResult : String -> Maybe MatchResult

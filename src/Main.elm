@@ -31,9 +31,16 @@ init flags =
         ( EnteringUrl "", Cmd.none )
 
     else
-        ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
-        , Http.get { url = url, expect = Http.expectString GotReplay }
-        )
+        case trainingCourtLogId url of
+            Just uuid ->
+                ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
+                , fetchTrainingCourtLog uuid flags.sectionIndex flags.groupIndex flags.flipOpponent
+                )
+
+            Nothing ->
+                ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
+                , Http.get { url = url, expect = Http.expectString GotReplay }
+                )
 
 
 main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool } Model Msg
@@ -76,6 +83,7 @@ type alias CardData =
     , attacks : List CardAttack
     , abilities : List CardAbility
     , category : Maybe String
+    , name : Maybe String
     }
 
 
@@ -945,7 +953,7 @@ decodeCardData body =
                 (Decode.field "effect" Decode.string)
 
         cardDecoder =
-            Decode.map4 CardData
+            Decode.map5 CardData
                 (Decode.maybe (Decode.field "image" Decode.string))
                 (Decode.oneOf
                     [ Decode.field "attacks" (Decode.list attackDecoder)
@@ -956,6 +964,7 @@ decodeCardData body =
                     , Decode.succeed []
                     ])
                 (Decode.maybe (Decode.field "category" Decode.string))
+                (Decode.maybe (Decode.field "name" Decode.string))
     in
     Decode.decodeString cardDecoder body |> Result.toMaybe
 
@@ -1002,6 +1011,28 @@ addUnknowns red player n hand =
 addKnownCards : String -> String -> List Action.CardRef -> HandState -> HandState
 addKnownCards red player cards hand =
     List.foldl (\c h -> addCard red player (Just c) h) hand cards
+
+
+cardIsInHand : String -> String -> String -> HandState -> Bool
+cardIsInHand red player cardId hand =
+    let
+        playerHand =
+            if player == red then
+                hand.red
+
+            else
+                hand.blue
+    in
+    List.any
+        (\slot ->
+            case slot of
+                Just c ->
+                    c.id == cardId
+
+                Nothing ->
+                    False
+        )
+        playerHand
 
 
 removeById : String -> String -> String -> HandState -> HandState
@@ -1351,7 +1382,13 @@ applyDetailAction red hand detail =
             removeById red player item.id hand
 
         Action.DiscardedCard { player, card } ->
-            removeById red player card.id hand
+            -- Only remove from hand if the card is actually tracked there.
+            -- If not found, the card came from the deck, not the hand.
+            if cardIsInHand red player card.id hand then
+                removeById red player card.id hand
+
+            else
+                hand
 
         Action.Discarded { player, count } ->
             let
@@ -1379,6 +1416,9 @@ applyDetailAction red hand detail =
 
                     else
                         List.foldl (\c h -> removeById red player c.id h) hand known
+
+        Action.PutOnTop { player, card } ->
+            removeById red player card.id hand
 
         Action.PutOnBottom { player, card, count } ->
             case card of
@@ -2106,37 +2146,80 @@ applyGroupToPiles red isSetup piles group =
         group.details
 
 
+-- Adjusts pile state for DiscardedCard details that came from the deck (not hand).
+-- applyGroupToPiles already adds +1 to discard for each DiscardedCard, but does not
+-- decrement the deck. When the card was not in hand, it must have come from the deck.
+applyDeckDiscardCorrection : String -> HandState -> Action.ActionGroup -> PileState -> PileState
+applyDeckDiscardCorrection red hand group piles =
+    List.foldl
+        (\detail p ->
+            case detail.action of
+                Action.DiscardedCard { player, card } ->
+                    if not (cardIsInHand red player card.id hand) then
+                        pilesDeckDelta red player -1 p
+
+                    else
+                        p
+
+                _ ->
+                    p
+        )
+        piles
+        group.details
+
+
 computePiles : Replay.Players -> Replay.Replay -> Int -> Int -> PileState
 computePiles players replay sectionIndex groupIndex =
-    replay.sections
-        |> List.indexedMap
-            (\si section ->
-                let
-                    isSetup =
-                        case section of
-                            Replay.SetupSection _ ->
-                                True
+    let
+        groupPairs =
+            replay.sections
+                |> List.indexedMap
+                    (\si section ->
+                        let
+                            isSetup =
+                                case section of
+                                    Replay.SetupSection _ ->
+                                        True
 
-                            _ ->
-                                False
+                                    _ ->
+                                        False
 
-                    groups =
-                        Action.groupLines (sectionLines section)
+                            groups =
+                                Action.groupLines (sectionLines section)
 
-                    trimmed =
-                        if si < sectionIndex then
-                            groups
+                            trimmed =
+                                if si < sectionIndex then
+                                    groups
 
-                        else if si == sectionIndex then
-                            List.take (groupIndex + 1) groups
+                                else if si == sectionIndex then
+                                    List.take (groupIndex + 1) groups
 
-                        else
-                            []
-                in
-                List.map (\g -> ( isSetup, correctGroupPlayers players g )) trimmed
-            )
-        |> List.concat
-        |> List.foldl (\( isSetup, group ) p -> applyGroupToPiles players.red isSetup p group) emptyPiles
+                                else
+                                    []
+                        in
+                        List.map (\g -> ( isSetup, correctGroupPlayers players g )) trimmed
+                    )
+                |> List.concat
+    in
+    -- Hand state is tracked alongside piles so we can detect DiscardedCard
+    -- details that came from the deck (card not in hand) vs from hand.
+    List.foldl
+        (\( isSetup, group ) ( h, p ) ->
+            let
+                p1 =
+                    applyGroupToPiles players.red isSetup p group
+
+                p2 =
+                    applyDeckDiscardCorrection players.red h group p1
+
+                h1 =
+                    applyGroupToHand players.red h group
+            in
+            ( h1, p2 )
+        )
+        ( emptyHand, emptyPiles )
+        groupPairs
+        |> Tuple.second
 
 
 -- BENCH STATE
@@ -2704,9 +2787,33 @@ applyGroupToAttachments group state =
     in
     List.foldl
         (\detail s ->
-            List.foldl (\bullet bs -> applyActionToAttachments bullet.action bs)
-                (applyActionToAttachments detail.action s)
-                detail.bullets
+            let
+                s1 =
+                    applyActionToAttachments detail.action s
+
+                s2 =
+                    List.foldl (\bullet bs -> applyActionToAttachments bullet.action bs) s1 detail.bullets
+            in
+            case detail.action of
+                Action.NCardsDiscardedFrom { pokemon } ->
+                    -- Bullets list the individual cards (e.g. "(sv6_166) Boomerang Energy, (mee_5) Psychic Energy").
+                    -- Parse each and remove it from the Pokémon's attachments.
+                    List.foldl
+                        (\bullet bs ->
+                            List.foldl
+                                (\card bbs ->
+                                    applyActionToAttachments
+                                        (Action.CardDiscardedFrom { card = card, pokemon = pokemon })
+                                        bbs
+                                )
+                                bs
+                                (bullet.raw |> String.split ", " |> List.filterMap Action.parseCardRef)
+                        )
+                        s2
+                        detail.bullets
+
+                _ ->
+                    s2
         )
         state1
         group.details
@@ -2936,6 +3043,63 @@ currentPlayFromGroup players group =
 
             else
                 Just { player = player, card = Nothing, red = emptyPlayerCards, blue = playerCards }
+
+        Action.UsedAttack { attacker } ->
+            let
+                correctedDetails =
+                    (correctGroupPlayers players group).details
+
+                extractDiscards ds =
+                    List.concatMap
+                        (\d ->
+                            case d.action of
+                                Action.DiscardedCard discardData ->
+                                    [ Just discardData.card ]
+
+                                Action.Discarded discardData ->
+                                    let
+                                        known =
+                                            detailCardList d
+                                    in
+                                    if List.isEmpty known then
+                                        List.repeat discardData.count Nothing
+
+                                    else
+                                        List.map Just known
+
+                                _ ->
+                                    []
+                        )
+                        ds
+
+                discardedFor p =
+                    extractDiscards
+                        (List.filter
+                            (\d ->
+                                case d.action of
+                                    Action.DiscardedCard rec ->
+                                        rec.player == p
+
+                                    Action.Discarded rec ->
+                                        rec.player == p
+
+                                    _ ->
+                                        False
+                            )
+                            correctedDetails
+                        )
+
+                redCards =
+                    { discarded = discardedFor players.red, shuffled = [], drawn = [], benched = [] }
+
+                blueCards =
+                    { discarded = discardedFor players.blue, shuffled = [], drawn = [], benched = [] }
+            in
+            if List.isEmpty redCards.discarded && List.isEmpty blueCards.discarded then
+                Nothing
+
+            else
+                Just { player = attacker.player, card = Nothing, red = redCards, blue = blueCards }
 
         _ ->
             Nothing
@@ -3192,6 +3356,30 @@ viewPlayerPiles prizesOnTop deckCount discardCount prizeCount color =
         children
 
 
+{-| Look up a card's image URL from the cache, falling back to a name-based
+search when the card has a name-as-ID (e.g. from a no-ID log or a stadium
+re-use line). This is the single point of truth for card→image resolution.
+-}
+cachedImageUrl : Dict String CardData -> Action.CardRef -> Maybe String
+cachedImageUrl cache card =
+    case Dict.get card.id cache |> Maybe.andThen .imageUrl of
+        Just url ->
+            Just url
+
+        Nothing ->
+            -- Name-as-ID fallback: find a cached entry whose name matches.
+            Dict.values cache
+                |> List.filterMap
+                    (\data ->
+                        if data.name == Just card.name then
+                            data.imageUrl
+
+                        else
+                            Nothing
+                    )
+                |> List.head
+
+
 handCardImage : Dict String CardData -> Maybe Action.CardRef -> Maybe String
 handCardImage cache maybeCard =
     case maybeCard of
@@ -3199,8 +3387,7 @@ handCardImage cache maybeCard =
             Nothing
 
         Just card ->
-            Dict.get card.id cache
-                |> Maybe.andThen .imageUrl
+            cachedImageUrl cache card
                 |> Maybe.map (\u -> u ++ "/low.webp")
 
 
@@ -3375,8 +3562,7 @@ viewAttachmentCircle : Dict String CardData -> Action.CardRef -> Html Msg
 viewAttachmentCircle cache item =
     let
         maybeUrl =
-            Dict.get item.id cache
-                |> Maybe.andThen .imageUrl
+            cachedImageUrl cache item
                 |> Maybe.map (\u -> u ++ "/high.webp")
 
         isBasicEnergy =
@@ -3421,8 +3607,7 @@ viewAttachmentRect : Dict String CardData -> Action.CardRef -> Html Msg
 viewAttachmentRect cache item =
     let
         maybeUrl =
-            Dict.get item.id cache
-                |> Maybe.andThen .imageUrl
+            cachedImageUrl cache item
                 |> Maybe.map (\u -> u ++ "/high.webp")
     in
     div
@@ -3457,8 +3642,7 @@ viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Action.Ca
 viewBenchCard upsideDown cache cardAttachments card =
     let
         maybeUrl =
-            Dict.get card.id cache
-                |> Maybe.andThen .imageUrl
+            cachedImageUrl cache card
                 |> Maybe.map (\u -> u ++ "/high.webp")
 
         rotStyles =
@@ -3669,9 +3853,7 @@ viewActiveZone players cache flipOpponent active maybeStadium attachments maybeP
         -- play-info labels keeps card images pixel-aligned across columns.
         , let
             isTookPrize =
-                case maybePlay of
-                    Just play -> play.card == Nothing
-                    Nothing   -> False
+                Maybe.map isTookPrizePlay maybePlay |> Maybe.withDefault False
 
             bluePlay =
                 case maybePlay of
@@ -3752,8 +3934,7 @@ viewKnownCardThumb : Bool -> Dict String CardData -> Action.CardRef -> Html Msg
 viewKnownCardThumb upsideDown cache card =
     let
         maybeUrl =
-            Dict.get card.id cache
-                |> Maybe.andThen .imageUrl
+            cachedImageUrl cache card
                 |> Maybe.map (\u -> u ++ "/low.webp")
 
         baseStyles =
@@ -3929,11 +4110,18 @@ viewPlayerPlayInfo cache upsideDown isTookPrize color playerCards maybePlayedCar
             cardGroups
 
 
+isTookPrizePlay : CurrentPlay -> Bool
+isTookPrizePlay play =
+    play.card == Nothing
+        && List.isEmpty play.red.discarded
+        && List.isEmpty play.blue.discarded
+
+
 viewCurrentPlay : Replay.Players -> Dict String CardData -> CurrentPlay -> Html Msg
 viewCurrentPlay players cache play =
     let
         isTookPrize =
-            play.card == Nothing
+            isTookPrizePlay play
 
         redPlayedCard =
             if play.player == players.red then
