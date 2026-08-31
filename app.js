@@ -13147,6 +13147,129 @@ var $author$project$Main$update = F2(
 			}
 		}
 	});
+var $author$project$Main$activeInstanceFor = F3(
+	function (player, cardId, preInstances) {
+		return A2(
+			$elm$core$Maybe$andThen,
+			$elm$core$Basics$identity,
+			A2(
+				$elm$core$Dict$get,
+				_Utils_Tuple2(player, cardId),
+				preInstances.g));
+	});
+var $author$project$Main$applyActionToConditions = F4(
+	function (preInstances, postInstances, action, state) {
+		switch (action.$) {
+			case 18:
+				var pokemon = action.a.t;
+				var condition = action.a.by;
+				var _v1 = A3($author$project$Main$activeInstanceFor, pokemon.d, pokemon.e.T, postInstances);
+				if (!_v1.$) {
+					var iid = _v1.a;
+					return A3(
+						$elm$core$Dict$update,
+						iid,
+						function (ex) {
+							return $elm$core$Maybe$Just(
+								A2(
+									$elm$core$List$cons,
+									condition,
+									A2(
+										$elm$core$List$filter,
+										$elm$core$Basics$neq(condition),
+										A2($elm$core$Maybe$withDefault, _List_Nil, ex))));
+						},
+						state);
+				} else {
+					return state;
+				}
+			case 19:
+				var pokemon = action.a.t;
+				var condition = action.a.by;
+				var _v2 = A3($author$project$Main$activeInstanceFor, pokemon.d, pokemon.e.T, postInstances);
+				if (!_v2.$) {
+					var iid = _v2.a;
+					return A3(
+						$elm$core$Dict$update,
+						iid,
+						$elm$core$Maybe$map(
+							$elm$core$List$filter(
+								$elm$core$Basics$neq(condition))),
+						state);
+				} else {
+					return state;
+				}
+			case 21:
+				var player = action.a.d;
+				var card = action.a.e;
+				var _v3 = A3($author$project$Main$activeInstanceFor, player, card.T, preInstances);
+				if (!_v3.$) {
+					var iid = _v3.a;
+					return A2($elm$core$Dict$remove, iid, state);
+				} else {
+					return state;
+				}
+			case 22:
+				var player = action.a.d;
+				var from = action.a.a7;
+				var _v4 = A3($author$project$Main$activeInstanceFor, player, from.T, preInstances);
+				if (!_v4.$) {
+					var iid = _v4.a;
+					return A2($elm$core$Dict$remove, iid, state);
+				} else {
+					return state;
+				}
+			case 16:
+				var pokemon = action.a.t;
+				var _v5 = A3($author$project$Main$activeInstanceFor, pokemon.d, pokemon.e.T, preInstances);
+				if (!_v5.$) {
+					var iid = _v5.a;
+					return A2($elm$core$Dict$remove, iid, state);
+				} else {
+					return state;
+				}
+			default:
+				return state;
+		}
+	});
+var $author$project$Main$applyGroupToConditions = F4(
+	function (preInstances, postInstances, group, state) {
+		var state1 = A4($author$project$Main$applyActionToConditions, preInstances, postInstances, group.R, state);
+		return A3(
+			$elm$core$List$foldl,
+			F2(
+				function (detail, s) {
+					var s1 = A4($author$project$Main$applyActionToConditions, preInstances, postInstances, detail.R, s);
+					return A3(
+						$elm$core$List$foldl,
+						F2(
+							function (bullet, bs) {
+								return A4($author$project$Main$applyActionToConditions, preInstances, postInstances, bullet.R, bs);
+							}),
+						s1,
+						detail.az);
+				}),
+			state1,
+			group.bC);
+	});
+var $author$project$Main$emptyConditions = $elm$core$Dict$empty;
+var $author$project$Main$computeConditions = F4(
+	function (players, replay, sectionIndex, groupIndex) {
+		var groups = A4($author$project$Main$collectAndCorrectGroups, players, replay, sectionIndex, groupIndex);
+		return A3(
+			$elm$core$List$foldl,
+			F2(
+				function (group, _v0) {
+					var inst = _v0.a;
+					var conds = _v0.b;
+					var newInst = A2($author$project$Main$applyGroupToInstances, group, inst);
+					return _Utils_Tuple2(
+						newInst,
+						A4($author$project$Main$applyGroupToConditions, inst, newInst, group, conds));
+				}),
+			_Utils_Tuple2($author$project$Main$emptyInstances, $author$project$Main$emptyConditions),
+			groups).b;
+	});
 var $author$project$Main$addDamageHp = F3(
 	function (key, amount, state) {
 		var current = A2(
@@ -15450,6 +15573,16 @@ var $author$project$Main$lookupAttachments = F2(
 						},
 						state))));
 	});
+var $author$project$Main$lookupConditions = F2(
+	function (state, iid) {
+		return A2(
+			$elm$core$Maybe$withDefault,
+			_List_Nil,
+			A2($elm$core$Dict$get, iid, state));
+	});
+var $author$project$Main$conditionRotationDeg = function (conditions) {
+	return A2($elm$core$List$member, 'Confused', conditions) ? 180 : (A2($elm$core$List$member, 'Asleep', conditions) ? (-90) : (A2($elm$core$List$member, 'Paralyzed', conditions) ? 90 : 0));
+};
 var $elm$core$String$toLower = _String_toLower;
 var $author$project$Main$isEnergyAttachment = F2(
 	function (cache, item) {
@@ -15614,9 +15747,9 @@ var $author$project$Main$viewAttachmentRect = F2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
-					A2($elm$html$Html$Attributes$style, 'width', '20px'),
-					A2($elm$html$Html$Attributes$style, 'height', '14px'),
-					A2($elm$html$Html$Attributes$style, 'border-radius', '2px'),
+					A2($elm$html$Html$Attributes$style, 'width', '34px'),
+					A2($elm$html$Html$Attributes$style, 'height', '24px'),
+					A2($elm$html$Html$Attributes$style, 'border-radius', '3px'),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
 					A2($elm$html$Html$Attributes$style, 'background-color', '#e2e8f0'),
 					A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(255,255,255,0.85)'),
@@ -15652,7 +15785,7 @@ var $author$project$Main$viewAttachmentRect = F2(
 									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
 									A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
 									A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-									A2($elm$html$Html$Attributes$style, 'font-size', '8px'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '10px'),
 									A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
 									A2($elm$html$Html$Attributes$style, 'color', '#4a5568'),
 									A2($elm$html$Html$Attributes$style, 'line-height', '1'),
@@ -15693,12 +15826,16 @@ var $author$project$Main$viewNoImageCard = F2(
 					$elm$html$Html$text(name)
 				]));
 	});
-var $author$project$Main$viewBenchCard = F5(
-	function (upsideDown, cache, cardAttachments, hpDamage, card) {
-		var rotStyles = upsideDown ? _List_fromArray(
+var $author$project$Main$viewBenchCard = F6(
+	function (upsideDown, cache, cardAttachments, hpDamage, conditions, card) {
+		var totalRotationDeg = (upsideDown ? 180 : 0) + $author$project$Main$conditionRotationDeg(conditions);
+		var rotStyles = (!totalRotationDeg) ? _List_Nil : _List_fromArray(
 			[
-				A2($elm$html$Html$Attributes$style, 'transform', 'rotate(180deg)')
-			]) : _List_Nil;
+				A2(
+				$elm$html$Html$Attributes$style,
+				'transform',
+				'rotate(' + ($elm$core$String$fromInt(totalRotationDeg) + 'deg)'))
+			]);
 		var maybeUrl = A2(
 			$elm$core$Maybe$map,
 			function (u) {
@@ -15745,24 +15882,6 @@ var $author$project$Main$viewBenchCard = F5(
 				return !A2($author$project$Main$isEnergyAttachment, cache, a);
 			},
 			cardAttachments);
-		var toolOverlay = $elm$core$List$isEmpty(toolAttachments) ? _List_Nil : _List_fromArray(
-			[
-				A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
-						A2($elm$html$Html$Attributes$style, 'top', '25%'),
-						A2($elm$html$Html$Attributes$style, 'left', '-10px'),
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-						A2($elm$html$Html$Attributes$style, 'gap', '2px')
-					]),
-				A2(
-					$elm$core$List$map,
-					$author$project$Main$viewAttachmentRect(cache),
-					toolAttachments))
-			]);
 		var energyAttachments = A2(
 			$elm$core$List$sortWith,
 			F2(
@@ -15772,14 +15891,14 @@ var $author$project$Main$viewBenchCard = F5(
 							$author$project$Main$basicEnergyImageUrl(x.aI),
 							$elm$core$Maybe$Nothing)) ? 0 : 1;
 					};
-					var _v3 = A2(
+					var _v4 = A2(
 						$elm$core$Basics$compare,
 						rank(a),
 						rank(b));
-					if (_v3 === 1) {
+					if (_v4 === 1) {
 						return A2($elm$core$Basics$compare, a.aI, b.aI);
 					} else {
-						var other = _v3;
+						var other = _v4;
 						return other;
 					}
 				}),
@@ -15793,9 +15912,9 @@ var $author$project$Main$viewBenchCard = F5(
 				F2(
 					function (item, acc) {
 						if (acc.b) {
-							var _v2 = acc.a;
-							var lastRef = _v2.a;
-							var count = _v2.b;
+							var _v3 = acc.a;
+							var lastRef = _v3.a;
+							var count = _v3.b;
 							var rest = acc.b;
 							return _Utils_eq(lastRef.T, item.T) ? A2(
 								$elm$core$List$cons,
@@ -15813,24 +15932,33 @@ var $author$project$Main$viewBenchCard = F5(
 					}),
 				_List_Nil,
 				energyAttachments));
+		var counterRotate = (!totalRotationDeg) ? _List_Nil : _List_fromArray(
+			[
+				A2(
+				$elm$html$Html$Attributes$style,
+				'transform',
+				'rotate(' + ($elm$core$String$fromInt(-totalRotationDeg) + 'deg)'))
+			]);
 		var energyOverlay = $elm$core$List$isEmpty(groupedEnergies) ? _List_Nil : _List_fromArray(
 			[
 				A2(
 				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
-						A2($elm$html$Html$Attributes$style, 'bottom', '-9px'),
-						A2($elm$html$Html$Attributes$style, 'left', '-9px'),
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
-						A2($elm$html$Html$Attributes$style, 'gap', '2px')
-					]),
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'bottom', '-9px'),
+							A2($elm$html$Html$Attributes$style, 'left', '-9px'),
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-direction', 'row'),
+							A2($elm$html$Html$Attributes$style, 'gap', '2px')
+						]),
+					counterRotate),
 				A2(
 					$elm$core$List$map,
-					function (_v0) {
-						var item = _v0.a;
-						var count = _v0.b;
+					function (_v1) {
+						var item = _v1.a;
+						var count = _v1.b;
 						return A2(
 							$elm$html$Html$div,
 							_List_fromArray(
@@ -15869,36 +15997,127 @@ var $author$project$Main$viewBenchCard = F5(
 					},
 					groupedEnergies))
 			]);
+		var toolOverlay = $elm$core$List$isEmpty(toolAttachments) ? _List_Nil : _List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'top', '25%'),
+							A2($elm$html$Html$Attributes$style, 'left', '-10px'),
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+							A2($elm$html$Html$Attributes$style, 'gap', '2px')
+						]),
+					counterRotate),
+				A2(
+					$elm$core$List$map,
+					$author$project$Main$viewAttachmentRect(cache),
+					toolAttachments))
+			]);
+		var statusTokens = A2(
+			$elm$core$List$filterMap,
+			$elm$core$Basics$identity,
+			_List_fromArray(
+				[
+					A2($elm$core$List$member, 'Burned', conditions) ? $elm$core$Maybe$Just(
+					_Utils_Tuple2('🔥', '#c53030')) : $elm$core$Maybe$Nothing,
+					A2($elm$core$List$member, 'Poisoned', conditions) ? $elm$core$Maybe$Just(
+					_Utils_Tuple2('☠️', '#805ad5')) : $elm$core$Maybe$Nothing
+				]));
+		var statusOverlay = A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (i, _v0) {
+					var emoji = _v0.a;
+					var color = _v0.b;
+					return A2(
+						$elm$html$Html$div,
+						_Utils_ap(
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+									A2(
+									$elm$html$Html$Attributes$style,
+									'top',
+									'calc(25% + ' + ($elm$core$String$fromInt(32 * (i + 1)) + 'px)')),
+									A2($elm$html$Html$Attributes$style, 'right', '2px'),
+									A2($elm$html$Html$Attributes$style, 'background', color),
+									A2($elm$html$Html$Attributes$style, 'color', 'white'),
+									A2($elm$html$Html$Attributes$style, 'border-radius', '50%'),
+									A2($elm$html$Html$Attributes$style, 'width', '28px'),
+									A2($elm$html$Html$Attributes$style, 'height', '28px'),
+									A2($elm$html$Html$Attributes$style, 'font-size', '0.9rem'),
+									A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+									A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+									A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+									A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
+									A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+									A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(0,0,0,0.55)'),
+									A2($elm$html$Html$Attributes$style, 'box-shadow', '0 1px 3px rgba(0,0,0,0.35)')
+								]),
+							counterRotate),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(emoji)
+							]));
+				}),
+			statusTokens);
 		var damageOverlay = (hpDamage > 0) ? _List_fromArray(
 			[
 				A2(
 				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
-						A2($elm$html$Html$Attributes$style, 'top', '25%'),
-						A2($elm$html$Html$Attributes$style, 'right', '2px'),
-						A2($elm$html$Html$Attributes$style, 'background', '#d69e2e'),
-						A2($elm$html$Html$Attributes$style, 'color', 'white'),
-						A2($elm$html$Html$Attributes$style, 'border-radius', '50%'),
-						A2($elm$html$Html$Attributes$style, 'width', '28px'),
-						A2($elm$html$Html$Attributes$style, 'height', '28px'),
-						A2($elm$html$Html$Attributes$style, 'font-size', '0.65rem'),
-						A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
-						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-						A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-						A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
-						A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
-						A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-						A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(0,0,0,0.55)'),
-						A2($elm$html$Html$Attributes$style, 'text-shadow', '0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)')
-					]),
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'top', '25%'),
+							A2($elm$html$Html$Attributes$style, 'right', '2px'),
+							A2($elm$html$Html$Attributes$style, 'background', '#d69e2e'),
+							A2($elm$html$Html$Attributes$style, 'color', 'white'),
+							A2($elm$html$Html$Attributes$style, 'border-radius', '50%'),
+							A2($elm$html$Html$Attributes$style, 'width', '28px'),
+							A2($elm$html$Html$Attributes$style, 'height', '28px'),
+							A2($elm$html$Html$Attributes$style, 'font-size', '0.65rem'),
+							A2($elm$html$Html$Attributes$style, 'font-weight', '700'),
+							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+							A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+							A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
+							A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
+							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+							A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(0,0,0,0.55)'),
+							A2($elm$html$Html$Attributes$style, 'text-shadow', '0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)')
+						]),
+					counterRotate),
 				_List_fromArray(
 					[
 						$elm$html$Html$text(
 						$elm$core$String$fromInt(hpDamage))
 					]))
 			]) : _List_Nil;
+		var overlayItems = _Utils_ap(
+			energyOverlay,
+			_Utils_ap(
+				toolOverlay,
+				_Utils_ap(statusOverlay, damageOverlay)));
+		var rotatedOverlays = $elm$core$List$isEmpty(overlayItems) ? _List_Nil : _List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_Utils_ap(
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'position', 'absolute'),
+							A2($elm$html$Html$Attributes$style, 'top', '0'),
+							A2($elm$html$Html$Attributes$style, 'left', '0'),
+							A2($elm$html$Html$Attributes$style, 'width', '100%'),
+							A2($elm$html$Html$Attributes$style, 'height', '100%')
+						]),
+					rotStyles),
+				overlayItems)
+			]);
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -15908,12 +16127,7 @@ var $author$project$Main$viewBenchCard = F5(
 					A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
 					A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
 				]),
-			A2(
-				$elm$core$List$cons,
-				cardDiv,
-				_Utils_ap(
-					energyOverlay,
-					_Utils_ap(toolOverlay, damageOverlay))));
+			A2($elm$core$List$cons, cardDiv, rotatedOverlays));
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $author$project$Main$KnownPlayCard = function (a) {
@@ -16117,241 +16331,265 @@ var $author$project$Main$viewPlayerPlayInfo = F6(
 				]),
 			cardGroups);
 	});
-var $author$project$Main$viewActiveZone = F9(
-	function (players, cache, flipOpponent, active, maybeStadium, instances, attachments, damageState, maybePlay) {
-		var stadiumSlot = function (maybeEntry) {
-			if (!maybeEntry.$) {
-				var _v5 = maybeEntry.a;
-				var card = _v5.a;
-				var upsideDown = _v5.b;
-				var shadowColor = _v5.c;
-				return A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
-							A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
-							A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-							A2($elm$html$Html$Attributes$style, 'box-shadow', '0 0 0 4px ' + shadowColor),
-							A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
-						]),
-					_List_fromArray(
-						[
-							A5($author$project$Main$viewBenchCard, upsideDown, cache, _List_Nil, 0, card)
-						]));
-			} else {
-				return A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
-							A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
-							A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-							A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
-							A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
-						]),
-					_List_Nil);
-			}
+var $author$project$Main$viewActiveZone = function (players) {
+	return function (cache) {
+		return function (flipOpponent) {
+			return function (active) {
+				return function (maybeStadium) {
+					return function (instances) {
+						return function (attachments) {
+							return function (damageState) {
+								return function (conditions) {
+									return function (maybePlay) {
+										var stadiumSlot = function (maybeEntry) {
+											if (!maybeEntry.$) {
+												var _v5 = maybeEntry.a;
+												var card = _v5.a;
+												var upsideDown = _v5.b;
+												var shadowColor = _v5.c;
+												return A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+															A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
+															A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+															A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+															A2($elm$html$Html$Attributes$style, 'box-shadow', '0 0 0 4px ' + shadowColor),
+															A2($elm$html$Html$Attributes$style, 'overflow', 'hidden')
+														]),
+													_List_fromArray(
+														[
+															A6($author$project$Main$viewBenchCard, upsideDown, cache, _List_Nil, 0, _List_Nil, card)
+														]));
+											} else {
+												return A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+															A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
+															A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+															A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+															A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
+															A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
+														]),
+													_List_Nil);
+											}
+										};
+										var red = players.a;
+										var stadiumEntry = function () {
+											if (!maybeStadium.$) {
+												var s = maybeStadium.a;
+												var upsideDown = flipOpponent && (!_Utils_eq(s.d, red));
+												var borderColor = _Utils_eq(s.d, red) ? 'rgba(44, 82, 130, 0.45)' : 'rgba(197, 48, 48, 0.45)';
+												return $elm$core$Maybe$Just(
+													_Utils_Tuple3(s.e, upsideDown, borderColor));
+											} else {
+												return $elm$core$Maybe$Nothing;
+											}
+										}();
+										var activeCard = F3(
+											function (upsideDown, activePlayer, maybeCard) {
+												if (!maybeCard.$) {
+													var card = maybeCard.a;
+													var maybeIid = A3($author$project$Main$firstInstance, activePlayer, card.T, instances);
+													var hp = A2(
+														$elm$core$Maybe$withDefault,
+														0,
+														A2(
+															$elm$core$Maybe$andThen,
+															function (iid) {
+																return A2($elm$core$Dict$get, iid, damageState);
+															},
+															maybeIid));
+													var conds = A2(
+														$elm$core$Maybe$withDefault,
+														_List_Nil,
+														A2(
+															$elm$core$Maybe$map,
+															$author$project$Main$lookupConditions(conditions),
+															maybeIid));
+													var atts = A2(
+														$elm$core$Maybe$withDefault,
+														_List_Nil,
+														A2(
+															$elm$core$Maybe$map,
+															$author$project$Main$lookupAttachments(attachments),
+															maybeIid));
+													return A6($author$project$Main$viewBenchCard, upsideDown, cache, atts, hp, conds, card);
+												} else {
+													return A2(
+														$elm$html$Html$div,
+														_List_fromArray(
+															[
+																A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
+																A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
+																A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
+																A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+																A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
+																A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
+															]),
+														_List_Nil);
+												}
+											});
+										return A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+													A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+													A2($elm$html$Html$Attributes$style, 'gap', '0.35rem'),
+													A2($elm$html$Html$Attributes$style, 'min-width', '0'),
+													A2($elm$html$Html$Attributes$style, 'padding-bottom', '1rem')
+												]),
+											_List_fromArray(
+												[
+													A2(
+													$elm$html$Html$div,
+													_List_fromArray(
+														[
+															A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+															A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+															A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
+															A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+															A2($elm$html$Html$Attributes$style, 'gap', '0.2rem'),
+															A2($elm$html$Html$Attributes$style, 'visibility', 'hidden')
+														]),
+													_List_fromArray(
+														[
+															A2(
+															$elm$html$Html$div,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
+																	A2($elm$html$Html$Attributes$style, 'writing-mode', 'vertical-rl'),
+																	A2($elm$html$Html$Attributes$style, 'max-height', '80px')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('X')
+																])),
+															A2(
+															$elm$html$Html$div,
+															_List_fromArray(
+																[
+																	A2($elm$html$Html$Attributes$style, 'font-size', '0.65rem')
+																]),
+															_List_fromArray(
+																[
+																	$elm$html$Html$text('(0)')
+																]))
+														])),
+													function () {
+													var isTookPrize = A2(
+														$elm$core$Maybe$withDefault,
+														false,
+														A2($elm$core$Maybe$map, $author$project$Main$isTookPrizePlay, maybePlay));
+													var redPlay = function () {
+														if (!maybePlay.$) {
+															var play = maybePlay.a;
+															var redPlayedCard = _Utils_eq(play.d, red) ? play.e : $elm$core$Maybe$Nothing;
+															return A6($author$project$Main$viewPlayerPlayInfo, cache, false, isTookPrize, '#2c5282', play.a, redPlayedCard);
+														} else {
+															return $elm$html$Html$text('');
+														}
+													}();
+													var bluePlay = function () {
+														if (!maybePlay.$) {
+															var play = maybePlay.a;
+															var bluePlayedCard = (!_Utils_eq(play.d, red)) ? play.e : $elm$core$Maybe$Nothing;
+															return A6($author$project$Main$viewPlayerPlayInfo, cache, flipOpponent, isTookPrize, '#c53030', play.b, bluePlayedCard);
+														} else {
+															return $elm$html$Html$text('');
+														}
+													}();
+													return A2(
+														$elm$html$Html$div,
+														_List_fromArray(
+															[
+																A2($elm$html$Html$Attributes$style, 'display', 'grid'),
+																A2($elm$html$Html$Attributes$style, 'grid-template-columns', 'minmax(0,1fr) 72px auto 72px minmax(0,1fr)'),
+																A2($elm$html$Html$Attributes$style, 'grid-template-rows', $author$project$Main$activeRowH + (' ' + $author$project$Main$activeRowH)),
+																A2($elm$html$Html$Attributes$style, 'row-gap', '0.4rem'),
+																A2($elm$html$Html$Attributes$style, 'align-items', 'end'),
+																A2($elm$html$Html$Attributes$style, 'flex', '1'),
+																A2($elm$html$Html$Attributes$style, 'min-width', '0')
+															]),
+														_List_fromArray(
+															[
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'grid-column', '1'),
+																		A2($elm$html$Html$Attributes$style, 'grid-row', '1 / 3'),
+																		A2($elm$html$Html$Attributes$style, 'align-self', 'center'),
+																		A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																		A2($elm$html$Html$Attributes$style, 'justify-content', 'flex-end'),
+																		A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+																	]),
+																_List_fromArray(
+																	[
+																		stadiumSlot(stadiumEntry)
+																	])),
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'grid-column', '3'),
+																		A2($elm$html$Html$Attributes$style, 'grid-row', '1')
+																	]),
+																_List_fromArray(
+																	[
+																		A3(activeCard, flipOpponent, players.b, active.b)
+																	])),
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'grid-column', '3'),
+																		A2($elm$html$Html$Attributes$style, 'grid-row', '2')
+																	]),
+																_List_fromArray(
+																	[
+																		A3(activeCard, false, players.a, active.a)
+																	])),
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
+																		A2($elm$html$Html$Attributes$style, 'grid-row', '1'),
+																		A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+																		A2($elm$html$Html$Attributes$style, 'min-width', '0')
+																	]),
+																_List_fromArray(
+																	[bluePlay])),
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
+																		A2($elm$html$Html$Attributes$style, 'grid-row', '2'),
+																		A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
+																		A2($elm$html$Html$Attributes$style, 'min-width', '0')
+																	]),
+																_List_fromArray(
+																	[redPlay]))
+															]));
+												}()
+												]));
+									};
+								};
+							};
+						};
+					};
+				};
+			};
 		};
-		var red = players.a;
-		var stadiumEntry = function () {
-			if (!maybeStadium.$) {
-				var s = maybeStadium.a;
-				var upsideDown = flipOpponent && (!_Utils_eq(s.d, red));
-				var borderColor = _Utils_eq(s.d, red) ? 'rgba(44, 82, 130, 0.45)' : 'rgba(197, 48, 48, 0.45)';
-				return $elm$core$Maybe$Just(
-					_Utils_Tuple3(s.e, upsideDown, borderColor));
-			} else {
-				return $elm$core$Maybe$Nothing;
-			}
-		}();
-		var activeCard = F3(
-			function (upsideDown, activePlayer, maybeCard) {
-				if (!maybeCard.$) {
-					var card = maybeCard.a;
-					var maybeIid = A3($author$project$Main$firstInstance, activePlayer, card.T, instances);
-					var hp = A2(
-						$elm$core$Maybe$withDefault,
-						0,
-						A2(
-							$elm$core$Maybe$andThen,
-							function (iid) {
-								return A2($elm$core$Dict$get, iid, damageState);
-							},
-							maybeIid));
-					var atts = A2(
-						$elm$core$Maybe$withDefault,
-						_List_Nil,
-						A2(
-							$elm$core$Maybe$map,
-							$author$project$Main$lookupAttachments(attachments),
-							maybeIid));
-					return A5($author$project$Main$viewBenchCard, upsideDown, cache, atts, hp, card);
-				} else {
-					return A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'width', $author$project$Main$cardW),
-								A2($elm$html$Html$Attributes$style, 'height', $author$project$Main$cardH),
-								A2($elm$html$Html$Attributes$style, 'border-radius', '4px'),
-								A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-								A2($elm$html$Html$Attributes$style, 'border', '2px dashed #cbd5e0'),
-								A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box')
-							]),
-						_List_Nil);
-				}
-			});
-		return A2(
-			$elm$html$Html$div,
-			_List_fromArray(
-				[
-					A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-					A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-					A2($elm$html$Html$Attributes$style, 'gap', '0.35rem'),
-					A2($elm$html$Html$Attributes$style, 'min-width', '0'),
-					A2($elm$html$Html$Attributes$style, 'padding-bottom', '1rem')
-				]),
-			_List_fromArray(
-				[
-					A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-							A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-							A2($elm$html$Html$Attributes$style, 'align-items', 'center'),
-							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-							A2($elm$html$Html$Attributes$style, 'gap', '0.2rem'),
-							A2($elm$html$Html$Attributes$style, 'visibility', 'hidden')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'font-size', '0.7rem'),
-									A2($elm$html$Html$Attributes$style, 'writing-mode', 'vertical-rl'),
-									A2($elm$html$Html$Attributes$style, 'max-height', '80px')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('X')
-								])),
-							A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$style, 'font-size', '0.65rem')
-								]),
-							_List_fromArray(
-								[
-									$elm$html$Html$text('(0)')
-								]))
-						])),
-					function () {
-					var isTookPrize = A2(
-						$elm$core$Maybe$withDefault,
-						false,
-						A2($elm$core$Maybe$map, $author$project$Main$isTookPrizePlay, maybePlay));
-					var redPlay = function () {
-						if (!maybePlay.$) {
-							var play = maybePlay.a;
-							var redPlayedCard = _Utils_eq(play.d, red) ? play.e : $elm$core$Maybe$Nothing;
-							return A6($author$project$Main$viewPlayerPlayInfo, cache, false, isTookPrize, '#2c5282', play.a, redPlayedCard);
-						} else {
-							return $elm$html$Html$text('');
-						}
-					}();
-					var bluePlay = function () {
-						if (!maybePlay.$) {
-							var play = maybePlay.a;
-							var bluePlayedCard = (!_Utils_eq(play.d, red)) ? play.e : $elm$core$Maybe$Nothing;
-							return A6($author$project$Main$viewPlayerPlayInfo, cache, flipOpponent, isTookPrize, '#c53030', play.b, bluePlayedCard);
-						} else {
-							return $elm$html$Html$text('');
-						}
-					}();
-					return A2(
-						$elm$html$Html$div,
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$style, 'display', 'grid'),
-								A2($elm$html$Html$Attributes$style, 'grid-template-columns', 'minmax(0,1fr) 72px auto 72px minmax(0,1fr)'),
-								A2($elm$html$Html$Attributes$style, 'grid-template-rows', $author$project$Main$activeRowH + (' ' + $author$project$Main$activeRowH)),
-								A2($elm$html$Html$Attributes$style, 'row-gap', '0.4rem'),
-								A2($elm$html$Html$Attributes$style, 'align-items', 'end'),
-								A2($elm$html$Html$Attributes$style, 'flex', '1'),
-								A2($elm$html$Html$Attributes$style, 'min-width', '0')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'grid-column', '1'),
-										A2($elm$html$Html$Attributes$style, 'grid-row', '1 / 3'),
-										A2($elm$html$Html$Attributes$style, 'align-self', 'center'),
-										A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-										A2($elm$html$Html$Attributes$style, 'justify-content', 'flex-end'),
-										A2($elm$html$Html$Attributes$style, 'align-items', 'center')
-									]),
-								_List_fromArray(
-									[
-										stadiumSlot(stadiumEntry)
-									])),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'grid-column', '3'),
-										A2($elm$html$Html$Attributes$style, 'grid-row', '1')
-									]),
-								_List_fromArray(
-									[
-										A3(activeCard, flipOpponent, players.b, active.b)
-									])),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'grid-column', '3'),
-										A2($elm$html$Html$Attributes$style, 'grid-row', '2')
-									]),
-								_List_fromArray(
-									[
-										A3(activeCard, false, players.a, active.a)
-									])),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
-										A2($elm$html$Html$Attributes$style, 'grid-row', '1'),
-										A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
-										A2($elm$html$Html$Attributes$style, 'min-width', '0')
-									]),
-								_List_fromArray(
-									[bluePlay])),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										A2($elm$html$Html$Attributes$style, 'grid-column', '5'),
-										A2($elm$html$Html$Attributes$style, 'grid-row', '2'),
-										A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
-										A2($elm$html$Html$Attributes$style, 'min-width', '0')
-									]),
-								_List_fromArray(
-									[redPlay]))
-							]));
-				}()
-				]));
-	});
+	};
+};
 var $author$project$Main$instanceIdForField = F4(
 	function (instances, player, cardId, fieldOrdinal) {
 		return A2(
@@ -16457,7 +16695,7 @@ var $author$project$Main$viewBenchRow = F8(
 										$elm$core$Maybe$map,
 										$author$project$Main$lookupAttachments(attachments),
 										maybeIid));
-								var cardHtml = A5($author$project$Main$viewBenchCard, upsideDown, cache, atts, hp, card);
+								var cardHtml = A6($author$project$Main$viewBenchCard, upsideDown, cache, atts, hp, _List_Nil, card);
 								return _Utils_Tuple2(
 									_Utils_ap(
 										rendered,
@@ -16749,130 +16987,132 @@ var $author$project$Main$viewHandState = function (players) {
 							return function (instances) {
 								return function (attachments) {
 									return function (damageState) {
-										return function (piles) {
-											return function (maybePlay) {
-												var stripDrawnFromHand = false;
-												var stripBenchedFromBench = false;
-												var redDisplay = function () {
-													if (stripDrawnFromHand) {
-														if (!maybePlay.$) {
-															var play = maybePlay.a;
-															return A2($author$project$Main$stripDrawnFromHandSide, play.a.K, hand.a);
+										return function (conditions) {
+											return function (piles) {
+												return function (maybePlay) {
+													var stripDrawnFromHand = false;
+													var stripBenchedFromBench = false;
+													var redDisplay = function () {
+														if (stripDrawnFromHand) {
+															if (!maybePlay.$) {
+																var play = maybePlay.a;
+																return A2($author$project$Main$stripDrawnFromHandSide, play.a.K, hand.a);
+															} else {
+																return hand.a;
+															}
 														} else {
 															return hand.a;
 														}
-													} else {
-														return hand.a;
-													}
-												}();
-												var blueDisplay = function () {
-													if (stripDrawnFromHand) {
-														if (!maybePlay.$) {
-															var play = maybePlay.a;
-															return A2($author$project$Main$stripDrawnFromHandSide, play.b.K, hand.b);
+													}();
+													var blueDisplay = function () {
+														if (stripDrawnFromHand) {
+															if (!maybePlay.$) {
+																var play = maybePlay.a;
+																return A2($author$project$Main$stripDrawnFromHandSide, play.b.K, hand.b);
+															} else {
+																return hand.b;
+															}
 														} else {
 															return hand.b;
 														}
-													} else {
-														return hand.b;
-													}
-												}();
-												var benchRedDisplay = function () {
-													if (stripBenchedFromBench) {
-														if (!maybePlay.$) {
-															var play = maybePlay.a;
-															return A2($author$project$Main$stripBenchedFromBenchSide, play.a.M, bench.a);
+													}();
+													var benchRedDisplay = function () {
+														if (stripBenchedFromBench) {
+															if (!maybePlay.$) {
+																var play = maybePlay.a;
+																return A2($author$project$Main$stripBenchedFromBenchSide, play.a.M, bench.a);
+															} else {
+																return bench.a;
+															}
 														} else {
 															return bench.a;
 														}
-													} else {
-														return bench.a;
-													}
-												}();
-												var benchBlueDisplay = function () {
-													if (stripBenchedFromBench) {
-														if (!maybePlay.$) {
-															var play = maybePlay.a;
-															return A2($author$project$Main$stripBenchedFromBenchSide, play.b.M, bench.b);
+													}();
+													var benchBlueDisplay = function () {
+														if (stripBenchedFromBench) {
+															if (!maybePlay.$) {
+																var play = maybePlay.a;
+																return A2($author$project$Main$stripBenchedFromBenchSide, play.b.M, bench.b);
+															} else {
+																return bench.b;
+															}
 														} else {
 															return bench.b;
 														}
-													} else {
-														return bench.b;
-													}
-												}();
-												return A2(
-													$elm$html$Html$div,
-													_List_fromArray(
-														[
-															A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-															A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-															A2($elm$html$Html$Attributes$style, 'gap', '0.75rem'),
-															A2($elm$html$Html$Attributes$style, 'padding', '0.5rem 0'),
-															A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-															A2($elm$html$Html$Attributes$style, 'min-width', '0')
-														]),
-													_List_fromArray(
-														[
-															A2(
-															$elm$html$Html$div,
-															_List_fromArray(
-																[
-																	A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-																	A2($elm$html$Html$Attributes$style, 'align-items', 'stretch'),
-																	A2($elm$html$Html$Attributes$style, 'gap', '0.75rem'),
-																	A2($elm$html$Html$Attributes$style, 'min-width', '0')
-																]),
-															_List_fromArray(
-																[
-																	A2(
-																	$elm$html$Html$div,
-																	_List_fromArray(
-																		[
-																			A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-																			A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-																			A2($elm$html$Html$Attributes$style, 'gap', '0.4rem'),
-																			A2($elm$html$Html$Attributes$style, 'flex', '1'),
-																			A2($elm$html$Html$Attributes$style, 'min-width', '0')
-																		]),
-																	_List_fromArray(
-																		[
-																			A6(
-																			$author$project$Main$viewHandRow,
-																			'RED',
-																			flipOpponent,
-																			'#c53030',
-																			'flex-end',
-																			blueDisplay,
-																			$author$project$Main$handCardImage(cache)),
-																			A8($author$project$Main$viewBenchRow, flipOpponent, cache, 'rgba(197, 48, 48, 0.08)', instances, attachments, damageState, players.b, benchBlueDisplay),
-																			A9($author$project$Main$viewActiveZone, players, cache, flipOpponent, active, maybeStadium, instances, attachments, damageState, maybePlay),
-																			A8($author$project$Main$viewBenchRow, false, cache, 'rgba(44, 82, 130, 0.08)', instances, attachments, damageState, players.a, benchRedDisplay),
-																			A6(
-																			$author$project$Main$viewHandRow,
-																			'BLUE',
-																			false,
-																			'#2c5282',
-																			'flex-start',
-																			redDisplay,
-																			$author$project$Main$handCardImage(cache))
-																		])),
-																	A2(
-																	$elm$html$Html$div,
-																	_List_fromArray(
-																		[
-																			A2($elm$html$Html$Attributes$style, 'display', 'flex'),
-																			A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
-																			A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
-																			A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
-																		]),
-																	_List_fromArray(
-																		[
-																			A5($author$project$Main$viewPlayerPiles, false, piles.aB, piles.aD, piles.aM, '#c53030'),
-																			A5($author$project$Main$viewPlayerPiles, true, piles.aC, piles.aE, piles.aN, '#2c5282')
-																		]))
-																]))
-														]));
+													}();
+													return A2(
+														$elm$html$Html$div,
+														_List_fromArray(
+															[
+																A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+																A2($elm$html$Html$Attributes$style, 'gap', '0.75rem'),
+																A2($elm$html$Html$Attributes$style, 'padding', '0.5rem 0'),
+																A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
+																A2($elm$html$Html$Attributes$style, 'min-width', '0')
+															]),
+														_List_fromArray(
+															[
+																A2(
+																$elm$html$Html$div,
+																_List_fromArray(
+																	[
+																		A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																		A2($elm$html$Html$Attributes$style, 'align-items', 'stretch'),
+																		A2($elm$html$Html$Attributes$style, 'gap', '0.75rem'),
+																		A2($elm$html$Html$Attributes$style, 'min-width', '0')
+																	]),
+																_List_fromArray(
+																	[
+																		A2(
+																		$elm$html$Html$div,
+																		_List_fromArray(
+																			[
+																				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+																				A2($elm$html$Html$Attributes$style, 'gap', '0.4rem'),
+																				A2($elm$html$Html$Attributes$style, 'flex', '1'),
+																				A2($elm$html$Html$Attributes$style, 'min-width', '0')
+																			]),
+																		_List_fromArray(
+																			[
+																				A6(
+																				$author$project$Main$viewHandRow,
+																				'RED',
+																				flipOpponent,
+																				'#c53030',
+																				'flex-end',
+																				blueDisplay,
+																				$author$project$Main$handCardImage(cache)),
+																				A8($author$project$Main$viewBenchRow, flipOpponent, cache, 'rgba(197, 48, 48, 0.08)', instances, attachments, damageState, players.b, benchBlueDisplay),
+																				$author$project$Main$viewActiveZone(players)(cache)(flipOpponent)(active)(maybeStadium)(instances)(attachments)(damageState)(conditions)(maybePlay),
+																				A8($author$project$Main$viewBenchRow, false, cache, 'rgba(44, 82, 130, 0.08)', instances, attachments, damageState, players.a, benchRedDisplay),
+																				A6(
+																				$author$project$Main$viewHandRow,
+																				'BLUE',
+																				false,
+																				'#2c5282',
+																				'flex-start',
+																				redDisplay,
+																				$author$project$Main$handCardImage(cache))
+																			])),
+																		A2(
+																		$elm$html$Html$div,
+																		_List_fromArray(
+																			[
+																				A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+																				A2($elm$html$Html$Attributes$style, 'flex-direction', 'column'),
+																				A2($elm$html$Html$Attributes$style, 'justify-content', 'space-between'),
+																				A2($elm$html$Html$Attributes$style, 'flex-shrink', '0')
+																			]),
+																		_List_fromArray(
+																			[
+																				A5($author$project$Main$viewPlayerPiles, false, piles.aB, piles.aD, piles.aM, '#c53030'),
+																				A5($author$project$Main$viewPlayerPiles, true, piles.aC, piles.aE, piles.aN, '#2c5282')
+																			]))
+																	]))
+															]));
+												};
 											};
 										};
 									};
@@ -17206,10 +17446,11 @@ var $author$project$Main$view = function (model) {
 										var instances = A4($author$project$Main$computeInstances, players, replay, sectionIndex, groupIndex);
 										var hand = A4($author$project$Main$computeHand, players, replay, sectionIndex, groupIndex);
 										var damageState = A4($author$project$Main$computeDamage, players, replay, sectionIndex, groupIndex);
+										var conditions = A4($author$project$Main$computeConditions, players, replay, sectionIndex, groupIndex);
 										var bench = A4($author$project$Main$computeBench, players, replay, sectionIndex, groupIndex);
 										var attachments = A4($author$project$Main$computeAttachments, players, replay, sectionIndex, groupIndex);
 										var activeSpots = A4($author$project$Main$computeActive, players, replay, sectionIndex, groupIndex);
-										return $author$project$Main$viewHandState(players)(cache)(ctx.h)(hand)(bench)(activeSpots)(stadium)(instances)(attachments)(damageState)(piles)(maybePlay);
+										return $author$project$Main$viewHandState(players)(cache)(ctx.h)(hand)(bench)(activeSpots)(stadium)(instances)(attachments)(damageState)(conditions)(piles)(maybePlay);
 									} else {
 										return $elm$html$Html$text('');
 									}
