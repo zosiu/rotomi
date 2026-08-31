@@ -1,6 +1,6 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { readReplayUrl, readSectionIndex, readGroupIndex, buildShareUrl } = require("../url-params.js");
+const { readReplayUrl, readSectionIndex, readGroupIndex, buildShareUrl, trainingCourtLogId } = require("../url-params.js");
 
 test("readReplayUrl: returns URL from replay_url param", () => {
   assert.equal(
@@ -94,4 +94,22 @@ test("round-trip: read(build(url, index, groupIndex)) === url, index, and groupI
   assert.equal(readReplayUrl(search), url);
   assert.equal(readSectionIndex(search), index);
   assert.equal(readGroupIndex(search), groupIndex);
+});
+
+const TC_UUID = "7b9b2ec2-bc26-42ba-a43a-406dd9f7d316";
+
+test("trainingCourtLogId: extracts UUID from www URL", () => {
+  assert.equal(trainingCourtLogId(`https://www.trainingcourt.app/ptcg/logs/${TC_UUID}`), TC_UUID);
+});
+
+test("trainingCourtLogId: extracts UUID from bare domain URL", () => {
+  assert.equal(trainingCourtLogId(`https://trainingcourt.app/ptcg/logs/${TC_UUID}`), TC_UUID);
+});
+
+test("trainingCourtLogId: returns null for non-trainingcourt URL", () => {
+  assert.equal(trainingCourtLogId("https://example.com/replay.txt"), null);
+});
+
+test("trainingCourtLogId: returns null for empty string", () => {
+  assert.equal(trainingCourtLogId(""), null);
 });

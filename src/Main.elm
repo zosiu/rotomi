@@ -204,6 +204,7 @@ type Msg
     = UrlChanged String
     | LoadClicked
     | GotReplay (Result Http.Error String)
+    | GotTrainingCourtLog Int Int Bool (Result Http.Error String)
     | FirstSection
     | PrevSection
     | NextSection
@@ -229,14 +230,24 @@ update msg model =
             let
                 url =
                     currentUrl model |> String.trim
+
+                flip =
+                    currentFlipOpponent model
             in
             if String.isEmpty url then
                 ( model, Cmd.none )
 
             else
-                ( Loading url 0 0 (currentFlipOpponent model)
-                , Http.get { url = url, expect = Http.expectString GotReplay }
-                )
+                case trainingCourtLogId url of
+                    Just uuid ->
+                        ( Loading url 0 0 flip
+                        , fetchTrainingCourtLog uuid 0 0 flip
+                        )
+
+                    Nothing ->
+                        ( Loading url 0 0 flip
+                        , Http.get { url = url, expect = Http.expectString GotReplay }
+                        )
 
         GotReplay result ->
             case model of
@@ -254,6 +265,19 @@ update msg model =
                             ( Failed url (httpErrorToString err), Cmd.none )
 
                 Retrying url idx gIdx flip ->
+                    case result of
+                        Ok content ->
+                            loadReplay url idx gIdx flip content
+
+                        Err err ->
+                            ( Failed url (httpErrorToString err), Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        GotTrainingCourtLog idx gIdx flip result ->
+            case model of
+                Loading url _ _ _ ->
                     case result of
                         Ok content ->
                             loadReplay url idx gIdx flip content
@@ -700,6 +724,61 @@ fetchHandCards maybePlayers replay si gi cache =
 proxyUrl : String -> String
 proxyUrl url =
     "https://api.allorigins.win/raw?url=" ++ Url.percentEncode url
+
+
+-- TrainingCourt stores logs in Supabase. The anon key is public by design
+-- (exposed in their open-source repo and compiled client JS).
+trainingCourtSupabaseUrl : String
+trainingCourtSupabaseUrl =
+    "https://yuruvpbgsukqiaeduaay.supabase.co"
+
+
+trainingCourtAnonKey : String
+trainingCourtAnonKey =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cnV2cGJnc3VrcWlhZWR1YWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2NDA2MDcsImV4cCI6MjAzOTIxNjYwN30.GtRRwMpiMMmbcpUci9xXqthWhgL5daKvsUZUaRgFPkI"
+
+
+{-| Extract the log UUID from a TrainingCourt share URL, e.g.
+"https://trainingcourt.app/ptcg/logs/7b9b2ec2-..." → Just "7b9b2ec2-..."
+-}
+trainingCourtLogId : String -> Maybe String
+trainingCourtLogId url =
+    case String.split "trainingcourt.app/ptcg/logs/" url of
+        [ _, rest ] ->
+            let
+                uuid =
+                    rest |> String.split "?" |> List.head |> Maybe.withDefault ""
+            in
+            if String.isEmpty uuid then
+                Nothing
+
+            else
+                Just uuid
+
+        _ ->
+            Nothing
+
+
+fetchTrainingCourtLog : String -> Int -> Int -> Bool -> Cmd Msg
+fetchTrainingCourtLog uuid idx gIdx flip =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "apikey" trainingCourtAnonKey
+            , Http.header "Authorization" ("Bearer " ++ trainingCourtAnonKey)
+            ]
+        , url =
+            trainingCourtSupabaseUrl
+                ++ "/rest/v1/logs?select=log&id=eq."
+                ++ uuid
+        , body = Http.emptyBody
+        , expect =
+            Http.expectJson
+                (GotTrainingCourtLog idx gIdx flip)
+                (Decode.index 0 (Decode.field "log" Decode.string))
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 {-| Build the TCGdex set-card API URL for a replay card ID like "sv4_160_ph".
