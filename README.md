@@ -86,6 +86,31 @@ Example output on failure:
   Visual: http://localhost:8000/?replay_url=http%3A%2F%2F...&section=4&group=3
 ```
 
+## Fetching fixtures
+
+To save a TrainingCourt replay as a fixture file:
+
+```sh
+npm run fetch-fixture -- https://trainingcourt.app/ptcg/logs/<uuid>
+```
+
+An optional second argument overrides the output filename (default: `match_<first-8-chars-of-uuid>.txt`):
+
+```sh
+npm run fetch-fixture -- https://trainingcourt.app/ptcg/logs/<uuid> match_my_game.txt
+```
+
+The script fetches the log from Supabase, parses it with `Replay.parse`, prints a
+summary (players, turn count, any warnings), and saves it to `replay_fixtures/`.
+
+Build once, then run repeatedly without recompiling:
+
+```sh
+npm run fetch-fixture:build
+node scripts/fetch-fixture.js https://trainingcourt.app/ptcg/logs/<uuid>
+node scripts/fetch-fixture.js https://trainingcourt.app/ptcg/logs/<uuid> match_other.txt
+```
+
 ## Build
 
 ```sh

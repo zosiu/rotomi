@@ -124,6 +124,7 @@ type Action
     | PoisonCheckupDamage { pokemon : PokemonRef, counters : Int }
     | PlacedDamageCounters { player : String, pokemon : PokemonRef, count : Int }
     | MovedDamageCounters { player : String, count : Int, from : PokemonRef, to : PokemonRef }
+    | HealedDamage { pokemon : PokemonRef, amount : Int }
     -- Effect negation
     | DamagePrevented { pokemon : CardRef }
     | EffectBlocked { move : String, pokemon : CardRef }
@@ -302,6 +303,7 @@ parseAction raw =
         |> orTry (tryConditionApplied raw)
         |> orTry (tryConditionRemoved raw)
         |> orTry (tryTookDamage raw)
+        |> orTry (tryHealedDamage raw)
         |> orTry (tryCardActivated raw)
         |> orTry (tryCardDiscardedFrom raw)
         |> orTry (tryNCardsDiscardedFrom raw)
@@ -836,6 +838,29 @@ tryTookDamage raw =
 
                             Nothing ->
                                 Nothing
+
+                    Nothing ->
+                        Nothing
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
+tryHealedDamage : String -> Maybe Action
+tryHealedDamage raw =
+    -- "PLAYER's (id) Name healed N damage."
+    if String.endsWith " damage." raw && String.contains " healed " raw then
+        case String.split " healed " raw of
+            [ pokemonPart, amountStr ] ->
+                case parsePokemonRef pokemonPart of
+                    Just pokemon ->
+                        String.replace " damage." "" amountStr
+                            |> String.trim
+                            |> String.toInt
+                            |> Maybe.map (\n -> HealedDamage { pokemon = pokemon, amount = n })
 
                     Nothing ->
                         Nothing

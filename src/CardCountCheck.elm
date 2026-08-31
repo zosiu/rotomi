@@ -9,12 +9,15 @@ import Main
         , AttachmentState
         , BenchState
         , HandState
+        , InstanceId
+        , InstanceState
         , PileState
         , StadiumState
         , applyGroupToActive
         , applyGroupToAttachments
         , applyGroupToBench
         , applyGroupToHand
+        , applyGroupToInstances
         , applyGroupToPiles
         , applyGroupToStadium
         , correctGroupPlayers
@@ -22,7 +25,10 @@ import Main
         , emptyAttachments
         , emptyBench
         , emptyHand
+        , emptyInstances
         , emptyPiles
+        , firstInstance
+        , instanceIdForField
         , isPokemonAbilityGroup
         , lookupAttachments
         , pokemonAbilityPlayedCardId
@@ -62,6 +68,7 @@ type alias GameState =
     , bench : BenchState
     , active : ActiveState
     , stadium : Maybe StadiumState
+    , instances : InstanceState
     , attachments : AttachmentState
     , evolution : EvolutionState
     }
@@ -86,6 +93,7 @@ initialState =
     , bench = emptyBench
     , active = emptyActive
     , stadium = Nothing
+    , instances = emptyInstances
     , attachments = emptyAttachments
     , evolution = emptyEvolution
     }
@@ -276,12 +284,17 @@ applyGroupToEvolution red evo group =
 
 stepGroup : String -> Bool -> Action.ActionGroup -> GameState -> GameState
 stepGroup red isSetup group gs =
+    let
+        newInstances =
+            applyGroupToInstances group gs.instances
+    in
     { piles = applyGroupToPiles red isSetup gs.piles group
     , hand = applyGroupToHand red gs.hand group
     , bench = applyGroupToBench red gs.active gs.bench group
     , active = applyGroupToActive red gs.active group
     , stadium = applyGroupToStadium gs.stadium group
-    , attachments = applyGroupToAttachments group gs.attachments
+    , instances = newInstances
+    , attachments = applyGroupToAttachments gs.instances newInstances group gs.attachments
     , evolution = applyGroupToEvolution red gs.evolution group
     }
 
@@ -308,14 +321,20 @@ attachmentCountForSide :
     String
     -> List Action.CardRef
     -> Maybe Action.CardRef
+    -> InstanceState
     -> AttachmentState
     -> Int
-attachmentCountForSide player benchCards maybeActive state =
+attachmentCountForSide player benchCards maybeActive instances state =
     let
         activeCount =
             case maybeActive of
                 Just card ->
-                    List.length (lookupAttachments state player card.id Action.ActiveSpot 0)
+                    case firstInstance player card.id instances of
+                        Just iid ->
+                            List.length (lookupAttachments state iid)
+
+                        Nothing ->
+                            0
 
                 Nothing ->
                     0
@@ -328,7 +347,12 @@ attachmentCountForSide player benchCards maybeActive state =
                             Dict.get card.id counts |> Maybe.withDefault 0
 
                         itemCount =
-                            List.length (lookupAttachments state player card.id Action.BenchSpot ordinal)
+                            case instanceIdForField instances player card.id ordinal of
+                                Just iid ->
+                                    List.length (lookupAttachments state iid)
+
+                                Nothing ->
+                                    0
                     in
                     ( total + itemCount, Dict.insert card.id (ordinal + 1) counts )
                 )
@@ -365,7 +389,7 @@ breakdownForRed red gs =
             List.length gs.bench.red
 
         attachmentsVal =
-            attachmentCountForSide red gs.bench.red gs.active.red gs.attachments
+            attachmentCountForSide red gs.bench.red gs.active.red gs.instances gs.attachments
 
         stadiumVal =
             case gs.stadium of
@@ -425,7 +449,7 @@ breakdownForBlue red blue gs =
             List.length gs.bench.blue
 
         attachmentsVal =
-            attachmentCountForSide blue gs.bench.blue gs.active.blue gs.attachments
+            attachmentCountForSide blue gs.bench.blue gs.active.blue gs.instances gs.attachments
 
         stadiumVal =
             case gs.stadium of

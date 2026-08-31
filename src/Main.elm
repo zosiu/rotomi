@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, pokemonAbilityPlayedCardId, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, InstanceId, InstanceState, emptyInstances, applyGroupToInstances, instanceIdForField, firstInstance, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, pokemonAbilityPlayedCardId, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
@@ -1264,8 +1264,10 @@ applyTopAction red hand group =
             -- no new OpeningDraw line appears in the log, so we fill with 7 unknowns.
             setHand red player (List.repeat 7 Nothing) hand
 
-        Action.MulliganBonus { player, count } ->
-            addUnknowns red player count hand
+        Action.MulliganBonus _ ->
+            -- The drawn cards are always described by a DrewCount detail (with
+            -- optional bullet card list), so let applyDetailAction handle it.
+            hand
 
         Action.Drew { player, card } ->
             addCard red player card hand
@@ -1992,8 +1994,9 @@ applyActionToPiles red isSetup action piles =
         Action.OpeningDraw { player, count } ->
             pilesDeckDelta red player -count piles
 
-        Action.MulliganBonus { player, count } ->
-            pilesDeckDelta red player -count piles
+        Action.MulliganBonus _ ->
+            -- DrewCount detail handles the deck change (avoids double-counting).
+            piles
 
         Action.Drew { player } ->
             pilesDeckDelta red player -1 piles
@@ -2225,6 +2228,13 @@ computePiles players replay sectionIndex groupIndex =
 -- BENCH STATE
 
 
+-- When a Pokémon retreats or is switched to the bench, put it at the front
+-- (True) or back (False) of the bench list.
+retreatToFront : Bool
+retreatToFront =
+    True
+
+
 addToBench : String -> String -> Action.CardRef -> BenchState -> BenchState
 addToBench red player card bench =
     if player == red then
@@ -2232,6 +2242,24 @@ addToBench red player card bench =
 
     else
         { bench | blue = bench.blue ++ [ card ] }
+
+
+prependToBench : String -> String -> Action.CardRef -> BenchState -> BenchState
+prependToBench red player card bench =
+    if player == red then
+        { bench | red = card :: bench.red }
+
+    else
+        { bench | blue = card :: bench.blue }
+
+
+retreatToBench : String -> String -> Action.CardRef -> BenchState -> BenchState
+retreatToBench red player card bench =
+    if retreatToFront then
+        prependToBench red player card bench
+
+    else
+        addToBench red player card bench
 
 
 removeFromBench : String -> String -> String -> BenchState -> BenchState
@@ -2335,13 +2363,13 @@ applyActionToBench red active action bench =
                 removeFromBench red pokemon.player pokemon.card.id bench
 
         Action.Retreated { player, card } ->
-            addToBench red player card bench
+            retreatToBench red player card bench
 
         Action.Switched { player, from, to } ->
             -- `from` leaves the bench to become active; `to` leaves active to join bench
             bench
                 |> removeFromBench red player from.id
-                |> (if String.isEmpty to.id then identity else addToBench red player to)
+                |> (if String.isEmpty to.id then identity else retreatToBench red player to)
 
         _ ->
             bench
@@ -2589,6 +2617,322 @@ computeStadium players replay sectionIndex groupIndex =
         (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
+-- INSTANCE STATE
+
+
+type alias InstanceId =
+    Int
+
+
+type alias InstanceState =
+    { nextId : InstanceId
+    , bench : Dict ( String, String ) (List InstanceId)
+    , activeSpot : Dict ( String, String ) (Maybe InstanceId)
+    }
+
+
+emptyInstances : InstanceState
+emptyInstances =
+    { nextId = 0, bench = Dict.empty, activeSpot = Dict.empty }
+
+
+assignInstance : String -> String -> InstanceState -> ( InstanceState, InstanceId )
+assignInstance player cardId state =
+    ( { state | nextId = state.nextId + 1 }, state.nextId )
+
+
+addToBenchInstances : String -> String -> InstanceId -> InstanceState -> InstanceState
+addToBenchInstances player cardId iid state =
+    { state | bench = Dict.update ( player, cardId ) (\ex -> Just (Maybe.withDefault [] ex ++ [ iid ])) state.bench }
+
+
+setActiveInstance : String -> String -> InstanceId -> InstanceState -> InstanceState
+setActiveInstance player cardId iid state =
+    { state | activeSpot = Dict.insert ( player, cardId ) (Just iid) state.activeSpot }
+
+
+firstInstance : String -> String -> InstanceState -> Maybe InstanceId
+firstInstance player cardId state =
+    nthInstance player cardId 0 state
+
+
+nthInstance : String -> String -> Int -> InstanceState -> Maybe InstanceId
+nthInstance player cardId n state =
+    let
+        active =
+            Dict.get ( player, cardId ) state.activeSpot
+                |> Maybe.andThen identity
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+
+        bench =
+            Dict.get ( player, cardId ) state.bench
+                |> Maybe.withDefault []
+    in
+    List.drop n (active ++ bench) |> List.head
+
+
+retireFirstInstance : String -> String -> InstanceState -> InstanceState
+retireFirstInstance player cardId state =
+    let
+        key =
+            ( player, cardId )
+
+        activeIid =
+            Dict.get key state.activeSpot |> Maybe.andThen identity
+    in
+    case activeIid of
+        Just _ ->
+            { state | activeSpot = Dict.insert key Nothing state.activeSpot }
+
+        Nothing ->
+            { state | bench = Dict.update key (Maybe.map (List.drop 1)) state.bench }
+
+
+transferFirstInstanceBench : String -> String -> String -> InstanceState -> InstanceState
+transferFirstInstanceBench player fromId toId state =
+    let
+        fromKey =
+            ( player, fromId )
+
+        toKey =
+            ( player, toId )
+
+        maybeIid =
+            Dict.get fromKey state.bench |> Maybe.andThen List.head
+    in
+    case maybeIid of
+        Nothing ->
+            state
+
+        Just iid ->
+            { state
+                | bench =
+                    state.bench
+                        |> Dict.update fromKey (Maybe.map (List.drop 1))
+                        |> Dict.update toKey (\ex -> Just (Maybe.withDefault [] ex ++ [ iid ]))
+            }
+
+
+transferFirstInstanceActive : String -> String -> String -> InstanceState -> InstanceState
+transferFirstInstanceActive player fromId toId state =
+    let
+        fromKey =
+            ( player, fromId )
+
+        toKey =
+            ( player, toId )
+
+        maybeIid =
+            Dict.get fromKey state.activeSpot |> Maybe.andThen identity
+    in
+    case maybeIid of
+        Nothing ->
+            state
+
+        Just iid ->
+            { state
+                | activeSpot =
+                    state.activeSpot
+                        |> Dict.insert fromKey Nothing
+                        |> Dict.insert toKey (Just iid)
+            }
+
+
+applyActionToInstances : Action.Action -> InstanceState -> InstanceState
+applyActionToInstances action state =
+    case action of
+        Action.PlayedPokemon { player, card, position } ->
+            let
+                ( s1, iid ) =
+                    assignInstance player card.id state
+            in
+            case position of
+                Action.BenchSpot ->
+                    addToBenchInstances player card.id iid s1
+
+                _ ->
+                    setActiveInstance player card.id iid s1
+
+        Action.DrewCard { player, card, andPlayed } ->
+            case andPlayed of
+                Just pos ->
+                    let
+                        ( s1, iid ) =
+                            assignInstance player card.id state
+                    in
+                    case pos of
+                        Action.BenchSpot ->
+                            addToBenchInstances player card.id iid s1
+
+                        _ ->
+                            setActiveInstance player card.id iid s1
+
+                Nothing ->
+                    state
+
+        Action.KnockedOut { pokemon } ->
+            retireFirstInstance pokemon.player pokemon.card.id state
+
+        Action.Evolved { player, from, to, position } ->
+            case position of
+                Action.BenchSpot ->
+                    transferFirstInstanceBench player from.id to.id state
+
+                _ ->
+                    transferFirstInstanceActive player from.id to.id state
+
+        Action.MovedToActive { pokemon } ->
+            let
+                key =
+                    ( pokemon.player, pokemon.card.id )
+            in
+            -- Skip if a preceding Switched already moved this pokemon to the active spot.
+            case Dict.get key state.activeSpot |> Maybe.andThen identity of
+                Just _ ->
+                    state
+
+                Nothing ->
+                    let
+                        maybeIid =
+                            Dict.get key state.bench |> Maybe.andThen List.head
+                    in
+                    case maybeIid of
+                        Nothing ->
+                            state
+
+                        Just iid ->
+                            { state
+                                | bench = Dict.update key (Maybe.map (List.drop 1)) state.bench
+                                , activeSpot = Dict.insert key (Just iid) state.activeSpot
+                            }
+
+        Action.Switched { player, from, to } ->
+            let
+                fromKey =
+                    ( player, from.id )
+
+                toKey =
+                    ( player, to.id )
+
+                fromIid =
+                    Dict.get fromKey state.bench |> Maybe.andThen List.head
+
+                toIid =
+                    Dict.get toKey state.activeSpot |> Maybe.andThen identity
+            in
+            { state
+                | bench =
+                    state.bench
+                        |> Dict.update fromKey (Maybe.map (List.drop 1))
+                        |> (if String.isEmpty to.id then
+                                identity
+
+                            else
+                                case toIid of
+                                    Just iid ->
+                                        Dict.update toKey
+                                            (\ex ->
+                                                let lst = Maybe.withDefault [] ex
+                                                in Just (if retreatToFront then iid :: lst else lst ++ [ iid ])
+                                            )
+
+                                    Nothing ->
+                                        identity
+                           )
+                , activeSpot =
+                    state.activeSpot
+                        |> (case fromIid of
+                                Just iid ->
+                                    Dict.insert fromKey (Just iid)
+
+                                Nothing ->
+                                    identity
+                           )
+                        |> (if String.isEmpty to.id then
+                                identity
+
+                            else
+                                Dict.insert toKey Nothing
+                           )
+            }
+
+        Action.Retreated { player, card } ->
+            let
+                key =
+                    ( player, card.id )
+
+                maybeIid =
+                    Dict.get key state.activeSpot |> Maybe.andThen identity
+            in
+            case maybeIid of
+                Nothing ->
+                    state
+
+                Just iid ->
+                    { state
+                        | activeSpot = Dict.insert key Nothing state.activeSpot
+                        , bench =
+                            Dict.update key
+                                (\ex ->
+                                    let lst = Maybe.withDefault [] ex
+                                    in Just (if retreatToFront then iid :: lst else lst ++ [ iid ])
+                                )
+                                state.bench
+                    }
+
+        _ ->
+            state
+
+
+applyDetailToInstances : Action.DetailAction -> InstanceState -> InstanceState
+applyDetailToInstances detail state =
+    case detail.action of
+        Action.DrewAndPlayed { player, position } ->
+            case position of
+                Action.BenchSpot ->
+                    List.foldl
+                        (\card s ->
+                            let
+                                ( s1, iid ) =
+                                    assignInstance player card.id s
+                            in
+                            addToBenchInstances player card.id iid s1
+                        )
+                        state
+                        (detailCardList detail)
+
+                _ ->
+                    state
+
+        _ ->
+            applyActionToInstances detail.action state
+
+
+applyGroupToInstances : Action.ActionGroup -> InstanceState -> InstanceState
+applyGroupToInstances group state =
+    let
+        s1 =
+            applyActionToInstances group.action state
+    in
+    List.foldl
+        (\detail s ->
+            let
+                s2 =
+                    applyDetailToInstances detail s
+            in
+            List.foldl (\bullet bs -> applyActionToInstances bullet.action bs) s2 detail.bullets
+        )
+        s1
+        group.details
+
+
+instanceIdForField : InstanceState -> String -> String -> Int -> Maybe InstanceId
+instanceIdForField instances player cardId fieldOrdinal =
+    Dict.get ( player, cardId ) instances.bench
+        |> Maybe.andThen (List.drop fieldOrdinal >> List.head)
+
+
 -- ATTACHMENT STATE
 
 
@@ -2598,7 +2942,8 @@ and position=BenchSpot; their ordinal within the bench list disambiguates them
 at render time.
 -}
 type alias AttachmentEntry =
-    { player : String
+    { instanceId : InstanceId
+    , player : String
     , cardId : String
     , position : Action.Position
     , items : List Action.CardRef
@@ -2628,6 +2973,16 @@ findEntryIndex player cardId position state =
         |> Maybe.map Tuple.first
 
 
+{-| Index of the first entry matching the given instanceId. -}
+findEntryByInstance : InstanceId -> AttachmentState -> Maybe Int
+findEntryByInstance iid state =
+    state
+        |> List.indexedMap Tuple.pair
+        |> List.filter (\( _, e ) -> e.instanceId == iid)
+        |> List.head
+        |> Maybe.map Tuple.first
+
+
 {-| Update the element at the given index in a list. -}
 updateAt : Int -> (a -> a) -> List a -> List a
 updateAt idx f list =
@@ -2642,14 +2997,11 @@ updateAt idx f list =
         list
 
 
-{-| Return the items attached to the Nth pokemon (by ordinal) with the given
-player, card id and position. Ordinal 0 = first occurrence, 1 = second, etc.
--}
-lookupAttachments : AttachmentState -> String -> String -> Action.Position -> Int -> List Action.CardRef
-lookupAttachments state player cardId position ordinal =
+{-| Return the items attached to the pokemon with the given instanceId. -}
+lookupAttachments : AttachmentState -> InstanceId -> List Action.CardRef
+lookupAttachments state iid =
     state
-        |> List.filter (\e -> e.player == player && e.cardId == cardId && e.position == position)
-        |> List.drop ordinal
+        |> List.filter (\e -> e.instanceId == iid)
         |> List.head
         |> Maybe.map .items
         |> Maybe.withDefault []
@@ -2667,16 +3019,25 @@ moveAttachments player cardId fromPos toPos state =
             state
 
 
-applyActionToAttachments : Action.Action -> AttachmentState -> AttachmentState
-applyActionToAttachments action state =
+applyActionToAttachments : InstanceState -> InstanceState -> Action.Action -> AttachmentState -> AttachmentState
+applyActionToAttachments preInstances postInstances action state =
     case action of
         Action.Attached { player, item, target, position } ->
-            case findEntryIndex player target.card.id position state of
-                Just idx ->
-                    updateAt idx (\e -> { e | items = item :: e.items }) state
-
+            let
+                maybeIid =
+                    firstInstance player target.card.id postInstances
+            in
+            case maybeIid of
                 Nothing ->
-                    state ++ [ { player = player, cardId = target.card.id, position = position, items = [ item ] } ]
+                    state
+
+                Just iid ->
+                    case findEntryByInstance iid state of
+                        Just idx ->
+                            updateAt idx (\e -> { e | items = item :: e.items }) state
+
+                        Nothing ->
+                            state ++ [ { instanceId = iid, player = player, cardId = target.card.id, position = position, items = [ item ] } ]
 
         Action.KnockedOut { pokemon } ->
             -- No position in KnockedOut: remove the first active entry, then bench.
@@ -2693,13 +3054,21 @@ applyActionToAttachments action state =
                 |> removeFirst pokemon.player pokemon.card.id Action.ActiveSpot
                 |> removeFirst pokemon.player pokemon.card.id Action.BenchSpot
 
-        Action.Evolved { player, from, to, position } ->
-            case findEntryIndex player from.id position state of
-                Just idx ->
-                    updateAt idx (\e -> { e | cardId = to.id }) state
-
+        Action.Evolved { player, to } ->
+            -- Use the post-group instance state to find which instance evolved.
+            -- findEntryIndex would pick the first attachment entry by cardId, which
+            -- may be a different instance than the one transferFirstInstance chose.
+            case firstInstance player to.id postInstances of
                 Nothing ->
                     state
+
+                Just iid ->
+                    case findEntryByInstance iid state of
+                        Nothing ->
+                            state
+
+                        Just idx ->
+                            updateAt idx (\e -> { e | cardId = to.id }) state
 
         Action.CardDiscardedFrom { card, pokemon } ->
             -- No position: try active first, then bench.
@@ -2749,8 +3118,9 @@ applyActionToAttachments action state =
                    )
 
         Action.MovedToActive { pokemon } ->
-            -- Skip if already at ActiveSpot — a preceding Switched already moved it.
-            case findEntryIndex pokemon.player pokemon.card.id Action.ActiveSpot state of
+            -- Skip if a preceding Switched already put this pokemon in the active spot.
+            -- Use preInstances (the canonical source) — same guard as applyGroupToInstances.
+            case Dict.get ( pokemon.player, pokemon.card.id ) preInstances.activeSpot |> Maybe.andThen identity of
                 Just _ ->
                     state
 
@@ -2779,20 +3149,20 @@ removeFirstById targetId list =
                 c :: removeFirstById targetId rest
 
 
-applyGroupToAttachments : Action.ActionGroup -> AttachmentState -> AttachmentState
-applyGroupToAttachments group state =
+applyGroupToAttachments : InstanceState -> InstanceState -> Action.ActionGroup -> AttachmentState -> AttachmentState
+applyGroupToAttachments preInstances postInstances group state =
     let
         state1 =
-            applyActionToAttachments group.action state
+            applyActionToAttachments preInstances postInstances group.action state
     in
     List.foldl
         (\detail s ->
             let
                 s1 =
-                    applyActionToAttachments detail.action s
+                    applyActionToAttachments preInstances postInstances detail.action s
 
                 s2 =
-                    List.foldl (\bullet bs -> applyActionToAttachments bullet.action bs) s1 detail.bullets
+                    List.foldl (\bullet bs -> applyActionToAttachments preInstances postInstances bullet.action bs) s1 detail.bullets
             in
             case detail.action of
                 Action.NCardsDiscardedFrom { pokemon } ->
@@ -2803,6 +3173,8 @@ applyGroupToAttachments group state =
                             List.foldl
                                 (\card bbs ->
                                     applyActionToAttachments
+                                        preInstances
+                                        postInstances
                                         (Action.CardDiscardedFrom { card = card, pokemon = pokemon })
                                         bbs
                                 )
@@ -2821,7 +3193,239 @@ applyGroupToAttachments group state =
 
 computeAttachments : Replay.Players -> Replay.Replay -> Int -> Int -> AttachmentState
 computeAttachments players replay sectionIndex groupIndex =
-    List.foldl applyGroupToAttachments emptyAttachments
+    let
+        groups =
+            collectAndCorrectGroups players replay sectionIndex groupIndex
+    in
+    Tuple.second
+        (List.foldl
+            (\group ( inst, atts ) ->
+                let
+                    newInst =
+                        applyGroupToInstances group inst
+                in
+                ( newInst, applyGroupToAttachments inst newInst group atts )
+            )
+            ( emptyInstances, emptyAttachments )
+            groups
+        )
+
+
+-- DAMAGE STATE
+
+
+type alias DamageState =
+    Dict InstanceId Int
+
+
+emptyDamage : DamageState
+emptyDamage =
+    Dict.empty
+
+
+addDamageHp : InstanceId -> Int -> DamageState -> DamageState
+addDamageHp key amount state =
+    let
+        current =
+            Dict.get key state |> Maybe.withDefault 0
+
+        next =
+            current + amount
+    in
+    if next <= 0 then
+        Dict.remove key state
+
+    else
+        Dict.insert key next state
+
+
+applyGroupToDamage : InstanceState -> InstanceState -> Action.ActionGroup -> DamageState -> DamageState
+applyGroupToDamage preInstances postInstances group state =
+    let
+        -- Card IDs for which damage is explicitly prevented in this group's details
+        preventedIds =
+            group.details
+                |> List.filterMap
+                    (\d ->
+                        case d.action of
+                            Action.DamagePrevented { pokemon } ->
+                                Just pokemon.id
+
+                            _ ->
+                                Nothing
+                    )
+
+        -- Apply main-action damage
+        state1 =
+            case group.action of
+                Action.UsedAttack { target } ->
+                    case target of
+                        Just { defender, damage } ->
+                            if List.member defender.card.id preventedIds then
+                                state
+
+                            else
+                                case firstInstance defender.player defender.card.id postInstances of
+                                    Nothing ->
+                                        state
+
+                                    Just iid ->
+                                        addDamageHp iid damage state
+
+                        Nothing ->
+                            state
+
+                Action.TookDamage { pokemon, amount } ->
+                    case firstInstance pokemon.player pokemon.card.id postInstances of
+                        Nothing ->
+                            state
+
+                        Just iid ->
+                            addDamageHp iid amount state
+
+                Action.PoisonCheckupDamage { pokemon, counters } ->
+                    case firstInstance pokemon.player pokemon.card.id postInstances of
+                        Nothing ->
+                            state
+
+                        Just iid ->
+                            addDamageHp iid (counters * 10) state
+
+                Action.KnockedOut { pokemon } ->
+                    case firstInstance pokemon.player pokemon.card.id preInstances of
+                        Nothing ->
+                            state
+
+                        Just iid ->
+                            Dict.remove iid state
+
+                Action.Evolved { player, from, to } ->
+                    -- DamageState is keyed by InstanceId; transferFirstInstance keeps the same
+                    -- iid under to.id in postInstances, so the entry remains valid as-is.
+                    state
+
+                _ ->
+                    state
+
+        -- Apply detail-action damage.
+        -- Track per-(player,cardId) ordinals so repeated TookDamage/KnockedOut
+        -- details for the same card (e.g. two Beldums hit) address different instances.
+        state2 =
+            List.foldl
+                (\detail ( s, counts ) ->
+                    let
+                        ordinal key =
+                            Dict.get key counts |> Maybe.withDefault 0
+
+                        bump key =
+                            Dict.insert key (ordinal key + 1) counts
+                    in
+                    case detail.action of
+                        Action.TookDamage { pokemon, amount } ->
+                            let
+                                key =
+                                    ( pokemon.player, pokemon.card.id )
+
+                                n =
+                                    ordinal key
+                            in
+                            case nthInstance pokemon.player pokemon.card.id n postInstances of
+                                Nothing ->
+                                    ( s, bump key )
+
+                                Just iid ->
+                                    ( addDamageHp iid amount s, bump key )
+
+                        Action.PlacedDamageCounters { pokemon, count } ->
+                            let
+                                key =
+                                    ( pokemon.player, pokemon.card.id )
+
+                                n =
+                                    ordinal key
+                            in
+                            case nthInstance pokemon.player pokemon.card.id n postInstances of
+                                Nothing ->
+                                    ( s, bump key )
+
+                                Just iid ->
+                                    ( addDamageHp iid (count * 10) s, bump key )
+
+                        Action.MovedDamageCounters { count, from, to } ->
+                            let
+                                s1 =
+                                    case firstInstance from.player from.card.id postInstances of
+                                        Nothing ->
+                                            s
+
+                                        Just iid ->
+                                            addDamageHp iid (negate (count * 10)) s
+
+                                s2 =
+                                    case firstInstance to.player to.card.id postInstances of
+                                        Nothing ->
+                                            s1
+
+                                        Just iid ->
+                                            addDamageHp iid (count * 10) s1
+                            in
+                            ( s2, counts )
+
+                        Action.KnockedOut { pokemon } ->
+                            let
+                                key =
+                                    ( pokemon.player, pokemon.card.id )
+
+                                n =
+                                    ordinal key
+                            in
+                            case nthInstance pokemon.player pokemon.card.id n preInstances of
+                                Nothing ->
+                                    ( s, bump key )
+
+                                Just iid ->
+                                    ( Dict.remove iid s, bump key )
+
+                        Action.Evolved { player, from, to } ->
+                            -- iid persists through evolution; no ordinal needed.
+                            ( s, counts )
+
+                        _ ->
+                            ( s, counts )
+                )
+                ( state1, Dict.empty )
+                group.details
+                |> Tuple.first
+    in
+    state2
+
+
+computeDamage : Replay.Players -> Replay.Replay -> Int -> Int -> DamageState
+computeDamage players replay sectionIndex groupIndex =
+    let
+        groups =
+            collectAndCorrectGroups players replay sectionIndex groupIndex
+    in
+    Tuple.second
+        (List.foldl
+            (\group ( inst, dmg ) ->
+                let
+                    pre =
+                        inst
+
+                    post =
+                        applyGroupToInstances group inst
+                in
+                ( post, applyGroupToDamage pre post group dmg )
+            )
+            ( emptyInstances, emptyDamage )
+            groups
+        )
+
+
+computeInstances : Replay.Players -> Replay.Replay -> Int -> Int -> InstanceState
+computeInstances players replay sectionIndex groupIndex =
+    List.foldl applyGroupToInstances emptyInstances
         (collectAndCorrectGroups players replay sectionIndex groupIndex)
 
 
@@ -3105,8 +3709,8 @@ currentPlayFromGroup players group =
             Nothing
 
 
-viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> AttachmentState -> PileState -> Maybe CurrentPlay -> Html Msg
-viewHandState players cache flipOpponent hand bench active maybeStadium attachments piles maybePlay =
+viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> PileState -> Maybe CurrentPlay -> Html Msg
+viewHandState players cache flipOpponent hand bench active maybeStadium instances attachments damageState piles maybePlay =
     let
         -- When True, drawn cards are hidden from the hand panel and shown only
         -- in the played panel below. Disabled for now.
@@ -3191,9 +3795,9 @@ viewHandState players cache flipOpponent hand bench active maybeStadium attachme
                 , style "min-width" "0"
                 ]
                 [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
-                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" attachments players.blue benchBlueDisplay
-                , viewActiveZone players cache flipOpponent active maybeStadium attachments maybePlay
-                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" attachments players.red benchRedDisplay
+                , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" instances attachments damageState players.blue benchBlueDisplay
+                , viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState maybePlay
+                , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" instances attachments damageState players.red benchRedDisplay
                 , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
             , -- Piles column: blue stacks at top, red stacks at bottom
@@ -3454,8 +4058,8 @@ viewHandCard upsideDown color imageFor maybeCard =
                 []
 
 
-viewBenchRow : Bool -> Dict String CardData -> String -> AttachmentState -> String -> List Action.CardRef -> Html Msg
-viewBenchRow upsideDown cache bgColor attachments player cards =
+viewBenchRow : Bool -> Dict String CardData -> String -> InstanceState -> AttachmentState -> DamageState -> String -> List Action.CardRef -> Html Msg
+viewBenchRow upsideDown cache bgColor instances attachments damageState player cards =
     div
         [ style "display" "flex"
         , style "align-items" "center"
@@ -3501,10 +4105,17 @@ viewBenchRow upsideDown cache bgColor attachments player cards =
                             ordinal =
                                 Dict.get card.id counts |> Maybe.withDefault 0
 
+                            maybeIid =
+                                instanceIdForField instances player card.id ordinal
+
+                            hp =
+                                maybeIid |> Maybe.andThen (\iid -> Dict.get iid damageState) |> Maybe.withDefault 0
+
+                            atts =
+                                maybeIid |> Maybe.map (lookupAttachments attachments) |> Maybe.withDefault []
+
                             cardHtml =
-                                viewBenchCard upsideDown cache
-                                    (lookupAttachments attachments player card.id Action.BenchSpot ordinal)
-                                    card
+                                viewBenchCard upsideDown cache atts hp card
                         in
                         ( rendered ++ [ cardHtml ]
                         , Dict.insert card.id (ordinal + 1) counts
@@ -3638,8 +4249,8 @@ viewAttachmentRect cache item =
         ]
 
 
-viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Action.CardRef -> Html Msg
-viewBenchCard upsideDown cache cardAttachments card =
+viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Int -> Action.CardRef -> Html Msg
+viewBenchCard upsideDown cache cardAttachments hpDamage card =
     let
         maybeUrl =
             cachedImageUrl cache card
@@ -3735,13 +4346,41 @@ viewBenchCard upsideDown cache cardAttachments card =
                     (List.map (viewAttachmentRect cache) toolAttachments)
                 ]
     in
+    let
+        damageOverlay =
+            if hpDamage > 0 then
+                [ div
+                    [ style "position" "absolute"
+                    , style "top" "25%"
+                    , style "right" "2px"
+                    , style "background" "#d69e2e"
+                    , style "color" "white"
+                    , style "border-radius" "50%"
+                    , style "width" "28px"
+                    , style "height" "28px"
+                    , style "font-size" "0.65rem"
+                    , style "font-weight" "700"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "center"
+                    , style "pointer-events" "none"
+                    , style "flex-shrink" "0"
+                    , style "border" "1.5px solid rgba(0,0,0,0.55)"
+                    , style "text-shadow" "0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)"
+                    ]
+                    [ text (String.fromInt hpDamage) ]
+                ]
+
+            else
+                []
+    in
     div
         [ style "position" "relative"
         , style "width" cardW
         , style "height" cardH
         , style "flex-shrink" "0"
         ]
-        (cardDiv :: energyOverlay ++ toolOverlay)
+        (cardDiv :: energyOverlay ++ toolOverlay ++ damageOverlay)
 
 
 
@@ -3749,8 +4388,8 @@ viewBenchCard upsideDown cache cardAttachments card =
 Active spots are stacked vertically in the center. Stadium slots sit two card-widths
 out on each side: blue's on the left (upside-down), red's on the right.
 -}
-viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> AttachmentState -> Maybe CurrentPlay -> Html Msg
-viewActiveZone players cache flipOpponent active maybeStadium attachments maybePlay =
+viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> Maybe CurrentPlay -> Html Msg
+viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState maybePlay =
     let
         red =
             players.red
@@ -3766,7 +4405,7 @@ viewActiveZone players cache flipOpponent active maybeStadium attachments maybeP
                         , style "box-shadow" ("0 0 0 4px " ++ shadowColor)
                         , style "overflow" "hidden"
                         ]
-                        [ viewBenchCard upsideDown cache [] card ]
+                        [ viewBenchCard upsideDown cache [] 0 card ]
 
                 Nothing ->
                     div
@@ -3782,9 +4421,17 @@ viewActiveZone players cache flipOpponent active maybeStadium attachments maybeP
         activeCard upsideDown activePlayer maybeCard =
             case maybeCard of
                 Just card ->
-                    viewBenchCard upsideDown cache
-                        (lookupAttachments attachments activePlayer card.id Action.ActiveSpot 0)
-                        card
+                    let
+                        maybeIid =
+                            firstInstance activePlayer card.id instances
+
+                        hp =
+                            maybeIid |> Maybe.andThen (\iid -> Dict.get iid damageState) |> Maybe.withDefault 0
+
+                        atts =
+                            maybeIid |> Maybe.map (lookupAttachments attachments) |> Maybe.withDefault []
+                    in
+                    viewBenchCard upsideDown cache atts hp card
 
                 Nothing ->
                     div
@@ -3971,22 +4618,18 @@ type PlayItem
 
 collapseUnknowns : List (Maybe Action.CardRef) -> List PlayItem
 collapseUnknowns cards =
-    List.foldr
-        (\maybeCard acc ->
-            case maybeCard of
-                Just card ->
-                    KnownPlayCard card :: acc
+    let
+        known =
+            List.filterMap (Maybe.map KnownPlayCard) cards
 
-                Nothing ->
-                    case acc of
-                        (UnknownPlayCards n) :: rest ->
-                            UnknownPlayCards (n + 1) :: rest
+        unknownCount =
+            List.length (List.filter ((==) Nothing) cards)
+    in
+    if unknownCount > 0 then
+        UnknownPlayCards unknownCount :: known
 
-                        _ ->
-                            UnknownPlayCards 1 :: acc
-        )
-        []
-        cards
+    else
+        known
 
 
 {-| A card-back rectangle with an optional ×N count label.
@@ -4241,11 +4884,17 @@ view model =
                                     attachments =
                                         computeAttachments players replay sectionIndex groupIndex
 
+                                    damageState =
+                                        computeDamage players replay sectionIndex groupIndex
+
+                                    instances =
+                                        computeInstances players replay sectionIndex groupIndex
+
                                     maybePlay =
                                         getCurrentGroup replay sectionIndex groupIndex
                                             |> Maybe.andThen (currentPlayFromGroup players)
                                 in
-                                viewHandState players cache flip hand bench activeSpots stadium attachments piles maybePlay
+                                viewHandState players cache flip hand bench activeSpots stadium instances attachments damageState piles maybePlay
 
                             Nothing ->
                                 text ""
@@ -4885,7 +5534,6 @@ viewActionGroup players cache group =
 
                             nonBreakdownDetails =
                                 correctedGroup.details
-                                    |> List.filter (\d -> d.raw /= "Damage breakdown:")
                                     |> List.concatMap
                                         (\detail ->
                                             viewLine players Nothing (Replay.DetailLine detail.raw)
