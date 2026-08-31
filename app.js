@@ -11201,6 +11201,9 @@ var $author$project$Replay$TurnSection = F2(
 	function (a, b) {
 		return {$: 1, a: a, b: b};
 	});
+var $author$project$Replay$TopLine = function (a) {
+	return {$: 0, a: a};
+};
 var $author$project$Replay$parseMatchResult = function (text) {
 	if (A2($elm$core$String$endsWith, ' wins.', text)) {
 		var withoutWins = A2($elm$core$String$dropRight, 6, text);
@@ -11224,6 +11227,66 @@ var $author$project$Replay$parseMatchResult = function (text) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
+var $author$project$Replay$findMatchResultHelp = F3(
+	function (lines, before, latestFound) {
+		findMatchResultHelp:
+		while (true) {
+			if (!lines.b) {
+				return latestFound;
+			} else {
+				if (!lines.a.$) {
+					var text = lines.a.a;
+					var rest = lines.b;
+					var _v1 = $author$project$Replay$parseMatchResult(text);
+					if (!_v1.$) {
+						var result = _v1.a;
+						var $temp$lines = rest,
+							$temp$before = _Utils_ap(
+							before,
+							_List_fromArray(
+								[
+									$author$project$Replay$TopLine(text)
+								])),
+							$temp$latestFound = $elm$core$Maybe$Just(
+							_Utils_Tuple2(result, before));
+						lines = $temp$lines;
+						before = $temp$before;
+						latestFound = $temp$latestFound;
+						continue findMatchResultHelp;
+					} else {
+						var $temp$lines = rest,
+							$temp$before = _Utils_ap(
+							before,
+							_List_fromArray(
+								[
+									$author$project$Replay$TopLine(text)
+								])),
+							$temp$latestFound = latestFound;
+						lines = $temp$lines;
+						before = $temp$before;
+						latestFound = $temp$latestFound;
+						continue findMatchResultHelp;
+					}
+				} else {
+					var line = lines.a;
+					var rest = lines.b;
+					var $temp$lines = rest,
+						$temp$before = _Utils_ap(
+						before,
+						_List_fromArray(
+							[line])),
+						$temp$latestFound = latestFound;
+					lines = $temp$lines;
+					before = $temp$before;
+					latestFound = $temp$latestFound;
+					continue findMatchResultHelp;
+				}
+			}
+		}
+	});
+var $author$project$Replay$findMatchResult = function (lines) {
+	return A3($author$project$Replay$findMatchResultHelp, lines, _List_Nil, $elm$core$Maybe$Nothing);
+};
 var $author$project$Replay$extractResult = function (sections) {
 	var _v0 = $elm$core$List$reverse(sections);
 	if (_v0.b && (_v0.a.$ === 1)) {
@@ -11231,26 +11294,18 @@ var $author$project$Replay$extractResult = function (sections) {
 		var turn = _v1.a;
 		var lines = _v1.b;
 		var rest = _v0.b;
-		var _v2 = $elm$core$List$reverse(lines);
-		if (_v2.b && (!_v2.a.$)) {
-			var text = _v2.a.a;
-			var otherLines = _v2.b;
-			var _v3 = $author$project$Replay$parseMatchResult(text);
-			if (!_v3.$) {
-				var result = _v3.a;
-				return _Utils_ap(
-					$elm$core$List$reverse(rest),
-					_List_fromArray(
-						[
-							A2(
-							$author$project$Replay$TurnSection,
-							turn,
-							$elm$core$List$reverse(otherLines)),
-							$author$project$Replay$ResultSection(result)
-						]));
-			} else {
-				return sections;
-			}
+		var _v2 = $author$project$Replay$findMatchResult(lines);
+		if (!_v2.$) {
+			var _v3 = _v2.a;
+			var result = _v3.a;
+			var linesBeforeResult = _v3.b;
+			return _Utils_ap(
+				$elm$core$List$reverse(rest),
+				_List_fromArray(
+					[
+						A2($author$project$Replay$TurnSection, turn, linesBeforeResult),
+						$author$project$Replay$ResultSection(result)
+					]));
 		} else {
 			return sections;
 		}
@@ -11381,9 +11436,6 @@ var $author$project$Replay$BulletLine = function (a) {
 };
 var $author$project$Replay$DetailLine = function (a) {
 	return {$: 1, a: a};
-};
-var $author$project$Replay$TopLine = function (a) {
-	return {$: 0, a: a};
 };
 var $author$project$Replay$classifyLine = function (line) {
 	return A2($elm$core$String$startsWith, '   •', line) ? $author$project$Replay$BulletLine(
