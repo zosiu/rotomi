@@ -12736,9 +12736,9 @@ var $author$project$Main$applyGroupToDamage = F4(
 		var preventedIds = A2(
 			$elm$core$List$filterMap,
 			function (d) {
-				var _v13 = d.P;
-				if (_v13.$ === 41) {
-					var pokemon = _v13.a.s;
+				var _v15 = d.P;
+				if (_v15.$ === 41) {
+					var pokemon = _v15.a.s;
 					return $elm$core$Maybe$Just(pokemon.Q);
 				} else {
 					return $elm$core$Maybe$Nothing;
@@ -12746,21 +12746,21 @@ var $author$project$Main$applyGroupToDamage = F4(
 			},
 			group.bA);
 		var state1 = function () {
-			var _v7 = group.P;
-			switch (_v7.$) {
+			var _v8 = group.P;
+			switch (_v8.$) {
 				case 15:
-					var target = _v7.a.aY;
+					var target = _v8.a.aY;
 					if (!target.$) {
 						var defender = target.a.cJ;
 						var damage = target.a.cG;
 						if (A2($elm$core$List$member, defender.e.Q, preventedIds)) {
 							return state;
 						} else {
-							var _v9 = A3($author$project$Main$firstInstance, defender.d, defender.e.Q, postInstances);
-							if (_v9.$ === 1) {
+							var _v10 = A3($author$project$Main$firstInstance, defender.d, defender.e.Q, postInstances);
+							if (_v10.$ === 1) {
 								return state;
 							} else {
-								var iid = _v9.a;
+								var iid = _v10.a;
 								return A3($author$project$Main$addDamageHp, iid, damage, state);
 							}
 						}
@@ -12768,38 +12768,48 @@ var $author$project$Main$applyGroupToDamage = F4(
 						return state;
 					}
 				case 17:
-					var pokemon = _v7.a.s;
-					var amount = _v7.a.bp;
-					var _v10 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, postInstances);
-					if (_v10.$ === 1) {
-						return state;
-					} else {
-						var iid = _v10.a;
-						return A3($author$project$Main$addDamageHp, iid, amount, state);
-					}
-				case 37:
-					var pokemon = _v7.a.s;
-					var counters = _v7.a.cF;
+					var pokemon = _v8.a.s;
+					var amount = _v8.a.bp;
 					var _v11 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, postInstances);
 					if (_v11.$ === 1) {
 						return state;
 					} else {
 						var iid = _v11.a;
-						return A3($author$project$Main$addDamageHp, iid, counters * 10, state);
+						return A3($author$project$Main$addDamageHp, iid, amount, state);
 					}
-				case 16:
-					var pokemon = _v7.a.s;
-					var _v12 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, preInstances);
+				case 37:
+					var pokemon = _v8.a.s;
+					var counters = _v8.a.cF;
+					var _v12 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, postInstances);
 					if (_v12.$ === 1) {
 						return state;
 					} else {
 						var iid = _v12.a;
+						return A3($author$project$Main$addDamageHp, iid, counters * 10, state);
+					}
+				case 16:
+					var pokemon = _v8.a.s;
+					var _v13 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, preInstances);
+					if (_v13.$ === 1) {
+						return state;
+					} else {
+						var iid = _v13.a;
 						return A2($elm$core$Dict$remove, iid, state);
 					}
+				case 40:
+					var pokemon = _v8.a.s;
+					var amount = _v8.a.bp;
+					var _v14 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, postInstances);
+					if (_v14.$ === 1) {
+						return state;
+					} else {
+						var iid = _v14.a;
+						return A3($author$project$Main$addDamageHp, iid, -amount, state);
+					}
 				case 14:
-					var player = _v7.a.d;
-					var from = _v7.a.a5;
-					var to = _v7.a.bl;
+					var player = _v8.a.d;
+					var from = _v8.a.a5;
+					var to = _v8.a.bl;
 					return state;
 				default:
 					return state;
@@ -12895,6 +12905,18 @@ var $author$project$Main$applyGroupToDamage = F4(
 								return _Utils_Tuple2(
 									A2($elm$core$Dict$remove, iid, s),
 									bump(key));
+							}
+						case 40:
+							var pokemon = _v1.a.s;
+							var amount = _v1.a.bp;
+							var _v7 = A3($author$project$Main$firstInstance, pokemon.d, pokemon.e.Q, postInstances);
+							if (_v7.$ === 1) {
+								return _Utils_Tuple2(s, counts);
+							} else {
+								var iid = _v7.a;
+								return _Utils_Tuple2(
+									A3($author$project$Main$addDamageHp, iid, -amount, s),
+									counts);
 							}
 						case 14:
 							var player = _v1.a.d;
