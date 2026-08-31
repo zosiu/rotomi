@@ -16023,7 +16023,7 @@ var $author$project$Main$viewBenchCard = F6(
 			_List_fromArray(
 				[
 					A2($elm$core$List$member, 'Burned', conditions) ? $elm$core$Maybe$Just(
-					_Utils_Tuple2('🔥', '#c53030')) : $elm$core$Maybe$Nothing,
+					_Utils_Tuple2('🔥', '#5a1010')) : $elm$core$Maybe$Nothing,
 					A2($elm$core$List$member, 'Poisoned', conditions) ? $elm$core$Maybe$Just(
 					_Utils_Tuple2('☠️', '#805ad5')) : $elm$core$Maybe$Nothing
 				]));
@@ -16055,7 +16055,7 @@ var $author$project$Main$viewBenchCard = F6(
 									A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
 									A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
 									A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-									A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(0,0,0,0.55)'),
+									A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(255,255,255,0.85)'),
 									A2($elm$html$Html$Attributes$style, 'box-shadow', '0 1px 3px rgba(0,0,0,0.35)')
 								]),
 							counterRotate),
@@ -16087,7 +16087,7 @@ var $author$project$Main$viewBenchCard = F6(
 							A2($elm$html$Html$Attributes$style, 'justify-content', 'center'),
 							A2($elm$html$Html$Attributes$style, 'pointer-events', 'none'),
 							A2($elm$html$Html$Attributes$style, 'flex-shrink', '0'),
-							A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(0,0,0,0.55)'),
+							A2($elm$html$Html$Attributes$style, 'border', '1.5px solid rgba(255,255,255,0.85)'),
 							A2($elm$html$Html$Attributes$style, 'text-shadow', '0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)')
 						]),
 					counterRotate),
