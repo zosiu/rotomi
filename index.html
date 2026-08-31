@@ -53,9 +53,8 @@
     <script src="url-params.js"></script>
     <script src="app.js"></script>
     <script>
-      (async function () {
-        const rawReplayUrl = readReplayUrl(window.location.search);
-        const replayUrl = await resolveReplayUrl(rawReplayUrl);
+      (function () {
+        const replayUrl = readReplayUrl(window.location.search);
         const app = Elm.Main.init({
           node: document.getElementById("app"),
           flags: {
