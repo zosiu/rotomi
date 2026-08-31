@@ -78,7 +78,6 @@ type Action
     -- Playing cards
     | PlayedPokemon { player : String, card : CardRef, position : Position }
     | PlayedStadium { player : String, card : CardRef }
-    | UsedStadium { player : String, name : String }
     | PlayedTrainer { player : String, card : CardRef }
     -- Drawing / searching
     | Drew { player : String, card : Maybe CardRef }
@@ -295,7 +294,6 @@ parseAction raw =
         |> orTry (tryPlayedPokemon raw)
         |> orTry (tryPlayedStadium raw)
         |> orTry (tryPlayedTrainer raw)
-        |> orTry (tryUsedStadium raw)
         |> orTry (tryEvolved raw)
         |> orTry (tryAttached raw)
         |> orTry (tryRetreated raw)
@@ -544,7 +542,7 @@ parseModifierSentence sentence =
 tryPlayedPokemon : String -> Maybe Action
 tryPlayedPokemon raw =
     -- "PLAYER played (id) Name to the Active Spot." / "…to the Bench."
-    if String.contains " played (" raw then
+    if String.contains " played " raw then
         if String.contains " to the Active Spot." raw then
             case String.split " played " raw of
                 [ player, rest ] ->
@@ -573,7 +571,7 @@ tryPlayedPokemon raw =
 tryPlayedStadium : String -> Maybe Action
 tryPlayedStadium raw =
     -- "PLAYER played (id) Name to the Stadium spot."
-    if String.contains " played (" raw && String.contains " to the Stadium spot." raw then
+    if String.contains " played " raw && String.contains " to the Stadium spot." raw then
         case String.split " played " raw of
             [ player, rest ] ->
                 parseCardRef rest
@@ -588,8 +586,15 @@ tryPlayedStadium raw =
 
 tryPlayedTrainer : String -> Maybe Action
 tryPlayedTrainer raw =
-    -- "PLAYER played (id) Name."
-    if String.contains " played (" raw then
+    -- "PLAYER played (id) Name."  /  "PLAYER played Name."  (no-ID)
+    if
+        String.contains " played " raw
+            && not (String.contains " to the Active Spot." raw)
+            && not (String.contains " to the Bench." raw)
+            && not (String.contains " to the Stadium spot." raw)
+            && not (String.contains " played it " raw)
+            && not (String.contains " and played " raw)
+    then
         case String.split " played " raw of
             [ player, rest ] ->
                 parseCardRef rest
@@ -602,34 +607,12 @@ tryPlayedTrainer raw =
         Nothing
 
 
-tryUsedStadium : String -> Maybe Action
-tryUsedStadium raw =
-    -- "PLAYER played Name."  (no card ID — stadium re-use / ability)
-    if String.contains " played " raw && not (String.contains " played (" raw) && not (String.contains " played it " raw) && not (String.contains " and played " raw) then
-        case String.split " played " raw of
-            [ player, nameDot ] ->
-                let
-                    name =
-                        String.trimRight (String.replace "." "" nameDot)
-                in
-                if String.isEmpty name then
-                    Nothing
-
-                else
-                    Just (UsedStadium { player = player, name = name })
-
-            _ ->
-                Nothing
-
-    else
-        Nothing
-
-
 tryEvolved : String -> Maybe Action
 tryEvolved raw =
     -- "PLAYER evolved (from-id) From to (to-id) To on the Bench."
     -- "PLAYER evolved (from-id) From to (to-id) To in the Active Spot."
-    if String.contains " evolved (" raw then
+    -- Also handles no-ID: "PLAYER evolved From to To on the Bench."
+    if String.contains " evolved " raw then
         let
             position =
                 if String.contains " on the Bench." raw then
@@ -648,15 +631,16 @@ tryEvolved raw =
             Just pos ->
                 case String.split " evolved " raw of
                     [ player, rest ] ->
-                        -- rest = "(from-id) From to (to-id) To on the Bench."
-                        case String.split " to (" rest of
+                        -- Split on " to " to separate from-card and to-card.
+                        -- Works for both "(id) From to (id) To …" and "From to To …".
+                        case String.split " to " rest of
                             [ fromPart, toPart ] ->
                                 let
                                     fromCard =
                                         parseCardRef fromPart
 
                                     toCard =
-                                        parseCardRef ("(" ++ toPart)
+                                        parseCardRef toPart
                                 in
                                 case ( fromCard, toCard ) of
                                     ( Just from, Just to ) ->
@@ -679,7 +663,7 @@ tryAttached : String -> Maybe Action
 tryAttached raw =
     -- "PLAYER attached (item-id) Item to (pokemon-id) Pokemon on the Bench."
     -- "PLAYER attached (item-id) Item to (pokemon-id) Pokemon in the Active Spot."
-    if String.contains " attached (" raw then
+    if String.contains " attached " raw then
         let
             position =
                 if String.contains " on the Bench." raw then
@@ -699,14 +683,14 @@ tryAttached raw =
                 case String.split " attached " raw of
                     [ player, rest ] ->
                         -- rest = "(item-id) Item to (pokemon-id) Pokemon on the Bench."
-                        case String.split " to (" rest of
+                        case String.split " to " rest of
                             [ itemPart, pokemonPart ] ->
                                 let
                                     item =
                                         parseCardRef itemPart
 
                                     pokemonCard =
-                                        parseCardRef ("(" ++ pokemonPart)
+                                        parseCardRef pokemonPart
                                 in
                                 case ( item, pokemonCard ) of
                                     ( Just itemCard, Just pCard ) ->
@@ -732,7 +716,7 @@ tryAttached raw =
 tryRetreated : String -> Maybe Action
 tryRetreated raw =
     -- "PLAYER retreated (id) Name to the Bench."
-    if String.contains " retreated (" raw && String.endsWith " to the Bench." raw then
+    if String.contains " retreated " raw && String.endsWith " to the Bench." raw then
         case String.split " retreated " raw of
             [ player, rest ] ->
                 parseCardRef rest
@@ -866,7 +850,7 @@ tryTookDamage raw =
 tryCardActivated : String -> Maybe Action
 tryCardActivated raw =
     -- "(id) Name was activated."
-    if String.startsWith "(" raw && String.endsWith " was activated." raw then
+    if String.endsWith " was activated." raw then
         parseCardRef raw
             |> Maybe.map (\card -> CardActivated { card = card })
 
@@ -877,7 +861,7 @@ tryCardActivated raw =
 tryCardDiscardedFrom : String -> Maybe Action
 tryCardDiscardedFrom raw =
     -- "(card-id) Card was discarded from PLAYER's (pokemon-id) Pokemon."
-    if String.startsWith "(" raw && String.contains " was discarded from " raw then
+    if String.contains " was discarded from " raw then
         case String.split " was discarded from " raw of
             [ cardPart, pokemonFull ] ->
                 case ( parseCardRef cardPart, parsePokemonRef pokemonFull ) of
@@ -922,7 +906,7 @@ tryNCardsDiscardedFrom raw =
 tryCardAddedToHandNamed : String -> Maybe Action
 tryCardAddedToHandNamed raw =
     -- "(id) Name was added to PLAYER's hand."
-    if String.startsWith "(" raw && String.contains " was added to " raw && String.endsWith "'s hand." raw then
+    if String.contains " was added to " raw && String.endsWith "'s hand." raw && not (String.startsWith "A card was added to " raw) then
         case String.split " was added to " raw of
             [ cardPart, playerHand ] ->
                 case parseCardRef cardPart of
@@ -966,7 +950,7 @@ tryCardAddedToHandHidden raw =
 trySpecialConditionImmune : String -> Maybe Action
 trySpecialConditionImmune raw =
     -- "(id) Pokemon cannot be affected by Special Conditions."
-    if String.startsWith "(" raw && String.endsWith " cannot be affected by Special Conditions." raw then
+    if String.endsWith " cannot be affected by Special Conditions." raw then
         parseCardRef raw
             |> Maybe.map (\card -> SpecialConditionImmune { pokemon = card })
 
@@ -1202,7 +1186,7 @@ tryPoisonCheckupDamage raw =
 tryDamagePrevented : String -> Maybe Action
 tryDamagePrevented raw =
     -- "Damage to (id) Pokemon was prevented."
-    if String.startsWith "Damage to (" raw && String.endsWith " was prevented." raw then
+    if String.startsWith "Damage to " raw && String.endsWith " was prevented." raw then
         let
             inner =
                 raw
@@ -1219,7 +1203,7 @@ tryDamagePrevented raw =
 tryEffectBlocked : String -> Maybe Action
 tryEffectBlocked raw =
     -- "Effects of MOVE did not affect (id) Pokemon."
-    if String.startsWith "Effects of " raw && String.contains " did not affect (" raw then
+    if String.startsWith "Effects of " raw && String.contains " did not affect " raw then
         case String.split " did not affect " raw of
             [ movePart, pokemonPart ] ->
                 let
@@ -1257,6 +1241,24 @@ tryDrew raw =
             _ ->
                 Nothing
 
+    else if
+        String.contains " drew " raw
+            && not (String.contains " drew a card." raw)
+            && not (String.contains " and played it to " raw)
+            && not (String.contains " drew (" raw)
+    then
+        case String.split " drew " raw of
+            [ player, rest ] ->
+                case parseCardRef rest of
+                    Just card ->
+                        Just (Drew { player = player, card = Just card })
+
+                    Nothing ->
+                        Nothing
+
+            _ ->
+                Nothing
+
     else
         Nothing
 
@@ -1265,7 +1267,7 @@ tryDrewCard : String -> Maybe Action
 tryDrewCard raw =
     -- Detail: "PLAYER drew (id) Name and played it to POSITION."
     -- (lines without "and played it" are handled by tryDrew as Drew)
-    if String.contains " drew (" raw && String.contains " and played it to " raw then
+    if String.contains " drew " raw && String.contains " and played it to " raw then
         case String.split " drew " raw of
             [ player, rest ] ->
                 let
@@ -1389,7 +1391,7 @@ tryDiscarded raw =
 tryDiscardedCard : String -> Maybe Action
 tryDiscardedCard raw =
     -- "PLAYER discarded (id) Name."
-    if String.contains " discarded (" raw then
+    if String.contains " discarded " raw then
         case String.split " discarded " raw of
             [ player, rest ] ->
                 parseCardRef rest
@@ -1463,7 +1465,9 @@ tryShuffledInto raw =
                             Just (ShuffledInto { player = player, card = Nothing, count = Just n })
 
                         Nothing ->
-                            Nothing
+                            -- No-ID log: plain card name
+                            parseCardRef content
+                                |> Maybe.map (\card -> ShuffledInto { player = player, card = Just card, count = Nothing })
 
             _ ->
                 Nothing
@@ -1475,7 +1479,7 @@ tryShuffledInto raw =
 tryPutOnTop : String -> Maybe Action
 tryPutOnTop raw =
     -- "PLAYER put (id) Name on top of their deck."
-    if String.contains " put (" raw && String.contains " on top of their deck." raw then
+    if String.contains " put " raw && String.contains " on top of their deck." raw then
         case String.split " put " raw of
             [ player, rest ] ->
                 parseCardRef rest
@@ -1830,8 +1834,10 @@ tryCardList raw =
                 raw
                     |> String.split ", ("
                     |> List.indexedMap (\i s -> if i == 0 then s else "(" ++ s)
+
             else
-                []
+                -- No-ID logs: comma-separated card names with no (id) prefix
+                String.split ", " raw
 
         cards =
             List.filterMap parseCardRef parts
@@ -1877,7 +1883,17 @@ parseCardRef str =
                 Nothing
 
     else
-        Nothing
+        -- Logs without card IDs: use the card name as the ID so the rest of
+        -- the pipeline (hand tracking, deduplication) degrades gracefully.
+        let
+            name =
+                extractFirstName trimmed
+        in
+        if String.isEmpty name then
+            Nothing
+
+        else
+            Just { id = name, name = name }
 
 
 {-| Parse "PLAYER's (id) Name" → PokemonRef -}
@@ -1908,7 +1924,21 @@ parsePokemonRef str =
                     Nothing
 
         _ ->
-            Nothing
+            -- No-ID logs: "Player's Card Name" without (id) prefix
+            case String.split "'s " trimmed of
+                [ player, rest ] ->
+                    let
+                        name =
+                            extractFirstName rest
+                    in
+                    if String.isEmpty name then
+                        Nothing
+
+                    else
+                        Just { player = player, card = { id = name, name = name } }
+
+                _ ->
+                    Nothing
 
 
 isCardId : String -> Bool

@@ -143,11 +143,16 @@ suite =
                                 }
                             )
             ]
-        , describe "UsedStadium"
-            [ test "parses stadium re-use without card ID" <|
+        , describe "PlayedTrainer (no-ID)"
+            [ test "parses stadium re-use or no-ID trainer play using name as ID" <|
                 \_ ->
                     parseAction "zosiu played Academy at Night."
-                        |> Expect.equal (UsedStadium { player = "zosiu", name = "Academy at Night" })
+                        |> Expect.equal
+                            (PlayedTrainer
+                                { player = "zosiu"
+                                , card = { id = "Academy at Night", name = "Academy at Night" }
+                                }
+                            )
             ]
         , describe "PlayedTrainer"
             [ test "parses played supporter" <|
