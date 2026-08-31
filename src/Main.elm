@@ -1,4 +1,4 @@
-port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, InstanceId, InstanceState, emptyInstances, applyGroupToInstances, instanceIdForField, firstInstance, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, correctGroupPlayers, isPokemonAbilityGroup, pokemonAbilityPlayedCardId, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
+port module Main exposing (CardAttack, CardAbility, CardData, MoveKind(..), MoveHighlight, CardPopup(..), Model(..), Msg(..), HandState, emptyHand, applyGroupToHand, BenchState, emptyBench, applyGroupToBench, ActiveState, emptyActive, applyGroupToActive, PileState, emptyPiles, applyGroupToPiles, StadiumState, applyGroupToStadium, InstanceId, InstanceState, emptyInstances, applyGroupToInstances, instanceIdForField, firstInstance, AttachmentState, emptyAttachments, applyGroupToAttachments, lookupAttachments, ConditionState, emptyConditions, applyGroupToConditions, lookupConditions, correctGroupPlayers, isPokemonAbilityGroup, pokemonAbilityPlayedCardId, sectionLines, CurrentPlay, currentPlayFromGroup, init, main, update)
 
 import Browser
 import Browser.Dom
@@ -3675,6 +3675,133 @@ computeAttachments players replay sectionIndex groupIndex =
         )
 
 
+-- CONDITION STATE
+--
+-- Special conditions (Asleep, Confused, Paralyzed, Poisoned, Burned) are only
+-- ever relevant for the Active Pokémon. They're keyed by InstanceId so a
+-- benched duplicate of the same card never inherits its bench-mate's state,
+-- and — since evolution keeps the same InstanceId — they naturally carry
+-- through an evolution (the log emits an explicit ConditionRemoved for cases
+-- where a condition is supposed to clear on evolve, so no special-casing is
+-- needed here for that).
+
+
+type alias ConditionState =
+    Dict InstanceId (List String)
+
+
+emptyConditions : ConditionState
+emptyConditions =
+    Dict.empty
+
+
+lookupConditions : ConditionState -> InstanceId -> List String
+lookupConditions state iid =
+    Dict.get iid state |> Maybe.withDefault []
+
+
+{-| The Active instance for (player, cardId) just before this action, if any.
+Conditions only ever apply to the Active Pokémon, so every lookup below goes
+through this. -}
+activeInstanceFor : String -> String -> InstanceState -> Maybe InstanceId
+activeInstanceFor player cardId preInstances =
+    Dict.get ( player, cardId ) preInstances.activeSpot |> Maybe.andThen identity
+
+
+applyActionToConditions : InstanceState -> InstanceState -> Action.Action -> ConditionState -> ConditionState
+applyActionToConditions preInstances postInstances action state =
+    case action of
+        -- Apply/Remove use postInstances: when this is a detail of an Evolved
+        -- group (e.g. "X is no longer Confused" right after evolving), the
+        -- pokemon's card id has already changed and only exists post-evolution.
+        Action.ConditionApplied { pokemon, condition } ->
+            case activeInstanceFor pokemon.player pokemon.card.id postInstances of
+                Just iid ->
+                    Dict.update iid
+                        (\ex -> Just (condition :: (Maybe.withDefault [] ex |> List.filter ((/=) condition))))
+                        state
+
+                Nothing ->
+                    state
+
+        Action.ConditionRemoved { pokemon, condition } ->
+            case activeInstanceFor pokemon.player pokemon.card.id postInstances of
+                Just iid ->
+                    Dict.update iid (Maybe.map (List.filter ((/=) condition))) state
+
+                Nothing ->
+                    state
+
+        -- Leaving the Active Spot (retreat, switch, or being knocked out while
+        -- active) clears every special condition — the log doesn't say so
+        -- explicitly for these, unlike evolution. These use preInstances: we
+        -- need to know which instance WAS active before it left/was removed.
+        Action.Retreated { player, card } ->
+            case activeInstanceFor player card.id preInstances of
+                Just iid ->
+                    Dict.remove iid state
+
+                Nothing ->
+                    state
+
+        Action.Switched { player, from } ->
+            case activeInstanceFor player from.id preInstances of
+                Just iid ->
+                    Dict.remove iid state
+
+                Nothing ->
+                    state
+
+        Action.KnockedOut { pokemon } ->
+            case activeInstanceFor pokemon.player pokemon.card.id preInstances of
+                Just iid ->
+                    Dict.remove iid state
+
+                Nothing ->
+                    state
+
+        _ ->
+            state
+
+
+applyGroupToConditions : InstanceState -> InstanceState -> Action.ActionGroup -> ConditionState -> ConditionState
+applyGroupToConditions preInstances postInstances group state =
+    let
+        state1 =
+            applyActionToConditions preInstances postInstances group.action state
+    in
+    List.foldl
+        (\detail s ->
+            let
+                s1 =
+                    applyActionToConditions preInstances postInstances detail.action s
+            in
+            List.foldl (\bullet bs -> applyActionToConditions preInstances postInstances bullet.action bs) s1 detail.bullets
+        )
+        state1
+        group.details
+
+
+computeConditions : Replay.Players -> Replay.Replay -> Int -> Int -> ConditionState
+computeConditions players replay sectionIndex groupIndex =
+    let
+        groups =
+            collectAndCorrectGroups players replay sectionIndex groupIndex
+    in
+    Tuple.second
+        (List.foldl
+            (\group ( inst, conds ) ->
+                let
+                    newInst =
+                        applyGroupToInstances group inst
+                in
+                ( newInst, applyGroupToConditions inst newInst group conds )
+            )
+            ( emptyInstances, emptyConditions )
+            groups
+        )
+
+
 -- DAMAGE STATE
 
 
@@ -4189,8 +4316,8 @@ currentPlayFromGroup players group =
             Nothing
 
 
-viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> PileState -> Maybe CurrentPlay -> Html Msg
-viewHandState players cache flipOpponent hand bench active maybeStadium instances attachments damageState piles maybePlay =
+viewHandState : Replay.Players -> Dict String CardData -> Bool -> HandState -> BenchState -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> ConditionState -> PileState -> Maybe CurrentPlay -> Html Msg
+viewHandState players cache flipOpponent hand bench active maybeStadium instances attachments damageState conditions piles maybePlay =
     let
         -- When True, drawn cards are hidden from the hand panel and shown only
         -- in the played panel below. Disabled for now.
@@ -4276,7 +4403,7 @@ viewHandState players cache flipOpponent hand bench active maybeStadium instance
                 ]
                 [ viewHandRow "RED" flipOpponent "#c53030" "flex-end" blueDisplay (handCardImage cache)
                 , viewBenchRow flipOpponent cache "rgba(197, 48, 48, 0.08)" instances attachments damageState players.blue benchBlueDisplay
-                , viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState maybePlay
+                , viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState conditions maybePlay
                 , viewBenchRow False cache "rgba(44, 82, 130, 0.08)" instances attachments damageState players.red benchRedDisplay
                 , viewHandRow "BLUE" False "#2c5282" "flex-start" redDisplay (handCardImage cache)
                 ]
@@ -4595,7 +4722,7 @@ viewBenchRow upsideDown cache bgColor instances attachments damageState player c
                                 maybeIid |> Maybe.map (lookupAttachments attachments) |> Maybe.withDefault []
 
                             cardHtml =
-                                viewBenchCard upsideDown cache atts hp card
+                                viewBenchCard upsideDown cache atts hp [] card
                         in
                         ( rendered ++ [ cardHtml ]
                         , Dict.insert card.id (ordinal + 1) counts
@@ -4724,9 +4851,9 @@ viewAttachmentRect cache item =
                 |> Maybe.map (\u -> u ++ "/high.webp")
     in
     div
-        [ style "width" "20px"
-        , style "height" "14px"
-        , style "border-radius" "2px"
+        [ style "width" "34px"
+        , style "height" "24px"
+        , style "border-radius" "3px"
         , style "flex-shrink" "0"
         , style "background-color" "#e2e8f0"
         , style "border" "1.5px solid rgba(255,255,255,0.85)"
@@ -4753,7 +4880,7 @@ viewAttachmentRect cache item =
                     , style "display" "flex"
                     , style "align-items" "center"
                     , style "justify-content" "center"
-                    , style "font-size" "8px"
+                    , style "font-size" "10px"
                     , style "font-weight" "700"
                     , style "color" "#4a5568"
                     , style "line-height" "1"
@@ -4763,19 +4890,41 @@ viewAttachmentRect cache item =
         ]
 
 
-viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Int -> Action.CardRef -> Html Msg
-viewBenchCard upsideDown cache cardAttachments hpDamage card =
+{-| Rotation for a special-condition indicator, applied on top of (added to)
+the upsideDown viewing flip: Asleep turns counterclockwise, Paralyzed turns
+clockwise, Confused turns upside-down. Poisoned/Burned don't rotate the card —
+they show a token next to the damage counter instead. -}
+conditionRotationDeg : List String -> Int
+conditionRotationDeg conditions =
+    if List.member "Confused" conditions then
+        180
+
+    else if List.member "Asleep" conditions then
+        -90
+
+    else if List.member "Paralyzed" conditions then
+        90
+
+    else
+        0
+
+
+viewBenchCard : Bool -> Dict String CardData -> List Action.CardRef -> Int -> List String -> Action.CardRef -> Html Msg
+viewBenchCard upsideDown cache cardAttachments hpDamage conditions card =
     let
         maybeUrl =
             cachedImageUrl cache card
                 |> Maybe.map (\u -> u ++ "/high.webp")
 
+        totalRotationDeg =
+            (if upsideDown then 180 else 0) + conditionRotationDeg conditions
+
         rotStyles =
-            if upsideDown then
-                [ style "transform" "rotate(180deg)" ]
+            if totalRotationDeg == 0 then
+                []
 
             else
-                []
+                [ style "transform" ("rotate(" ++ String.fromInt totalRotationDeg ++ "deg)") ]
 
         -- Styles for the card image itself (fills the wrapper)
         cardStyles =
@@ -4848,18 +4997,31 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
                 energyAttachments
                 |> List.reverse
 
+        -- Cancels the outer overlay wrapper's rotation so a badge's own shape and
+        -- any text/number inside it stays upright, while its position still moves
+        -- with the card (the wrapper rotates the badge's on-screen location; this
+        -- rotates the badge's own rendering back).
+        counterRotate =
+            if totalRotationDeg == 0 then
+                []
+
+            else
+                [ style "transform" ("rotate(" ++ String.fromInt -totalRotationDeg ++ "deg)") ]
+
         energyOverlay =
             if List.isEmpty groupedEnergies then
                 []
             else
                 [ div
-                    [ style "position" "absolute"
-                    , style "bottom" "-9px"
-                    , style "left" "-9px"
-                    , style "display" "flex"
-                    , style "flex-direction" "row"
-                    , style "gap" "2px"
-                    ]
+                    ([ style "position" "absolute"
+                     , style "bottom" "-9px"
+                     , style "left" "-9px"
+                     , style "display" "flex"
+                     , style "flex-direction" "row"
+                     , style "gap" "2px"
+                     ]
+                        ++ counterRotate
+                    )
                     (List.map
                         (\( item, count ) ->
                             div
@@ -4898,13 +5060,15 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
                 []
             else
                 [ div
-                    [ style "position" "absolute"
-                    , style "top" "25%"
-                    , style "left" "-10px"
-                    , style "display" "flex"
-                    , style "flex-direction" "column"
-                    , style "gap" "2px"
-                    ]
+                    ([ style "position" "absolute"
+                     , style "top" "25%"
+                     , style "left" "-10px"
+                     , style "display" "flex"
+                     , style "flex-direction" "column"
+                     , style "gap" "2px"
+                     ]
+                        ++ counterRotate
+                    )
                     (List.map (viewAttachmentRect cache) toolAttachments)
                 ]
     in
@@ -4912,29 +5076,96 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
         damageOverlay =
             if hpDamage > 0 then
                 [ div
-                    [ style "position" "absolute"
-                    , style "top" "25%"
-                    , style "right" "2px"
-                    , style "background" "#d69e2e"
-                    , style "color" "white"
-                    , style "border-radius" "50%"
-                    , style "width" "28px"
-                    , style "height" "28px"
-                    , style "font-size" "0.65rem"
-                    , style "font-weight" "700"
-                    , style "display" "flex"
-                    , style "align-items" "center"
-                    , style "justify-content" "center"
-                    , style "pointer-events" "none"
-                    , style "flex-shrink" "0"
-                    , style "border" "1.5px solid rgba(0,0,0,0.55)"
-                    , style "text-shadow" "0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)"
-                    ]
+                    ([ style "position" "absolute"
+                     , style "top" "25%"
+                     , style "right" "2px"
+                     , style "background" "#d69e2e"
+                     , style "color" "white"
+                     , style "border-radius" "50%"
+                     , style "width" "28px"
+                     , style "height" "28px"
+                     , style "font-size" "0.65rem"
+                     , style "font-weight" "700"
+                     , style "display" "flex"
+                     , style "align-items" "center"
+                     , style "justify-content" "center"
+                     , style "pointer-events" "none"
+                     , style "flex-shrink" "0"
+                     , style "border" "1.5px solid rgba(255,255,255,0.85)"
+                     , style "text-shadow" "0 0 3px rgba(0,0,0,0.9), 0 1px 3px rgba(0,0,0,0.9)"
+                     ]
+                        ++ counterRotate
+                    )
                     [ text (String.fromInt hpDamage) ]
                 ]
 
             else
                 []
+
+        statusTokens =
+            List.filterMap identity
+                [ if List.member "Burned" conditions then
+                    Just ( "🔥", "#5a1010" )
+
+                  else
+                    Nothing
+                , if List.member "Poisoned" conditions then
+                    Just ( "☠️", "#805ad5" )
+
+                  else
+                    Nothing
+                ]
+
+        statusOverlay =
+            statusTokens
+                |> List.indexedMap
+                    (\i ( emoji, color ) ->
+                        div
+                            ([ style "position" "absolute"
+                             , style "top" ("calc(25% + " ++ String.fromInt (32 * (i + 1)) ++ "px)")
+                             , style "right" "2px"
+                             , style "background" color
+                             , style "color" "white"
+                             , style "border-radius" "50%"
+                             , style "width" "28px"
+                             , style "height" "28px"
+                             , style "font-size" "0.9rem"
+                             , style "display" "flex"
+                             , style "align-items" "center"
+                             , style "justify-content" "center"
+                             , style "pointer-events" "none"
+                             , style "flex-shrink" "0"
+                             , style "border" "1.5px solid rgba(255,255,255,0.85)"
+                             , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
+                             ]
+                                ++ counterRotate
+                            )
+                            [ text emoji ]
+                    )
+        overlayItems =
+            energyOverlay ++ toolOverlay ++ statusOverlay ++ damageOverlay
+
+        -- Overlays are positioned relative to the card's un-rotated corners
+        -- (e.g. "top-right" for damage). Rotating this wrapper the same amount
+        -- as the card carries their positions along with it; each overlay's own
+        -- counterRotate then cancels that rotation locally, keeping its shape
+        -- and any text upright.
+        rotatedOverlays =
+            if List.isEmpty overlayItems then
+                []
+
+            else
+                [ div
+                    ([ style "position" "absolute"
+                     , style "top" "0"
+                     , style "left" "0"
+                     , style "width" "100%"
+                     , style "height" "100%"
+                     ]
+                        ++ rotStyles
+                    )
+                    overlayItems
+                ]
     in
     div
         [ style "position" "relative"
@@ -4942,7 +5173,7 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
         , style "height" cardH
         , style "flex-shrink" "0"
         ]
-        (cardDiv :: energyOverlay ++ toolOverlay ++ damageOverlay)
+        (cardDiv :: rotatedOverlays)
 
 
 
@@ -4950,8 +5181,8 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
 Active spots are stacked vertically in the center. Stadium slots sit two card-widths
 out on each side: blue's on the left (upside-down), red's on the right.
 -}
-viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> Maybe CurrentPlay -> Html Msg
-viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState maybePlay =
+viewActiveZone : Replay.Players -> Dict String CardData -> Bool -> ActiveState -> Maybe StadiumState -> InstanceState -> AttachmentState -> DamageState -> ConditionState -> Maybe CurrentPlay -> Html Msg
+viewActiveZone players cache flipOpponent active maybeStadium instances attachments damageState conditions maybePlay =
     let
         red =
             players.red
@@ -4967,7 +5198,7 @@ viewActiveZone players cache flipOpponent active maybeStadium instances attachme
                         , style "box-shadow" ("0 0 0 4px " ++ shadowColor)
                         , style "overflow" "hidden"
                         ]
-                        [ viewBenchCard upsideDown cache [] 0 card ]
+                        [ viewBenchCard upsideDown cache [] 0 [] card ]
 
                 Nothing ->
                     div
@@ -4992,8 +5223,11 @@ viewActiveZone players cache flipOpponent active maybeStadium instances attachme
 
                         atts =
                             maybeIid |> Maybe.map (lookupAttachments attachments) |> Maybe.withDefault []
+
+                        conds =
+                            maybeIid |> Maybe.map (lookupConditions conditions) |> Maybe.withDefault []
                     in
-                    viewBenchCard upsideDown cache atts hp card
+                    viewBenchCard upsideDown cache atts hp conds card
 
                 Nothing ->
                     div
@@ -5452,11 +5686,14 @@ view model =
                                     instances =
                                         computeInstances players replay sectionIndex groupIndex
 
+                                    conditions =
+                                        computeConditions players replay sectionIndex groupIndex
+
                                     maybePlay =
                                         getCurrentGroup replay sectionIndex groupIndex
                                             |> Maybe.andThen (currentPlayFromGroup players)
                                 in
-                                viewHandState players cache ctx.flipOpponent hand bench activeSpots stadium instances attachments damageState piles maybePlay
+                                viewHandState players cache ctx.flipOpponent hand bench activeSpots stadium instances attachments damageState conditions piles maybePlay
 
                             Nothing ->
                                 text ""

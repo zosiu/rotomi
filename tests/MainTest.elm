@@ -4,7 +4,7 @@ import Dict
 import Expect
 import Http
 import Action exposing (CardRef)
-import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, ActiveState, InstanceState, AttachmentState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, applyGroupToInstances, applyGroupToAttachments, correctGroupPlayers, emptyInstances, emptyAttachments, lookupAttachments, firstInstance, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, emptyActive, init, update)
+import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, ActiveState, InstanceState, AttachmentState, ConditionState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, applyGroupToInstances, applyGroupToAttachments, applyGroupToConditions, correctGroupPlayers, emptyInstances, emptyAttachments, emptyConditions, lookupAttachments, lookupConditions, firstInstance, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, emptyActive, init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
@@ -1467,6 +1467,107 @@ suite =
                     in
                     activeItems |> Expect.equal [ { id = "mee_8", name = "Basic Metal Energy" } ]
             ]
+        , describe "special conditions (regression)"
+            [ test "ConditionApplied sets a condition on the Active instance" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A's (aaa_1) Foo is now Poisoned."
+                                ]
+                    in
+                    firstInstance "A" "aaa_1" inst
+                        |> Maybe.map (lookupConditions conds)
+                        |> Expect.equal (Just [ "Poisoned" ])
+            , test "ConditionRemoved clears a previously applied condition" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A's (aaa_1) Foo is now Confused."
+                                , TopLine "A's (aaa_1) Foo is no longer Confused."
+                                ]
+                    in
+                    firstInstance "A" "aaa_1" inst
+                        |> Maybe.map (lookupConditions conds)
+                        |> Expect.equal (Just [])
+            , test "Retreated clears every condition on the instance leaving the Active Spot" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A's (aaa_1) Foo is now Confused."
+                                , TopLine "A retreated (aaa_1) Foo to the Bench."
+                                ]
+                    in
+                    -- retreated instance moves to the bench head, so firstInstance
+                    -- (active-first-then-bench) still surfaces it.
+                    firstInstance "A" "aaa_1" inst
+                        |> Maybe.map (lookupConditions conds)
+                        |> Expect.equal (Just [])
+            , test "Same-card Switched clears the instance that was Active, leaving the other instance's (empty) state alone" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A's (aaa_1) Foo is now Confused."
+                                , TopLine "A's (aaa_1) Foo was switched with A's (aaa_1) Foo to become the Active Pokémon."
+                                ]
+
+                        -- Instance 1 (the 2nd "played to the Bench" line) was Active and
+                        -- Confused, then got swapped to the Bench by the same-card switch.
+                        formerlyActiveConditions =
+                            lookupConditions conds 1
+                    in
+                    formerlyActiveConditions |> Expect.equal []
+            , test "KnockedOut clears the KO'd instance's conditions" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A's (aaa_1) Foo is now Poisoned."
+                                , TopLine "B's (bbb_1) Bar used Tackle on A's (aaa_1) Foo for 200 damage."
+                                , TopLine "A's (aaa_1) Foo was Knocked Out!"
+                                ]
+                    in
+                    lookupConditions conds 0 |> Expect.equal []
+            , test "ConditionRemoved inside an Evolved group's detail resolves via the post-evolution card id" <|
+                \_ ->
+                    let
+                        -- Regression: the pokemon's card id changes mid-group (Drakloak ->
+                        -- Dragapult). A "no longer Confused" detail for the NEW card id must
+                        -- resolve against postInstances, since preInstances only knows the
+                        -- pokemon under its OLD (pre-evolution) card id.
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Drakloak to the Active Spot."
+                                , TopLine "A's (aaa_1) Drakloak is now Confused."
+                                , TopLine "A evolved (aaa_1) Drakloak to (bbb_1) Dragapult in the Active Spot."
+                                , DetailLine "A's (bbb_1) Dragapult is no longer Confused."
+                                ]
+                    in
+                    firstInstance "A" "bbb_1" inst
+                        |> Maybe.map (lookupConditions conds)
+                        |> Expect.equal (Just [])
+            , test "ConditionApplied on a benched (non-Active) pokemon is a no-op" <|
+                \_ ->
+                    let
+                        ( inst, conds ) =
+                            finalConditions
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A's (aaa_1) Foo is now Confused."
+                                ]
+                    in
+                    firstInstance "A" "aaa_1" inst
+                        |> Maybe.map (lookupConditions conds)
+                        |> Expect.equal (Just [])
+            ]
         ]
 
 
@@ -1498,6 +1599,28 @@ finalAttachments lines =
                 ( newInstState, applyGroupToAttachments instState newInstState corrected atts )
             )
             ( emptyInstances, emptyAttachments )
+
+
+{-| Same pipeline as finalAttachments, but for special-condition tracking. -}
+finalConditions : List Replay.ReplayLine -> ( InstanceState, ConditionState )
+finalConditions lines =
+    let
+        players =
+            { red = "A", blue = "B" }
+    in
+    Action.groupLines lines
+        |> List.foldl
+            (\group ( instState, conds ) ->
+                let
+                    corrected =
+                        correctGroupPlayers players instState group
+
+                    newInstState =
+                        applyGroupToInstances corrected instState
+                in
+                ( newInstState, applyGroupToConditions instState newInstState corrected conds )
+            )
+            ( emptyInstances, emptyConditions )
 
 
 sectionKind : Replay.Section -> String
