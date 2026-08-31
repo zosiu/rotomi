@@ -21,7 +21,7 @@ port pushUrl : { url : String, index : Int, groupIndex : Int, flipOpponent : Boo
 port onSwipe : (String -> msg) -> Sub msg
 
 
-init : { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool } -> ( Model, Cmd Msg )
+init : { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool, debug : Bool } -> ( Model, Cmd Msg )
 init flags =
     let
         url =
@@ -31,19 +31,23 @@ init flags =
         ( EnteringUrl "", Cmd.none )
 
     else
+        let
+            ctx =
+                { flipOpponent = flags.flipOpponent, debug = flags.debug }
+        in
         case trainingCourtLogId url of
             Just uuid ->
-                ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
+                ( Loading url flags.sectionIndex flags.groupIndex ctx
                 , fetchTrainingCourtLog uuid flags.sectionIndex flags.groupIndex flags.flipOpponent
                 )
 
             Nothing ->
-                ( Loading url flags.sectionIndex flags.groupIndex flags.flipOpponent
+                ( Loading url flags.sectionIndex flags.groupIndex ctx
                 , Http.get { url = url, expect = Http.expectString GotReplay }
                 )
 
 
-main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool } Model Msg
+main : Program { replayUrl : String, sectionIndex : Int, groupIndex : Int, flipOpponent : Bool, debug : Bool } Model Msg
 main =
     Browser.element
         { init = init
@@ -161,11 +165,17 @@ type CardPopup
     | CardNotFound String
 
 
+type alias ViewContext =
+    { flipOpponent : Bool
+    , debug : Bool
+    }
+
+
 type Model
     = EnteringUrl String
-    | Loading String Int Int Bool
-    | Retrying String Int Int Bool
-    | Loaded String Replay.Replay Int Int (Maybe CardPopup) (Dict String CardData) Bool
+    | Loading String Int Int ViewContext
+    | Retrying String Int Int ViewContext
+    | Loaded String Replay.Replay Int Int (Maybe CardPopup) (Dict String CardData) ViewContext
     | Failed String String
 
 
@@ -191,14 +201,30 @@ currentUrl model =
 currentFlipOpponent : Model -> Bool
 currentFlipOpponent model =
     case model of
-        Loading _ _ _ flip ->
-            flip
+        Loading _ _ _ ctx ->
+            ctx.flipOpponent
 
-        Retrying _ _ _ flip ->
-            flip
+        Retrying _ _ _ ctx ->
+            ctx.flipOpponent
 
-        Loaded _ _ _ _ _ _ flip ->
-            flip
+        Loaded _ _ _ _ _ _ ctx ->
+            ctx.flipOpponent
+
+        _ ->
+            False
+
+
+currentDebug : Model -> Bool
+currentDebug model =
+    case model of
+        Loading _ _ _ ctx ->
+            ctx.debug
+
+        Retrying _ _ _ ctx ->
+            ctx.debug
+
+        Loaded _ _ _ _ _ _ ctx ->
+            ctx.debug
 
         _ ->
             False
@@ -241,41 +267,48 @@ update msg model =
 
                 flip =
                     currentFlipOpponent model
+
+                debug =
+                    currentDebug model
             in
             if String.isEmpty url then
                 ( model, Cmd.none )
 
             else
+                let
+                    ctx =
+                        { flipOpponent = flip, debug = debug }
+                in
                 case trainingCourtLogId url of
                     Just uuid ->
-                        ( Loading url 0 0 flip
+                        ( Loading url 0 0 ctx
                         , fetchTrainingCourtLog uuid 0 0 flip
                         )
 
                     Nothing ->
-                        ( Loading url 0 0 flip
+                        ( Loading url 0 0 ctx
                         , Http.get { url = url, expect = Http.expectString GotReplay }
                         )
 
         GotReplay result ->
             case model of
-                Loading url idx gIdx flip ->
+                Loading url idx gIdx ctx ->
                     case result of
                         Ok content ->
-                            loadReplay url idx gIdx flip content
+                            loadReplay url idx gIdx ctx content
 
                         Err Http.NetworkError ->
-                            ( Retrying url idx gIdx flip
+                            ( Retrying url idx gIdx ctx
                             , Http.get { url = proxyUrl url, expect = Http.expectString GotReplay }
                             )
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
 
-                Retrying url idx gIdx flip ->
+                Retrying url idx gIdx ctx ->
                     case result of
                         Ok content ->
-                            loadReplay url idx gIdx flip content
+                            loadReplay url idx gIdx ctx content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -285,10 +318,10 @@ update msg model =
 
         GotTrainingCourtLog idx gIdx flip result ->
             case model of
-                Loading url _ _ _ ->
+                Loading url _ _ ctx ->
                     case result of
                         Ok content ->
-                            loadReplay url idx gIdx flip content
+                            loadReplay url idx gIdx ctx content
 
                         Err err ->
                             ( Failed url (httpErrorToString err), Cmd.none )
@@ -298,10 +331,10 @@ update msg model =
 
         FirstSection ->
             case model of
-                Loaded url replay _ _ _ cache flip ->
-                    ( Loaded url replay 0 0 Nothing cache flip
+                Loaded url replay _ _ _ cache ctx ->
+                    ( Loaded url replay 0 0 Nothing cache ctx
                     , Cmd.batch
-                        [ pushUrl { url = url, index = 0, groupIndex = 0, flipOpponent = flip }
+                        [ pushUrl { url = url, index = 0, groupIndex = 0, flipOpponent = ctx.flipOpponent }
                         , scrollToTop
                         , fetchHandCards replay.players replay 0 0 cache
                         ]
@@ -312,11 +345,11 @@ update msg model =
 
         PrevSection ->
             case model of
-                Loaded url replay i g _ cache flip ->
+                Loaded url replay i g _ cache ctx ->
                     if g > 0 then
-                        ( Loaded url replay i (g - 1) Nothing cache flip
+                        ( Loaded url replay i (g - 1) Nothing cache ctx
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i, groupIndex = g - 1, flipOpponent = flip }
+                            [ pushUrl { url = url, index = i, groupIndex = g - 1, flipOpponent = ctx.flipOpponent }
                             , scrollToTop
                             , fetchHandCards replay.players replay i (g - 1) cache
                             ]
@@ -336,9 +369,9 @@ update msg model =
                             newG =
                                 max 0 (prevCount - 1)
                         in
-                        ( Loaded url replay newI newG Nothing cache flip
+                        ( Loaded url replay newI newG Nothing cache ctx
                         , Cmd.batch
-                            [ pushUrl { url = url, index = newI, groupIndex = newG, flipOpponent = flip }
+                            [ pushUrl { url = url, index = newI, groupIndex = newG, flipOpponent = ctx.flipOpponent }
                             , scrollToTop
                             , fetchHandCards replay.players replay newI newG cache
                             ]
@@ -352,7 +385,7 @@ update msg model =
 
         NextSection ->
             case model of
-                Loaded url replay i g _ cache flip ->
+                Loaded url replay i g _ cache ctx ->
                     let
                         currentSection =
                             replay.sections |> List.drop i |> List.head
@@ -364,18 +397,18 @@ update msg model =
                             List.length replay.sections
                     in
                     if g < totalGroups - 1 then
-                        ( Loaded url replay i (g + 1) Nothing cache flip
+                        ( Loaded url replay i (g + 1) Nothing cache ctx
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i, groupIndex = g + 1, flipOpponent = flip }
+                            [ pushUrl { url = url, index = i, groupIndex = g + 1, flipOpponent = ctx.flipOpponent }
                             , scrollToTop
                             , fetchHandCards replay.players replay i (g + 1) cache
                             ]
                         )
 
                     else if i < totalSections - 1 then
-                        ( Loaded url replay (i + 1) 0 Nothing cache flip
+                        ( Loaded url replay (i + 1) 0 Nothing cache ctx
                         , Cmd.batch
-                            [ pushUrl { url = url, index = i + 1, groupIndex = 0, flipOpponent = flip }
+                            [ pushUrl { url = url, index = i + 1, groupIndex = 0, flipOpponent = ctx.flipOpponent }
                             , scrollToTop
                             , fetchHandCards replay.players replay (i + 1) 0 cache
                             ]
@@ -389,7 +422,7 @@ update msg model =
 
         LastSection ->
             case model of
-                Loaded url replay _ _ _ cache flip ->
+                Loaded url replay _ _ _ cache ctx ->
                     let
                         lastI =
                             List.length replay.sections - 1
@@ -403,9 +436,9 @@ update msg model =
                         lastG =
                             max 0 (lastCount - 1)
                     in
-                    ( Loaded url replay lastI lastG Nothing cache flip
+                    ( Loaded url replay lastI lastG Nothing cache ctx
                     , Cmd.batch
-                        [ pushUrl { url = url, index = lastI, groupIndex = lastG, flipOpponent = flip }
+                        [ pushUrl { url = url, index = lastI, groupIndex = lastG, flipOpponent = ctx.flipOpponent }
                         , scrollToTop
                         , fetchHandCards replay.players replay lastI lastG cache
                         ]
@@ -438,15 +471,15 @@ update msg model =
 
         CardClicked id ->
             case model of
-                Loaded url replay i g _ cache flip ->
+                Loaded url replay i g _ cache ctx ->
                     case Dict.get id cache of
                         Just cardData ->
-                            ( Loaded url replay i g (Just (ShowingCard id cardData)) cache flip, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingCard id cardData)) cache ctx, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl id of
                                 Just apiUrl ->
-                                    ( Loaded url replay i g (Just (FetchingCard id)) cache flip
+                                    ( Loaded url replay i g (Just (FetchingCard id)) cache ctx
                                     , Http.get
                                         { url = apiUrl
                                         , expect = Http.expectString (GotCardImage id)
@@ -454,42 +487,42 @@ update msg model =
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i g (Just (CardNotFound id)) cache flip, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound id)) cache ctx, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         MoveClicked cardId moveName ->
             case model of
-                Loaded url replay i g _ cache flip ->
+                Loaded url replay i g _ cache ctx ->
                     case Dict.get cardId cache of
                         Just cardData ->
-                            ( Loaded url replay i g (Just (ShowingMove cardData moveName)) cache flip, Cmd.none )
+                            ( Loaded url replay i g (Just (ShowingMove cardData moveName)) cache ctx, Cmd.none )
 
                         Nothing ->
                             case cardApiUrl cardId of
                                 Just apiUrl ->
-                                    ( Loaded url replay i g (Just (FetchingMove cardId moveName)) cache flip
+                                    ( Loaded url replay i g (Just (FetchingMove cardId moveName)) cache ctx
                                     , Http.get { url = apiUrl, expect = Http.expectString (GotCardImage cardId) }
                                     )
 
                                 Nothing ->
-                                    ( Loaded url replay i g (Just (CardNotFound cardId)) cache flip, Cmd.none )
+                                    ( Loaded url replay i g (Just (CardNotFound cardId)) cache ctx, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         DamageClicked info ->
             case model of
-                Loaded url replay i g _ cache flip ->
-                    ( Loaded url replay i g (Just (ShowingDamageInfo info)) cache flip, Cmd.none )
+                Loaded url replay i g _ cache ctx ->
+                    ( Loaded url replay i g (Just (ShowingDamageInfo info)) cache ctx, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         GotCardImage id result ->
             case model of
-                Loaded url replay i g currentPopup cache flip ->
+                Loaded url replay i g currentPopup cache ctx ->
                     let
                         -- True only when the user explicitly requested this card
                         -- (by clicking a pill / card thumbnail), so we should open a popup.
@@ -554,27 +587,27 @@ update msg model =
                                 Err _ ->
                                     ( if isUserFetch then Just (CardNotFound id) else currentPopup, cache )
                     in
-                    ( Loaded url replay i g nextPopup newCache flip, Cmd.none )
+                    ( Loaded url replay i g nextPopup newCache ctx, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         CloseCard ->
             case model of
-                Loaded url replay i g _ cache flip ->
-                    ( Loaded url replay i g Nothing cache flip, Cmd.none )
+                Loaded url replay i g _ cache ctx ->
+                    ( Loaded url replay i g Nothing cache ctx, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
         FlipOpponentToggled ->
             case model of
-                Loaded url replay i g popup cache flip ->
+                Loaded url replay i g popup cache ctx ->
                     let
                         newFlip =
-                            not flip
+                            not ctx.flipOpponent
                     in
-                    ( Loaded url replay i g popup cache newFlip
+                    ( Loaded url replay i g popup cache { ctx | flipOpponent = newFlip }
                     , pushUrl { url = url, index = i, groupIndex = g, flipOpponent = newFlip }
                     )
 
@@ -597,8 +630,8 @@ scrollToTop =
         |> Task.attempt (\_ -> NoOp)
 
 
-loadReplay : String -> Int -> Int -> Bool -> String -> ( Model, Cmd Msg )
-loadReplay url requestedIndex requestedGroupIndex flip content =
+loadReplay : String -> Int -> Int -> ViewContext -> String -> ( Model, Cmd Msg )
+loadReplay url requestedIndex requestedGroupIndex ctx content =
     let
         -- Normalize Unicode curly apostrophes (U+2019 ' RIGHT SINGLE QUOTATION MARK)
         -- to plain ASCII apostrophes. Some replay sources use smart quotes in player
@@ -626,9 +659,9 @@ loadReplay url requestedIndex requestedGroupIndex flip content =
         ( Failed url "No replay content found — check the URL", Cmd.none )
 
     else
-        ( Loaded url replay index groupIndex Nothing Dict.empty flip
+        ( Loaded url replay index groupIndex Nothing Dict.empty ctx
         , Cmd.batch
-            [ pushUrl { url = url, index = index, groupIndex = groupIndex, flipOpponent = flip }
+            [ pushUrl { url = url, index = index, groupIndex = groupIndex, flipOpponent = ctx.flipOpponent }
             , fetchHandCards replay.players replay index groupIndex Dict.empty
             ]
         )
@@ -2233,6 +2266,7 @@ computePiles players replay sectionIndex groupIndex =
 retreatToFront : Bool
 retreatToFront =
     True
+
 
 
 addToBench : String -> String -> Action.CardRef -> BenchState -> BenchState
@@ -4878,7 +4912,7 @@ view model =
                 ]
                 [ div [ style "flex-shrink" "0", style "margin-bottom" "0.25rem" ] [ viewUrlBar model ]
                 , case model of
-                    Loaded _ replay sectionIndex groupIndex _ cache flip ->
+                    Loaded _ replay sectionIndex groupIndex _ cache ctx ->
                         case replay.players of
                             Just players ->
                                 let
@@ -4910,7 +4944,7 @@ view model =
                                         getCurrentGroup replay sectionIndex groupIndex
                                             |> Maybe.andThen (currentPlayFromGroup players)
                                 in
-                                viewHandState players cache flip hand bench activeSpots stadium instances attachments damageState piles maybePlay
+                                viewHandState players cache ctx.flipOpponent hand bench activeSpots stadium instances attachments damageState piles maybePlay
 
                             Nothing ->
                                 text ""
@@ -5137,8 +5171,8 @@ viewContent model =
                 ]
                 [ text "Loading replay…" ]
 
-        Loaded _ replay index groupIndex _ cache _ ->
-            viewReplay cache replay index groupIndex
+        Loaded _ replay index groupIndex _ cache ctx ->
+            viewReplay ctx cache replay index groupIndex
 
         Failed _ _ ->
             text ""
@@ -5160,8 +5194,8 @@ sectionGroupCount section =
             1
 
 
-viewReplay : Dict String CardData -> Replay.Replay -> Int -> Int -> Html Msg
-viewReplay cache replay sectionIndex groupIndex =
+viewReplay : ViewContext -> Dict String CardData -> Replay.Replay -> Int -> Int -> Html Msg
+viewReplay ctx cache replay sectionIndex groupIndex =
     let
         players =
             replay.players
@@ -5209,7 +5243,7 @@ viewReplay cache replay sectionIndex groupIndex =
                                              else
                                                 []
                                             )
-                                            (viewActionGroup players cache group)
+                                            (viewActionGroup ctx players cache group)
                                     )
 
         -- Past sections: most recent first, each preceded by a divider
@@ -5219,7 +5253,7 @@ viewReplay cache replay sectionIndex groupIndex =
                 |> List.concatMap
                     (\section ->
                         viewSectionDivider players section
-                            :: viewPastSectionGroups cache players section
+                            :: viewPastSectionGroups ctx cache players section
                     )
 
         totalGroupsInCurrent =
@@ -5328,8 +5362,8 @@ viewResultContent players result =
         ]
 
 
-viewPastSectionGroups : Dict String CardData -> Maybe Replay.Players -> Replay.Section -> List (Html Msg)
-viewPastSectionGroups cache players section =
+viewPastSectionGroups : ViewContext -> Dict String CardData -> Maybe Replay.Players -> Replay.Section -> List (Html Msg)
+viewPastSectionGroups ctx cache players section =
     let
         greyed children =
             div [ style "opacity" "0.4" ] children
@@ -5341,7 +5375,7 @@ viewPastSectionGroups cache players section =
         _ ->
             Action.groupLines (sectionLines section)
                 |> List.reverse
-                |> List.map (\group -> greyed (viewActionGroup players cache group))
+                |> List.map (\group -> greyed (viewActionGroup ctx players cache group))
 
 
 viewSectionDivider : Maybe Replay.Players -> Replay.Section -> Html Msg
@@ -5462,8 +5496,8 @@ navArrow visible msg symbol =
         [ text symbol ]
 
 
-viewActionGroup : Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
-viewActionGroup players cache group =
+viewActionGroup : ViewContext -> Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
+viewActionGroup ctx players cache group =
     let
         correctedGroup =
             case players of
@@ -5511,13 +5545,32 @@ viewActionGroup players cache group =
                 _ ->
                     Nothing
 
-        normalDetails =
-            List.concatMap
-                (\detail ->
+        -- Per-detail flag: True when correctGroupPlayers changed the raw text.
+        wasDetailCorrected =
+            List.map2 (\orig corr -> orig.raw /= corr.raw) group.details correctedGroup.details
+
+        viewDetailLines wasCorrected detail =
+            let
+                detailLine =
                     viewLine players Nothing (Replay.DetailLine detail.raw)
-                        :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
-                )
-                correctedGroup.details
+
+                wrappedLine =
+                    if ctx.debug && wasCorrected then
+                        div
+                            [ style "background-color" "rgba(237, 137, 54, 0.15)"
+                            , style "border-left" "3px solid #ed8936"
+                            , style "padding-left" "4px"
+                            , style "margin-left" "-4px"
+                            ]
+                            [ detailLine ]
+
+                    else
+                        detailLine
+            in
+            wrappedLine :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
+
+        normalDetails =
+            List.concat (List.map2 viewDetailLines wasDetailCorrected correctedGroup.details)
     in
     case group.action of
         Action.UsedAttack { target, modifier } ->
@@ -5549,12 +5602,7 @@ viewActionGroup players cache group =
                                 { breakdownLines = breakdownLines }
 
                             nonBreakdownDetails =
-                                correctedGroup.details
-                                    |> List.concatMap
-                                        (\detail ->
-                                            viewLine players Nothing (Replay.DetailLine detail.raw)
-                                                :: List.map (\bullet -> viewLine players Nothing (Replay.BulletLine bullet.raw)) detail.bullets
-                                        )
+                                List.concat (List.map2 viewDetailLines wasDetailCorrected correctedGroup.details)
                         in
                         div
                             [ style "padding" "0.2rem 0"
