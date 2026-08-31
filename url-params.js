@@ -2,6 +2,7 @@ const REPLAY_URL_PARAM = "replay_url";
 const SECTION_PARAM = "section";
 const GROUP_PARAM = "group";
 const FLIP_PARAM = "flip";
+const DEBUG_PARAM = "debug";
 
 // TrainingCourt logs are stored in Supabase. The anon key is public by design
 // (exposed in their open-source app and compiled client JS).
@@ -52,6 +53,11 @@ function readFlipOpponent(search) {
   return val === "1";
 }
 
+function readDebug(search) {
+  const val = new URLSearchParams(search).get(DEBUG_PARAM);
+  return val === "1" || val === "true";
+}
+
 function buildShareUrl(replayUrl, sectionIndex, groupIndex, flipOpponent) {
   if (!replayUrl) return "";
   const params = new URLSearchParams();
@@ -63,4 +69,4 @@ function buildShareUrl(replayUrl, sectionIndex, groupIndex, flipOpponent) {
 }
 
 if (typeof module !== "undefined")
-  module.exports = { readReplayUrl, readSectionIndex, readGroupIndex, readFlipOpponent, buildShareUrl, trainingCourtLogId, resolveReplayUrl };
+  module.exports = { readReplayUrl, readSectionIndex, readGroupIndex, readFlipOpponent, readDebug, buildShareUrl, trainingCourtLogId, resolveReplayUrl };

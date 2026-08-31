@@ -62,6 +62,7 @@
             sectionIndex: readSectionIndex(window.location.search),
             groupIndex: readGroupIndex(window.location.search),
             flipOpponent: readFlipOpponent(window.location.search),
+            debug: readDebug(window.location.search),
           },
         });
         app.ports.pushUrl.subscribe(function ({ url, index, groupIndex, flipOpponent }) {
