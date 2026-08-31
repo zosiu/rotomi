@@ -1861,9 +1861,9 @@ var _Platform_worker = F4(function(impl, flagDecoder, debugMetadata, args)
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cS,
+		impl.cR,
 		impl.ds,
-		impl.dm,
+		impl.dl,
 		function() { return function() {} }
 	);
 });
@@ -3951,9 +3951,9 @@ var _Browser_element = _Debugger_element || F4(function(impl, flagDecoder, debug
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cS,
+		impl.cR,
 		impl.ds,
-		impl.dm,
+		impl.dl,
 		function(sendToApp, initialModel) {
 			var view = impl.dt;
 			/**/
@@ -3987,9 +3987,9 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 	return _Platform_initialize(
 		flagDecoder,
 		args,
-		impl.cS,
+		impl.cR,
 		impl.ds,
-		impl.dm,
+		impl.dl,
 		function(sendToApp, initialModel) {
 			var divertHrefToApp = impl.bb && impl.bb(sendToApp)
 			var view = impl.dt;
@@ -4000,12 +4000,12 @@ var _Browser_document = _Debugger_document || F4(function(impl, flagDecoder, deb
 			{
 				_VirtualDom_divertHrefToApp = divertHrefToApp;
 				var doc = view(model);
-				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.cx);
+				var nextNode = _VirtualDom_node('body')(_List_Nil)(doc.cv);
 				var patches = _VirtualDom_diff(currNode, nextNode);
 				bodyNode = _VirtualDom_applyPatches(bodyNode, currNode, patches, sendToApp);
 				currNode = nextNode;
 				_VirtualDom_divertHrefToApp = 0;
-				(title !== doc.dq) && (_VirtualDom_doc.title = title = doc.dq);
+				(title !== doc.dp) && (_VirtualDom_doc.title = title = doc.dp);
 			});
 		}
 	);
@@ -4061,8 +4061,8 @@ function _Browser_makeAnimator(model, draw)
 
 function _Browser_application(impl)
 {
-	var onUrlChange = impl.c6;
-	var onUrlRequest = impl.c7;
+	var onUrlChange = impl.c5;
+	var onUrlRequest = impl.c6;
 	var key = function() { key.a(onUrlChange(_Browser_getUrl())); };
 
 	return _Browser_document({
@@ -4082,9 +4082,9 @@ function _Browser_application(impl)
 					var next = $elm$url$Url$fromString(href).a;
 					sendToApp(onUrlRequest(
 						(next
-							&& curr.b_ === next.b_
-							&& curr.bJ === next.bJ
-							&& curr.bX.a === next.bX.a
+							&& curr.bZ === next.bZ
+							&& curr.bI === next.bI
+							&& curr.bW.a === next.bW.a
 						)
 							? $elm$browser$Browser$Internal(next)
 							: $elm$browser$Browser$External(href)
@@ -4092,13 +4092,13 @@ function _Browser_application(impl)
 				}
 			});
 		},
-		cS: function(flags)
+		cR: function(flags)
 		{
-			return A3(impl.cS, flags, _Browser_getUrl(), key);
+			return A3(impl.cR, flags, _Browser_getUrl(), key);
 		},
 		dt: impl.dt,
 		ds: impl.ds,
-		dm: impl.dm
+		dl: impl.dl
 	});
 }
 
@@ -4164,17 +4164,17 @@ var _Browser_decodeEvent = F2(function(decoder, event)
 function _Browser_visibilityInfo()
 {
 	return (typeof _VirtualDom_doc.hidden !== 'undefined')
-		? { cQ: 'hidden', cA: 'visibilitychange' }
+		? { cP: 'hidden', cy: 'visibilitychange' }
 		:
 	(typeof _VirtualDom_doc.mozHidden !== 'undefined')
-		? { cQ: 'mozHidden', cA: 'mozvisibilitychange' }
+		? { cP: 'mozHidden', cy: 'mozvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.msHidden !== 'undefined')
-		? { cQ: 'msHidden', cA: 'msvisibilitychange' }
+		? { cP: 'msHidden', cy: 'msvisibilitychange' }
 		:
 	(typeof _VirtualDom_doc.webkitHidden !== 'undefined')
-		? { cQ: 'webkitHidden', cA: 'webkitvisibilitychange' }
-		: { cQ: 'hidden', cA: 'visibilitychange' };
+		? { cP: 'webkitHidden', cy: 'webkitvisibilitychange' }
+		: { cP: 'hidden', cy: 'visibilitychange' };
 }
 
 
@@ -4255,12 +4255,12 @@ var _Browser_call = F2(function(functionName, id)
 function _Browser_getViewport()
 {
 	return {
-		b6: _Browser_getScene(),
-		ci: {
-			cm: _Browser_window.pageXOffset,
-			cn: _Browser_window.pageYOffset,
-			ck: _Browser_doc.documentElement.clientWidth,
-			bI: _Browser_doc.documentElement.clientHeight
+		b5: _Browser_getScene(),
+		cg: {
+			ck: _Browser_window.pageXOffset,
+			cl: _Browser_window.pageYOffset,
+			ci: _Browser_doc.documentElement.clientWidth,
+			bH: _Browser_doc.documentElement.clientHeight
 		}
 	};
 }
@@ -4270,8 +4270,8 @@ function _Browser_getScene()
 	var body = _Browser_doc.body;
 	var elem = _Browser_doc.documentElement;
 	return {
-		ck: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
-		bI: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
+		ci: Math.max(body.scrollWidth, body.offsetWidth, elem.scrollWidth, elem.offsetWidth, elem.clientWidth),
+		bH: Math.max(body.scrollHeight, body.offsetHeight, elem.scrollHeight, elem.offsetHeight, elem.clientHeight)
 	};
 }
 
@@ -4294,15 +4294,15 @@ function _Browser_getViewportOf(id)
 	return _Browser_withNode(id, function(node)
 	{
 		return {
-			b6: {
-				ck: node.scrollWidth,
-				bI: node.scrollHeight
+			b5: {
+				ci: node.scrollWidth,
+				bH: node.scrollHeight
 			},
-			ci: {
-				cm: node.scrollLeft,
-				cn: node.scrollTop,
-				ck: node.clientWidth,
-				bI: node.clientHeight
+			cg: {
+				ck: node.scrollLeft,
+				cl: node.scrollTop,
+				ci: node.clientWidth,
+				bH: node.clientHeight
 			}
 		};
 	});
@@ -4332,18 +4332,18 @@ function _Browser_getElement(id)
 		var x = _Browser_window.pageXOffset;
 		var y = _Browser_window.pageYOffset;
 		return {
-			b6: _Browser_getScene(),
-			ci: {
-				cm: x,
-				cn: y,
-				ck: _Browser_doc.documentElement.clientWidth,
-				bI: _Browser_doc.documentElement.clientHeight
+			b5: _Browser_getScene(),
+			cg: {
+				ck: x,
+				cl: y,
+				ci: _Browser_doc.documentElement.clientWidth,
+				bH: _Browser_doc.documentElement.clientHeight
 			},
-			cK: {
-				cm: x + rect.left,
-				cn: y + rect.top,
-				ck: rect.width,
-				bI: rect.height
+			cI: {
+				ck: x + rect.left,
+				cl: y + rect.top,
+				ci: rect.width,
+				bH: rect.height
 			}
 		};
 	});
@@ -4388,25 +4388,25 @@ var _Http_toTask = F3(function(router, toTask, request)
 	return _Scheduler_binding(function(callback)
 	{
 		function done(response) {
-			callback(toTask(request.al.a(response)));
+			callback(toTask(request.ab.a(response)));
 		}
 
 		var xhr = new XMLHttpRequest();
 		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
 		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
-		xhr.addEventListener('load', function() { done(_Http_toResponse(request.al.b, xhr)); });
-		$elm$core$Maybe$isJust(request.ch) && _Http_track(router, xhr, request.ch.a);
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.ab.b, xhr)); });
+		$elm$core$Maybe$isJust(request.dq) && _Http_track(router, xhr, request.dq.a);
 
 		try {
-			xhr.open(request.cW, request.u, true);
+			xhr.open(request.cV, request.q, true);
 		} catch (e) {
-			return done($elm$http$Http$BadUrl_(request.u));
+			return done($elm$http$Http$BadUrl_(request.q));
 		}
 
 		_Http_configureRequest(xhr, request);
 
-		request.cx.a && xhr.setRequestHeader('Content-Type', request.cx.a);
-		xhr.send(request.cx.b);
+		request.cv.a && xhr.setRequestHeader('Content-Type', request.cv.a);
+		xhr.send(request.cv.b);
 
 		return function() { xhr.c = true; xhr.abort(); };
 	});
@@ -4417,13 +4417,13 @@ var _Http_toTask = F3(function(router, toTask, request)
 
 function _Http_configureRequest(xhr, request)
 {
-	for (var headers = request.bG; headers.b; headers = headers.b) // WHILE_CONS
+	for (var headers = request.cO; headers.b; headers = headers.b) // WHILE_CONS
 	{
 		xhr.setRequestHeader(headers.a.a, headers.a.b);
 	}
-	xhr.timeout = request.dp.a || 0;
-	xhr.responseType = request.al.d;
-	xhr.withCredentials = request.cq;
+	xhr.timeout = request.$7.a || 0;
+	xhr.responseType = request.ab.d;
+	xhr.withCredentials = request.co;
 }
 
 
@@ -4444,10 +4444,10 @@ function _Http_toResponse(toBody, xhr)
 function _Http_toMetadata(xhr)
 {
 	return {
-		u: xhr.responseURL,
-		dk: xhr.status,
-		dl: xhr.statusText,
-		bG: _Http_parseHeaders(xhr.getAllResponseHeaders())
+		q: xhr.responseURL,
+		dj: xhr.status,
+		dk: xhr.statusText,
+		cO: _Http_parseHeaders(xhr.getAllResponseHeaders())
 	};
 }
 
@@ -4542,15 +4542,15 @@ function _Http_track(router, xhr, tracker)
 	xhr.upload.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
-			dj: event.loaded,
-			ca: event.total
+			di: event.loaded,
+			b9: event.total
 		}))));
 	});
 	xhr.addEventListener('progress', function(event) {
 		if (xhr.c) { return; }
 		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
-			dd: event.loaded,
-			ca: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+			dc: event.loaded,
+			b9: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
 		}))));
 	});
 }
@@ -4651,10 +4651,10 @@ var $elm$core$Basics$EQ = 1;
 var $elm$core$Basics$GT = 2;
 var $elm$core$Basics$LT = 0;
 var $author$project$Main$GotSwipe = function (a) {
-	return {$: 7, a: a};
+	return {$: 8, a: a};
 };
 var $author$project$Main$KeyDown = function (a) {
-	return {$: 8, a: a};
+	return {$: 9, a: a};
 };
 var $elm$core$Result$Err = function (a) {
 	return {$: 1, a: a};
@@ -5083,7 +5083,7 @@ var $elm$url$Url$Http = 0;
 var $elm$url$Url$Https = 1;
 var $elm$url$Url$Url = F6(
 	function (protocol, host, port_, path, query, fragment) {
-		return {bA: fragment, bJ: host, bV: path, bX: port_, b_: protocol, b$: query};
+		return {bA: fragment, bI: host, bU: path, bW: port_, bZ: protocol, b_: query};
 	});
 var $elm$core$String$contains = _String_contains;
 var $elm$core$String$length = _String_length;
@@ -5964,7 +5964,7 @@ var $elm$http$Http$resolve = F2(
 			case 3:
 				var metadata = response.a;
 				return $elm$core$Result$Err(
-					$elm$http$Http$BadStatus(metadata.dk));
+					$elm$http$Http$BadStatus(metadata.dj));
 			default:
 				var body = response.b;
 				return A2(
@@ -5985,7 +5985,7 @@ var $elm$http$Http$Request = function (a) {
 };
 var $elm$http$Http$State = F2(
 	function (reqs, subs) {
-		return {b2: reqs, ce: subs};
+		return {b1: reqs, cd: subs};
 	});
 var $elm$http$Http$init = $elm$core$Task$succeed(
 	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
@@ -6029,7 +6029,7 @@ var $elm$http$Http$updateReqs = F3(
 					return A2(
 						$elm$core$Task$andThen,
 						function (pid) {
-							var _v4 = req.ch;
+							var _v4 = req.dq;
 							if (_v4.$ === 1) {
 								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
 							} else {
@@ -6059,7 +6059,7 @@ var $elm$http$Http$onEffects = F4(
 				return $elm$core$Task$succeed(
 					A2($elm$http$Http$State, reqs, subs));
 			},
-			A3($elm$http$Http$updateReqs, router, cmds, state.b2));
+			A3($elm$http$Http$updateReqs, router, cmds, state.b1));
 	});
 var $elm$core$List$maybeCons = F3(
 	function (f, mx, xs) {
@@ -6102,7 +6102,7 @@ var $elm$http$Http$onSelfMsg = F3(
 				A2(
 					$elm$core$List$filterMap,
 					A3($elm$http$Http$maybeSend, router, tracker, progress),
-					state.ce)));
+					state.cd)));
 	});
 var $elm$http$Http$Cancel = function (a) {
 	return {$: 0, a: a};
@@ -6116,14 +6116,14 @@ var $elm$http$Http$cmdMap = F2(
 			var r = cmd.a;
 			return $elm$http$Http$Request(
 				{
-					cq: r.cq,
-					cx: r.cx,
-					al: A2(_Http_mapExpect, func, r.al),
-					bG: r.bG,
-					cW: r.cW,
-					dp: r.dp,
-					ch: r.ch,
-					u: r.u
+					co: r.co,
+					cv: r.cv,
+					ab: A2(_Http_mapExpect, func, r.ab),
+					cO: r.cO,
+					cV: r.cV,
+					$7: r.$7,
+					dq: r.dq,
+					q: r.q
 				});
 		}
 	});
@@ -6146,25 +6146,25 @@ var $elm$http$Http$subscription = _Platform_leaf('Http');
 var $elm$http$Http$request = function (r) {
 	return $elm$http$Http$command(
 		$elm$http$Http$Request(
-			{cq: false, cx: r.cx, al: r.al, bG: r.bG, cW: r.cW, dp: r.dp, ch: r.ch, u: r.u}));
+			{co: false, cv: r.cv, ab: r.ab, cO: r.cO, cV: r.cV, $7: r.$7, dq: r.dq, q: r.q}));
 };
 var $elm$http$Http$get = function (r) {
 	return $elm$http$Http$request(
-		{cx: $elm$http$Http$emptyBody, al: r.al, bG: _List_Nil, cW: 'GET', dp: $elm$core$Maybe$Nothing, ch: $elm$core$Maybe$Nothing, u: r.u});
+		{cv: $elm$http$Http$emptyBody, ab: r.ab, cO: _List_Nil, cV: 'GET', $7: $elm$core$Maybe$Nothing, dq: $elm$core$Maybe$Nothing, q: r.q});
 };
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $elm$core$String$trim = _String_trim;
 var $author$project$Main$init = function (flags) {
-	var url = $elm$core$String$trim(flags.b1);
+	var url = $elm$core$String$trim(flags.b0);
 	return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(
 		$author$project$Main$EnteringUrl(''),
 		$elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-		A4($author$project$Main$Loading, url, flags.b7, flags.E, flags.D),
+		A4($author$project$Main$Loading, url, flags.b6, flags.E, flags.D),
 		$elm$http$Http$get(
 			{
-				al: $elm$http$Http$expectString($author$project$Main$GotReplay),
-				u: url
+				ab: $elm$http$Http$expectString($author$project$Main$GotReplay),
+				q: url
 			}));
 };
 var $elm$json$Json$Decode$int = _Json_decodeInt;
@@ -6175,7 +6175,7 @@ var $elm$browser$Browser$Events$MySub = F3(
 	});
 var $elm$browser$Browser$Events$State = F2(
 	function (subs, pids) {
-		return {bW: pids, ce: subs};
+		return {bV: pids, cd: subs};
 	});
 var $elm$browser$Browser$Events$init = $elm$core$Task$succeed(
 	A2($elm$browser$Browser$Events$State, _List_Nil, $elm$core$Dict$empty));
@@ -6295,7 +6295,7 @@ var $elm$core$Dict$merge = F6(
 	});
 var $elm$browser$Browser$Events$Event = F2(
 	function (key, event) {
-		return {bx: event, bL: key};
+		return {bx: event, bK: key};
 	});
 var $elm$browser$Browser$Events$spawn = F3(
 	function (router, key, _v0) {
@@ -6369,7 +6369,7 @@ var $elm$browser$Browser$Events$onEffects = F3(
 			stepLeft,
 			stepBoth,
 			stepRight,
-			state.bW,
+			state.bV,
 			$elm$core$Dict$fromList(newSubs),
 			_Utils_Tuple3(_List_Nil, $elm$core$Dict$empty, _List_Nil));
 		var deadPids = _v0.a;
@@ -6397,7 +6397,7 @@ var $elm$browser$Browser$Events$onEffects = F3(
 	});
 var $elm$browser$Browser$Events$onSelfMsg = F3(
 	function (router, _v0, state) {
-		var key = _v0.bL;
+		var key = _v0.bK;
 		var event = _v0.bx;
 		var toMessage = function (_v2) {
 			var subKey = _v2.a;
@@ -6407,7 +6407,7 @@ var $elm$browser$Browser$Events$onSelfMsg = F3(
 			var decoder = _v3.c;
 			return _Utils_eq(subKey, key) ? A2(_Browser_decodeEvent, decoder, event) : $elm$core$Maybe$Nothing;
 		};
-		var messages = A2($elm$core$List$filterMap, toMessage, state.ce);
+		var messages = A2($elm$core$List$filterMap, toMessage, state.cd);
 		return A2(
 			$elm$core$Task$andThen,
 			function (_v1) {
@@ -6456,14 +6456,14 @@ var $author$project$Main$FetchingMove = F2(
 	});
 var $author$project$Main$GotCardImage = F2(
 	function (a, b) {
-		return {$: 12, a: a, b: b};
+		return {$: 13, a: a, b: b};
 	});
 var $author$project$Main$Loaded = F7(
 	function (a, b, c, d, e, f, g) {
 		return {$: 3, a: a, b: b, c: c, d: d, e: e, f: f, g: g};
 	});
-var $author$project$Main$NextSection = {$: 5};
-var $author$project$Main$PrevSection = {$: 4};
+var $author$project$Main$NextSection = {$: 6};
+var $author$project$Main$PrevSection = {$: 5};
 var $author$project$Main$Retrying = F4(
 	function (a, b, c, d) {
 		return {$: 2, a: a, b: b, c: c, d: d};
@@ -6609,7 +6609,7 @@ var $author$project$Main$CardAbility = F3(
 	});
 var $author$project$Main$CardAttack = F4(
 	function (name, cost, damage, effect) {
-		return {a_: cost, cE: damage, aB: effect, aP: name};
+		return {a_: cost, cC: damage, aB: effect, aP: name};
 	});
 var $author$project$Main$CardData = F4(
 	function (imageUrl, attacks, abilities, category) {
@@ -6758,7 +6758,7 @@ var $author$project$Main$applyActionToActive = F3(
 			case 12:
 				var player = action.a.d;
 				var card = action.a.f;
-				var andPlayed = action.a.cs;
+				var andPlayed = action.a.cq;
 				if ((!andPlayed.$) && (!andPlayed.a)) {
 					var _v3 = andPlayed.a;
 					return A4($author$project$Main$setActive, red, player, card, active);
@@ -6774,7 +6774,7 @@ var $author$project$Main$applyActionToActive = F3(
 					var matches = function (side) {
 						if (!side.$) {
 							var c = side.a;
-							return _Utils_eq(c.ad, from.ad);
+							return _Utils_eq(c.ae, from.ae);
 						} else {
 							return false;
 						}
@@ -6792,11 +6792,11 @@ var $author$project$Main$applyActionToActive = F3(
 					return active;
 				}
 			case 17:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var matches = function (side) {
 					if (!side.$) {
 						var c = side.a;
-						return _Utils_eq(c.ad, pokemon.f.ad);
+						return _Utils_eq(c.ae, pokemon.f.ae);
 					} else {
 						return false;
 					}
@@ -6807,7 +6807,7 @@ var $author$project$Main$applyActionToActive = F3(
 					active,
 					{c: $elm$core$Maybe$Nothing}) : active);
 			case 21:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				return A4($author$project$Main$setActive, red, pokemon.d, pokemon.f, active);
 			case 23:
 				var player = action.a.d;
@@ -6819,7 +6819,7 @@ var $author$project$Main$applyActionToActive = F3(
 				var matches = function (side) {
 					if (!side.$) {
 						var c = side.a;
-						return _Utils_eq(c.ad, card.ad);
+						return _Utils_eq(c.ae, card.ae);
 					} else {
 						return false;
 					}
@@ -6987,7 +6987,7 @@ var $author$project$Action$parseCardRef = function (str) {
 			var name = $author$project$Action$extractFirstName(
 				$elm$core$String$trimLeft(remainder));
 			return $author$project$Action$isCardId(rawId) ? $elm$core$Maybe$Just(
-				{ad: rawId, aP: name}) : $elm$core$Maybe$Nothing;
+				{ae: rawId, aP: name}) : $elm$core$Maybe$Nothing;
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7021,7 +7021,7 @@ var $author$project$Action$tryAttached = function (raw) {
 						var pokemon = {f: pCard, d: player};
 						return $elm$core$Maybe$Just(
 							$author$project$Action$Attached(
-								{cT: itemCard, d: player, aF: pos, aT: pokemon}));
+								{cS: itemCard, d: player, aF: pos, aT: pokemon}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7121,7 +7121,7 @@ var $author$project$Action$parsePokemonRef = function (str) {
 					A2($elm$core$String$join, ')', nameParts)));
 			return $author$project$Action$isCardId(rawId) ? $elm$core$Maybe$Just(
 				{
-					f: {ad: rawId, aP: name},
+					f: {ae: rawId, aP: name},
 					d: player
 				}) : $elm$core$Maybe$Nothing;
 		} else {
@@ -7146,7 +7146,7 @@ var $author$project$Action$tryCardDiscardedFrom = function (raw) {
 				var pokemon = _v2.b.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$CardDiscardedFrom(
-						{f: card, t: pokemon}));
+						{f: card, u: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7189,7 +7189,7 @@ var $author$project$Action$tryChoseOption = function (raw) {
 			return $elm$core$Maybe$Just(
 				$author$project$Action$ChoseOption(
 					{
-						c9: $elm$core$String$trimRight(option),
+						c8: $elm$core$String$trimRight(option),
 						d: player
 					}));
 		} else {
@@ -7234,7 +7234,7 @@ var $author$project$Action$tryCoinFlipChoice = function (raw) {
 					A2($elm$core$String$split, ' for', choicePart)));
 			return $elm$core$Maybe$Just(
 				$author$project$Action$CoinFlipChoice(
-					{cC: choice, d: player}));
+					{cA: choice, d: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7270,7 +7270,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 					$author$project$Action$CoinFlipResult(
 						{
 							bz: 1,
-							bH: (outcome === 'heads') ? 1 : 0,
+							bG: (outcome === 'heads') ? 1 : 0,
 							d: player
 						}));
 			} else {
@@ -7292,7 +7292,7 @@ var $author$project$Action$tryCoinFlipResult = function (raw) {
 						var heads = _v4.b.a;
 						return $elm$core$Maybe$Just(
 							$author$project$Action$CoinFlipResult(
-								{bz: flipped, bH: heads, d: player}));
+								{bz: flipped, bG: heads, d: player}));
 					} else {
 						return $elm$core$Maybe$Nothing;
 					}
@@ -7340,7 +7340,7 @@ var $author$project$Action$tryConditionApplied = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionApplied(
-						{bq: condition, t: pokemon}));
+						{bq: condition, u: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7371,7 +7371,7 @@ var $author$project$Action$tryConditionRemoved = function (raw) {
 					$elm$core$String$trimRight(conditionDot));
 				return $elm$core$Maybe$Just(
 					$author$project$Action$ConditionRemoved(
-						{bq: condition, t: pokemon}));
+						{bq: condition, u: pokemon}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7395,7 +7395,7 @@ var $author$project$Action$tryDamagePrevented = function (raw) {
 			$elm$core$Maybe$map,
 			function (card) {
 				return $author$project$Action$DamagePrevented(
-					{t: card});
+					{u: card});
 			},
 			$author$project$Action$parseCardRef(inner));
 	} else {
@@ -7546,7 +7546,7 @@ var $author$project$Action$tryDrewCard = function (raw) {
 				var card = _v2.a;
 				return $elm$core$Maybe$Just(
 					$author$project$Action$DrewCard(
-						{cs: andPlayed, f: card, d: player}));
+						{cq: andPlayed, f: card, d: player}));
 			} else {
 				return $elm$core$Maybe$Nothing;
 			}
@@ -7600,7 +7600,7 @@ var $author$project$Action$tryEffectBlocked = function (raw) {
 				$elm$core$Maybe$map,
 				function (card) {
 					return $author$project$Action$EffectBlocked(
-						{aO: move, t: card});
+						{aO: move, u: card});
 				},
 				$author$project$Action$parseCardRef(pokemonPart));
 		} else {
@@ -7666,7 +7666,7 @@ var $author$project$Action$tryGoDecision = function (raw) {
 			var first = A2($elm$core$String$startsWith, 'first', choice);
 			return $elm$core$Maybe$Just(
 				$author$project$Action$GoDecision(
-					{cP: first, d: player}));
+					{cN: first, d: player}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7685,7 +7685,7 @@ var $author$project$Action$tryKnockedOut = function (raw) {
 			var pokemon = _v0.a;
 			return $elm$core$Maybe$Just(
 				$author$project$Action$KnockedOut(
-					{t: pokemon}));
+					{u: pokemon}));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
@@ -7760,7 +7760,7 @@ var $author$project$Action$tryMovedToActive = function (raw) {
 		$elm$core$Maybe$map,
 		function (pokemon) {
 			return $author$project$Action$MovedToActive(
-				{t: pokemon});
+				{u: pokemon});
 		},
 		$author$project$Action$parsePokemonRef(
 			A2($elm$core$String$dropRight, 27, raw))) : $elm$core$Maybe$Nothing;
@@ -7834,7 +7834,7 @@ var $author$project$Action$tryMovedToDiscard = function (raw) {
 					var n = _v4.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MovedToDiscard(
-							{i: n, cZ: mover, db: ownerName}));
+							{i: n, cY: mover, da: ownerName}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -7932,7 +7932,7 @@ var $author$project$Action$tryMulliganBonus = function (raw) {
 					return $elm$core$Maybe$Just(
 						$author$project$Action$MulliganBonus(
 							{
-								cw: A3(
+								cu: A3(
 									$elm$core$String$replace,
 									'.',
 									'',
@@ -8003,7 +8003,7 @@ var $author$project$Action$tryNCardsDiscardedFrom = function (raw) {
 					var pokemon = _v3.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$NCardsDiscardedFrom(
-							{i: count, t: pokemon}));
+							{i: count, u: pokemon}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -8079,7 +8079,7 @@ var $author$project$Action$tryPlacedDamageCounters = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PlacedDamageCounters(
-								{i: n, d: mover, t: pokemon});
+								{i: n, d: mover, u: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -8214,7 +8214,7 @@ var $author$project$Action$tryPoisonCheckupDamage = function (raw) {
 						$elm$core$Maybe$map,
 						function (pokemon) {
 							return $author$project$Action$PoisonCheckupDamage(
-								{cD: n, t: pokemon});
+								{cB: n, u: pokemon});
 						},
 						$author$project$Action$parsePokemonRef(pokemonFull));
 				} else {
@@ -8429,7 +8429,7 @@ var $author$project$Action$trySpecialConditionImmune = function (raw) {
 		$elm$core$Maybe$map,
 		function (card) {
 			return $author$project$Action$SpecialConditionImmune(
-				{t: card});
+				{u: card});
 		},
 		$author$project$Action$parseCardRef(raw)) : $elm$core$Maybe$Nothing;
 };
@@ -8504,7 +8504,7 @@ var $author$project$Action$tryTookDamage = function (raw) {
 					var amount = _v3.a;
 					return $elm$core$Maybe$Just(
 						$author$project$Action$TookDamage(
-							{cr: amount, t: pokemon}));
+							{cp: amount, u: pokemon}));
 				} else {
 					return $elm$core$Maybe$Nothing;
 				}
@@ -8697,7 +8697,7 @@ var $author$project$Action$tryUsedAttack = function (raw) {
 									a6: modifier,
 									aO: move,
 									aT: $elm$core$Maybe$Just(
-										{cE: damage, cH: defender})
+										{cC: damage, cF: defender})
 								}));
 					} else {
 						return $elm$core$Maybe$Just(
@@ -9018,11 +9018,11 @@ var $author$project$Action$collectKODiscards = F3(
 					var _v2 = $author$project$Action$parseAction(raw);
 					switch (_v2.$) {
 						case 25:
-							var pokemon = _v2.a.t;
-							return _Utils_eq(pokemon.d, koPokemon.d) && _Utils_eq(pokemon.f.ad, koPokemon.f.ad);
+							var pokemon = _v2.a.u;
+							return _Utils_eq(pokemon.d, koPokemon.d) && _Utils_eq(pokemon.f.ae, koPokemon.f.ae);
 						case 26:
-							var pokemon = _v2.a.t;
-							return _Utils_eq(pokemon.d, koPokemon.d) && _Utils_eq(pokemon.f.ad, koPokemon.f.ad);
+							var pokemon = _v2.a.u;
+							return _Utils_eq(pokemon.d, koPokemon.d) && _Utils_eq(pokemon.f.ae, koPokemon.f.ae);
 						default:
 							return false;
 					}
@@ -9074,7 +9074,7 @@ var $author$project$Action$groupHelp = F2(
 							case 37:
 								return A2($author$project$Action$collectCardAddedToHand, remaining, _List_Nil);
 							case 17:
-								var pokemon = action.a.t;
+								var pokemon = action.a.u;
 								return A3($author$project$Action$collectKODiscards, pokemon, remaining, _List_Nil);
 							default:
 								return _Utils_Tuple2(_List_Nil, remaining);
@@ -9565,7 +9565,7 @@ var $author$project$Main$removeFirstById = F2(
 		} else {
 			var c = list.a;
 			var rest = list.b;
-			return _Utils_eq(c.ad, targetId) ? rest : A2(
+			return _Utils_eq(c.ae, targetId) ? rest : A2(
 				$elm$core$List$cons,
 				c,
 				A2($author$project$Main$removeFirstById, targetId, rest));
@@ -9576,10 +9576,10 @@ var $author$project$Main$applyActionToAttachments = F2(
 		switch (action.$) {
 			case 14:
 				var player = action.a.d;
-				var item = action.a.cT;
+				var item = action.a.cS;
 				var target = action.a.aT;
 				var position = action.a.aF;
-				var _v1 = A4($author$project$Main$findEntryIndex, player, target.f.ad, position, state);
+				var _v1 = A4($author$project$Main$findEntryIndex, player, target.f.ae, position, state);
 				if (!_v1.$) {
 					var idx = _v1.a;
 					return A3(
@@ -9599,7 +9599,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 						_List_fromArray(
 							[
 								{
-								V: target.f.ad,
+								V: target.f.ae,
 								O: _List_fromArray(
 									[item]),
 								d: player,
@@ -9608,7 +9608,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 							]));
 				}
 			case 17:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var removeFirst = F4(
 					function (plyr, cardId, pos, st) {
 						var _v2 = A4($author$project$Main$findEntryIndex, plyr, cardId, pos, st);
@@ -9624,15 +9624,15 @@ var $author$project$Main$applyActionToAttachments = F2(
 				return A4(
 					removeFirst,
 					pokemon.d,
-					pokemon.f.ad,
+					pokemon.f.ae,
 					1,
-					A4(removeFirst, pokemon.d, pokemon.f.ad, 0, state));
+					A4(removeFirst, pokemon.d, pokemon.f.ae, 0, state));
 			case 15:
 				var player = action.a.d;
 				var from = action.a.a0;
 				var to = action.a.bg;
 				var position = action.a.aF;
-				var _v3 = A4($author$project$Main$findEntryIndex, player, from.ad, position, state);
+				var _v3 = A4($author$project$Main$findEntryIndex, player, from.ae, position, state);
 				if (!_v3.$) {
 					var idx = _v3.a;
 					return A3(
@@ -9641,7 +9641,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 						function (e) {
 							return _Utils_update(
 								e,
-								{V: to.ad});
+								{V: to.ae});
 						},
 						state);
 				} else {
@@ -9649,9 +9649,9 @@ var $author$project$Main$applyActionToAttachments = F2(
 				}
 			case 25:
 				var card = action.a.f;
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var tryRemove = function (pos) {
-					var _v6 = A4($author$project$Main$findEntryIndex, pokemon.d, pokemon.f.ad, pos, state);
+					var _v6 = A4($author$project$Main$findEntryIndex, pokemon.d, pokemon.f.ae, pos, state);
 					if (!_v6.$) {
 						var idx = _v6.a;
 						var entry = $elm$core$List$head(
@@ -9661,7 +9661,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 							return A2(
 								$elm$core$List$any,
 								function (c) {
-									return _Utils_eq(c.ad, card.ad);
+									return _Utils_eq(c.ae, card.ae);
 								},
 								e.O) ? $elm$core$Maybe$Just(
 								A3(
@@ -9671,7 +9671,7 @@ var $author$project$Main$applyActionToAttachments = F2(
 										return _Utils_update(
 											en,
 											{
-												O: A2($author$project$Main$removeFirstById, card.ad, en.O)
+												O: A2($author$project$Main$removeFirstById, card.ae, en.O)
 											});
 									},
 									state)) : $elm$core$Maybe$Nothing;
@@ -9699,20 +9699,20 @@ var $author$project$Main$applyActionToAttachments = F2(
 				var player = action.a.d;
 				var from = action.a.a0;
 				var to = action.a.bg;
-				return ($elm$core$String$isEmpty(to.ad) ? $elm$core$Basics$identity : A4($author$project$Main$moveAttachments, player, to.ad, 0, 1))(
-					A5($author$project$Main$moveAttachments, player, from.ad, 1, 0, state));
+				return ($elm$core$String$isEmpty(to.ae) ? $elm$core$Basics$identity : A4($author$project$Main$moveAttachments, player, to.ae, 0, 1))(
+					A5($author$project$Main$moveAttachments, player, from.ae, 1, 0, state));
 			case 21:
-				var pokemon = action.a.t;
-				var _v8 = A4($author$project$Main$findEntryIndex, pokemon.d, pokemon.f.ad, 0, state);
+				var pokemon = action.a.u;
+				var _v8 = A4($author$project$Main$findEntryIndex, pokemon.d, pokemon.f.ae, 0, state);
 				if (!_v8.$) {
 					return state;
 				} else {
-					return A5($author$project$Main$moveAttachments, pokemon.d, pokemon.f.ad, 1, 0, state);
+					return A5($author$project$Main$moveAttachments, pokemon.d, pokemon.f.ae, 1, 0, state);
 				}
 			case 22:
 				var player = action.a.d;
 				var card = action.a.f;
-				return A5($author$project$Main$moveAttachments, player, card.ad, 0, 1, state);
+				return A5($author$project$Main$moveAttachments, player, card.ae, 0, 1, state);
 			default:
 				return state;
 		}
@@ -9771,7 +9771,7 @@ var $author$project$Main$removeFromBench = F4(
 			} else {
 				var x = list.a;
 				var rest = list.b;
-				return _Utils_eq(x.ad, cardId) ? rest : A2(
+				return _Utils_eq(x.ae, cardId) ? rest : A2(
 					$elm$core$List$cons,
 					x,
 					removeFirst(rest));
@@ -9795,7 +9795,7 @@ var $author$project$Main$replaceOnBench = F5(
 			} else {
 				var x = list.a;
 				var rest = list.b;
-				return _Utils_eq(x.ad, fromId) ? A2($elm$core$List$cons, to, rest) : A2(
+				return _Utils_eq(x.ae, fromId) ? A2($elm$core$List$cons, to, rest) : A2(
 					$elm$core$List$cons,
 					x,
 					replaceFirst(rest));
@@ -9826,7 +9826,7 @@ var $author$project$Main$applyActionToBench = F4(
 			case 12:
 				var player = action.a.d;
 				var card = action.a.f;
-				var andPlayed = action.a.cs;
+				var andPlayed = action.a.cq;
 				if ((!andPlayed.$) && (andPlayed.a === 1)) {
 					var _v3 = andPlayed.a;
 					return A4($author$project$Main$addToBench, red, player, card, bench);
@@ -9839,32 +9839,32 @@ var $author$project$Main$applyActionToBench = F4(
 				var to = action.a.bg;
 				var position = action.a.aF;
 				if (position === 1) {
-					return A5($author$project$Main$replaceOnBench, red, player, from.ad, to, bench);
+					return A5($author$project$Main$replaceOnBench, red, player, from.ae, to, bench);
 				} else {
 					return bench;
 				}
 			case 17:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var isActive = _Utils_eq(
-					$elm$core$Maybe$Just(pokemon.f.ad),
+					$elm$core$Maybe$Just(pokemon.f.ae),
 					A2(
 						$elm$core$Maybe$map,
 						function ($) {
-							return $.ad;
+							return $.ae;
 						},
 						_Utils_eq(pokemon.d, red) ? active.a : active.c));
-				return isActive ? bench : A4($author$project$Main$removeFromBench, red, pokemon.d, pokemon.f.ad, bench);
+				return isActive ? bench : A4($author$project$Main$removeFromBench, red, pokemon.d, pokemon.f.ae, bench);
 			case 21:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var alreadyActive = _Utils_eq(
-					$elm$core$Maybe$Just(pokemon.f.ad),
+					$elm$core$Maybe$Just(pokemon.f.ae),
 					A2(
 						$elm$core$Maybe$map,
 						function ($) {
-							return $.ad;
+							return $.ae;
 						},
 						_Utils_eq(pokemon.d, red) ? active.a : active.c));
-				return alreadyActive ? bench : A4($author$project$Main$removeFromBench, red, pokemon.d, pokemon.f.ad, bench);
+				return alreadyActive ? bench : A4($author$project$Main$removeFromBench, red, pokemon.d, pokemon.f.ae, bench);
 			case 22:
 				var player = action.a.d;
 				var card = action.a.f;
@@ -9873,8 +9873,8 @@ var $author$project$Main$applyActionToBench = F4(
 				var player = action.a.d;
 				var from = action.a.a0;
 				var to = action.a.bg;
-				return ($elm$core$String$isEmpty(to.ad) ? $elm$core$Basics$identity : A3($author$project$Main$addToBench, red, player, to))(
-					A4($author$project$Main$removeFromBench, red, player, from.ad, bench));
+				return ($elm$core$String$isEmpty(to.ae) ? $elm$core$Basics$identity : A3($author$project$Main$addToBench, red, player, to))(
+					A4($author$project$Main$removeFromBench, red, player, from.ae, bench));
 			default:
 				return bench;
 		}
@@ -9899,10 +9899,10 @@ var $author$project$Main$pokemonAbilityPlayedCardId = function (group) {
 	switch (_v0.$) {
 		case 9:
 			var card = _v0.a.f;
-			return $elm$core$Maybe$Just(card.ad);
+			return $elm$core$Maybe$Just(card.ae);
 		case 16:
 			var attacker = _v0.a.aX;
-			return $elm$core$Maybe$Just(attacker.f.ad);
+			return $elm$core$Maybe$Just(attacker.f.ae);
 		default:
 			return $elm$core$Maybe$Nothing;
 	}
@@ -9972,7 +9972,7 @@ var $author$project$Main$isPokemonAbilityGroup = function (group) {
 								return A2(
 									$elm$core$List$any,
 									function (c) {
-										return _Utils_eq(c.ad, cardId);
+										return _Utils_eq(c.ae, cardId);
 									},
 									cards);
 							} else {
@@ -10150,7 +10150,7 @@ var $author$project$Main$removeById = F4(
 				var rest = list.b;
 				if (!x.$) {
 					var c = x.a;
-					return _Utils_eq(c.ad, cardId) ? rest : A2(
+					return _Utils_eq(c.ae, cardId) ? rest : A2(
 						$elm$core$List$cons,
 						x,
 						remove(rest));
@@ -10216,7 +10216,7 @@ var $author$project$Main$applyDetailAction = F3(
 			case 12:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				var andPlayed = _v0.a.cs;
+				var andPlayed = _v0.a.cq;
 				if (andPlayed.$ === 1) {
 					return A4(
 						$author$project$Main$addCard,
@@ -10253,12 +10253,12 @@ var $author$project$Main$applyDetailAction = F3(
 				}
 			case 14:
 				var player = _v0.a.d;
-				var item = _v0.a.cT;
-				return A4($author$project$Main$removeById, red, player, item.ad, hand);
+				var item = _v0.a.cS;
+				return A4($author$project$Main$removeById, red, player, item.ae, hand);
 			case 36:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 35:
 				var player = _v0.a.d;
 				var count = _v0.a.i;
@@ -10267,7 +10267,7 @@ var $author$project$Main$applyDetailAction = F3(
 					$elm$core$List$foldl,
 					F2(
 						function (card, h) {
-							return A4($author$project$Main$removeById, red, player, card.ad, h);
+							return A4($author$project$Main$removeById, red, player, card.ae, h);
 						}),
 					hand,
 					known);
@@ -10277,7 +10277,7 @@ var $author$project$Main$applyDetailAction = F3(
 				var count = _v0.a.i;
 				if (!card.$) {
 					var c = card.a;
-					return A4($author$project$Main$removeById, red, player, c.ad, hand);
+					return A4($author$project$Main$removeById, red, player, c.ae, hand);
 				} else {
 					var known = $author$project$Main$detailCardList(detail);
 					return $elm$core$List$isEmpty(known) ? A4(
@@ -10289,7 +10289,7 @@ var $author$project$Main$applyDetailAction = F3(
 						$elm$core$List$foldl,
 						F2(
 							function (c, h) {
-								return A4($author$project$Main$removeById, red, player, c.ad, h);
+								return A4($author$project$Main$removeById, red, player, c.ae, h);
 							}),
 						hand,
 						known);
@@ -10300,7 +10300,7 @@ var $author$project$Main$applyDetailAction = F3(
 				var count = _v0.a.i;
 				if (!card.$) {
 					var c = card.a;
-					return A4($author$project$Main$removeById, red, player, c.ad, hand);
+					return A4($author$project$Main$removeById, red, player, c.ae, hand);
 				} else {
 					return A4(
 						$author$project$Main$removeN,
@@ -10312,24 +10312,24 @@ var $author$project$Main$applyDetailAction = F3(
 			case 6:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 9:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 15:
 				var player = _v0.a.d;
 				var to = _v0.a.bg;
-				return A4($author$project$Main$removeById, red, player, to.ad, hand);
+				return A4($author$project$Main$removeById, red, player, to.ae, hand);
 			case 29:
-				var owner = _v0.a.db;
+				var owner = _v0.a.da;
 				var count = _v0.a.i;
 				var known = $author$project$Main$detailCardList(detail);
 				return $elm$core$List$isEmpty(known) ? A4($author$project$Main$removeN, red, owner, count, hand) : A3(
 					$elm$core$List$foldl,
 					F2(
 						function (card, h) {
-							return A4($author$project$Main$removeById, red, owner, card.ad, h);
+							return A4($author$project$Main$removeById, red, owner, card.ae, h);
 						}),
 					hand,
 					known);
@@ -10407,7 +10407,7 @@ var $author$project$Main$applyTopAction = F3(
 			case 12:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				var andPlayed = _v0.a.cs;
+				var andPlayed = _v0.a.cq;
 				if (andPlayed.$ === 1) {
 					return A4(
 						$author$project$Main$addCard,
@@ -10447,23 +10447,23 @@ var $author$project$Main$applyTopAction = F3(
 			case 6:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 7:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 9:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 14:
 				var player = _v0.a.d;
-				var item = _v0.a.cT;
-				return A4($author$project$Main$removeById, red, player, item.ad, hand);
+				var item = _v0.a.cS;
+				return A4($author$project$Main$removeById, red, player, item.ae, hand);
 			case 15:
 				var player = _v0.a.d;
 				var to = _v0.a.bg;
-				return A4($author$project$Main$removeById, red, player, to.ad, hand);
+				return A4($author$project$Main$removeById, red, player, to.ae, hand);
 			case 35:
 				var player = _v0.a.d;
 				var count = _v0.a.i;
@@ -10471,14 +10471,14 @@ var $author$project$Main$applyTopAction = F3(
 			case 36:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 32:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
 				var count = _v0.a.i;
 				if (!card.$) {
 					var c = card.a;
-					return A4($author$project$Main$removeById, red, player, c.ad, hand);
+					return A4($author$project$Main$removeById, red, player, c.ae, hand);
 				} else {
 					return A4(
 						$author$project$Main$removeN,
@@ -10490,14 +10490,14 @@ var $author$project$Main$applyTopAction = F3(
 			case 30:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
-				return A4($author$project$Main$removeById, red, player, card.ad, hand);
+				return A4($author$project$Main$removeById, red, player, card.ae, hand);
 			case 31:
 				var player = _v0.a.d;
 				var card = _v0.a.f;
 				var count = _v0.a.i;
 				if (!card.$) {
 					var c = card.a;
-					return A4($author$project$Main$removeById, red, player, c.ad, hand);
+					return A4($author$project$Main$removeById, red, player, c.ae, hand);
 				} else {
 					return A4(
 						$author$project$Main$removeN,
@@ -10633,7 +10633,7 @@ var $author$project$Main$computeStadium = F4(
 			$elm$core$Maybe$Nothing,
 			A4($author$project$Main$collectAndCorrectGroups, players, replay, sectionIndex, groupIndex));
 	});
-var $author$project$Main$emptyPlayerCards = {U: _List_Nil, aj: _List_Nil, M: _List_Nil, an: _List_Nil};
+var $author$project$Main$emptyPlayerCards = {U: _List_Nil, ak: _List_Nil, M: _List_Nil, an: _List_Nil};
 var $author$project$Main$currentPlayFromGroup = F2(
 	function (players, group) {
 		var _v0 = group.L;
@@ -10684,7 +10684,7 @@ var $author$project$Main$currentPlayFromGroup = F2(
 										[drewData.f]);
 								case 12:
 									var drewCardData = _v7.a;
-									var _v8 = drewCardData.cs;
+									var _v8 = drewCardData.cq;
 									if (_v8.$ === 1) {
 										return _List_fromArray(
 											[
@@ -10744,7 +10744,7 @@ var $author$project$Main$currentPlayFromGroup = F2(
 							switch (_v2.$) {
 								case 12:
 									var drewCardBench = _v2.a;
-									var _v3 = drewCardBench.cs;
+									var _v3 = drewCardBench.cq;
 									if ((!_v3.$) && (_v3.a === 1)) {
 										var _v4 = _v3.a;
 										return _List_fromArray(
@@ -10815,7 +10815,7 @@ var $author$project$Main$currentPlayFromGroup = F2(
 					var ds = detailsFor(p);
 					return {
 						U: extractBenched(ds),
-						aj: extractDiscards(ds),
+						ak: extractDiscards(ds),
 						M: extractDrawn(ds),
 						an: extractShuffled(ds)
 					};
@@ -10842,7 +10842,7 @@ var $author$project$Main$currentPlayFromGroup = F2(
 						}
 					},
 					group.bu);
-				var playerCards = {U: _List_Nil, aj: _List_Nil, M: drawnCards, an: _List_Nil};
+				var playerCards = {U: _List_Nil, ak: _List_Nil, M: drawnCards, an: _List_Nil};
 				return $elm$core$List$isEmpty(drawnCards) ? $elm$core$Maybe$Nothing : (_Utils_eq(player, players.a) ? $elm$core$Maybe$Just(
 					{c: $author$project$Main$emptyPlayerCards, f: $elm$core$Maybe$Nothing, d: player, a: playerCards}) : $elm$core$Maybe$Just(
 					{c: playerCards, f: $elm$core$Maybe$Nothing, d: player, a: $author$project$Main$emptyPlayerCards}));
@@ -10903,7 +10903,7 @@ var $author$project$Main$fetchHandCards = F5(
 					function (play) {
 						var allCards = function (pc) {
 							return _Utils_ap(
-								A2($elm$core$List$filterMap, $elm$core$Basics$identity, pc.aj),
+								A2($elm$core$List$filterMap, $elm$core$Basics$identity, pc.ak),
 								_Utils_ap(
 									A2($elm$core$List$filterMap, $elm$core$Basics$identity, pc.an),
 									_Utils_ap(
@@ -10962,7 +10962,7 @@ var $author$project$Main$fetchHandCards = F5(
 					A2(
 						$elm$core$List$map,
 						function ($) {
-							return $.ad;
+							return $.ae;
 						},
 						_Utils_ap(
 							handRefs,
@@ -10982,15 +10982,63 @@ var $author$project$Main$fetchHandCards = F5(
 							function (apiUrl) {
 								return $elm$http$Http$get(
 									{
-										al: $elm$http$Http$expectString(
+										ab: $elm$http$Http$expectString(
 											$author$project$Main$GotCardImage(id)),
-										u: apiUrl
+										q: apiUrl
 									});
 							},
 							$author$project$Main$cardApiUrl(id));
 					},
 					knownIds));
 		}
+	});
+var $author$project$Main$GotTrainingCourtLog = F4(
+	function (a, b, c, d) {
+		return {$: 3, a: a, b: b, c: c, d: d};
+	});
+var $elm$http$Http$expectJson = F2(
+	function (toMsg, decoder) {
+		return A2(
+			$elm$http$Http$expectStringResponse,
+			toMsg,
+			$elm$http$Http$resolve(
+				function (string) {
+					return A2(
+						$elm$core$Result$mapError,
+						$elm$json$Json$Decode$errorToString,
+						A2($elm$json$Json$Decode$decodeString, decoder, string));
+				}));
+	});
+var $elm$http$Http$Header = F2(
+	function (a, b) {
+		return {$: 0, a: a, b: b};
+	});
+var $elm$http$Http$header = $elm$http$Http$Header;
+var $elm$json$Json$Decode$index = _Json_decodeIndex;
+var $author$project$Main$trainingCourtAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cnV2cGJnc3VrcWlhZWR1YWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2NDA2MDcsImV4cCI6MjAzOTIxNjYwN30.GtRRwMpiMMmbcpUci9xXqthWhgL5daKvsUZUaRgFPkI';
+var $author$project$Main$trainingCourtSupabaseUrl = 'https://yuruvpbgsukqiaeduaay.supabase.co';
+var $author$project$Main$fetchTrainingCourtLog = F4(
+	function (uuid, idx, gIdx, flip) {
+		return $elm$http$Http$request(
+			{
+				cv: $elm$http$Http$emptyBody,
+				ab: A2(
+					$elm$http$Http$expectJson,
+					A3($author$project$Main$GotTrainingCourtLog, idx, gIdx, flip),
+					A2(
+						$elm$json$Json$Decode$index,
+						0,
+						A2($elm$json$Json$Decode$field, 'log', $elm$json$Json$Decode$string))),
+				cO: _List_fromArray(
+					[
+						A2($elm$http$Http$header, 'apikey', $author$project$Main$trainingCourtAnonKey),
+						A2($elm$http$Http$header, 'Authorization', 'Bearer ' + $author$project$Main$trainingCourtAnonKey)
+					]),
+				cV: 'GET',
+				$7: $elm$core$Maybe$Nothing,
+				dq: $elm$core$Maybe$Nothing,
+				q: $author$project$Main$trainingCourtSupabaseUrl + ('/rest/v1/logs?select=log&id=eq.' + uuid)
+			});
 	});
 var $author$project$Main$httpErrorToString = function (err) {
 	switch (err.$) {
@@ -11015,7 +11063,7 @@ var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
-var $author$project$Replay$emptyState = {ai: $elm$core$Maybe$Nothing, W: _List_Nil, v: _List_Nil, ap: 0};
+var $author$project$Replay$emptyState = {aj: $elm$core$Maybe$Nothing, W: _List_Nil, v: _List_Nil, ap: 0};
 var $author$project$Replay$ResultSection = function (a) {
 	return {$: 3, a: a};
 };
@@ -11033,11 +11081,11 @@ var $author$project$Replay$parseMatchResult = function (text) {
 			var reasonWords = _v0.b;
 			return $elm$core$String$isEmpty(winner) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(
 				{
-					dc: A2(
+					db: A2(
 						$elm$core$String$join,
 						' ',
 						$elm$core$List$reverse(reasonWords)),
-					cl: winner
+					cj: winner
 				});
 		} else {
 			return $elm$core$Maybe$Nothing;
@@ -11099,7 +11147,7 @@ var $author$project$Replay$buildSection = F2(
 		}
 	});
 var $author$project$Replay$finalizeSections = function (state) {
-	var _v0 = state.ai;
+	var _v0 = state.aj;
 	if (_v0.$ === 1) {
 		return state.v;
 	} else {
@@ -11214,7 +11262,7 @@ var $author$project$Replay$classifyLine = function (line) {
 		A2($elm$core$String$dropLeft, 2, line)) : $author$project$Replay$TopLine(line));
 };
 var $author$project$Replay$commitSection = function (state) {
-	var _v0 = state.ai;
+	var _v0 = state.aj;
 	if (_v0.$ === 1) {
 		return state.v;
 	} else {
@@ -11265,7 +11313,7 @@ var $author$project$Replay$parseTurnHeader = function (line) {
 var $author$project$Replay$startSection = F2(
 	function (kind, state) {
 		return {
-			ai: $elm$core$Maybe$Just(kind),
+			aj: $elm$core$Maybe$Just(kind),
 			W: _List_Nil,
 			v: $author$project$Replay$commitSection(state),
 			ap: state.ap
@@ -11285,11 +11333,11 @@ var $author$project$Replay$processLine = F2(
 					var maybeNumber = _v0.a.a4;
 					var newCount = state.ap + 1;
 					var turn = {
-						bT: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
+						bS: A2($elm$core$Maybe$withDefault, newCount, maybeNumber),
 						d: player
 					};
 					return {
-						ai: $elm$core$Maybe$Just(
+						aj: $elm$core$Maybe$Just(
 							$author$project$Replay$KindTurn(turn)),
 						W: _List_Nil,
 						v: $author$project$Replay$commitSection(state),
@@ -11358,7 +11406,7 @@ var $author$project$Main$pushUrl = _Platform_outgoingPort(
 					$elm$json$Json$Encode$int($.N)),
 					_Utils_Tuple2(
 					'url',
-					$elm$json$Json$Encode$string($.u))
+					$elm$json$Json$Encode$string($.q))
 				]));
 	});
 var $author$project$Main$sectionGroupCount = function (section) {
@@ -11413,7 +11461,7 @@ var $author$project$Main$loadReplay = F5(
 				_List_fromArray(
 					[
 						$author$project$Main$pushUrl(
-						{D: flip, E: groupIndex, N: index, u: url}),
+						{D: flip, E: groupIndex, N: index, q: url}),
 						A5($author$project$Main$fetchHandCards, replay.Q, replay, index, groupIndex, $elm$core$Dict$empty)
 					])));
 	});
@@ -11421,7 +11469,7 @@ var $elm$url$Url$percentEncode = _Url_percentEncode;
 var $author$project$Main$proxyUrl = function (url) {
 	return 'https://api.allorigins.win/raw?url=' + $elm$url$Url$percentEncode(url);
 };
-var $author$project$Main$NoOp = {$: 15};
+var $author$project$Main$NoOp = {$: 16};
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
@@ -11452,6 +11500,21 @@ var $author$project$Main$scrollToTop = A2(
 		return $author$project$Main$NoOp;
 	},
 	A3($elm$browser$Browser$Dom$setViewportOf, 'action-content', 0, 0));
+var $author$project$Main$trainingCourtLogId = function (url) {
+	var _v0 = A2($elm$core$String$split, 'trainingcourt.app/ptcg/logs/', url);
+	if ((_v0.b && _v0.b.b) && (!_v0.b.b.b)) {
+		var _v1 = _v0.b;
+		var rest = _v1.a;
+		var uuid = A2(
+			$elm$core$Maybe$withDefault,
+			'',
+			$elm$core$List$head(
+				A2($elm$core$String$split, '?', rest)));
+		return $elm$core$String$isEmpty(uuid) ? $elm$core$Maybe$Nothing : $elm$core$Maybe$Just(uuid);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		update:
@@ -11465,18 +11528,26 @@ var $author$project$Main$update = F2(
 				case 1:
 					var url = $elm$core$String$trim(
 						$author$project$Main$currentUrl(model));
-					return $elm$core$String$isEmpty(url) ? _Utils_Tuple2(model, $elm$core$Platform$Cmd$none) : _Utils_Tuple2(
-						A4(
-							$author$project$Main$Loading,
-							url,
-							0,
-							0,
-							$author$project$Main$currentFlipOpponent(model)),
-						$elm$http$Http$get(
-							{
-								al: $elm$http$Http$expectString($author$project$Main$GotReplay),
-								u: url
-							}));
+					var flip = $author$project$Main$currentFlipOpponent(model);
+					if ($elm$core$String$isEmpty(url)) {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					} else {
+						var _v1 = $author$project$Main$trainingCourtLogId(url);
+						if (!_v1.$) {
+							var uuid = _v1.a;
+							return _Utils_Tuple2(
+								A4($author$project$Main$Loading, url, 0, 0, flip),
+								A4($author$project$Main$fetchTrainingCourtLog, uuid, 0, 0, flip));
+						} else {
+							return _Utils_Tuple2(
+								A4($author$project$Main$Loading, url, 0, 0, flip),
+								$elm$http$Http$get(
+									{
+										ab: $elm$http$Http$expectString($author$project$Main$GotReplay),
+										q: url
+									}));
+						}
+					}
 				case 2:
 					var result = msg.a;
 					switch (model.$) {
@@ -11490,13 +11561,13 @@ var $author$project$Main$update = F2(
 								return A5($author$project$Main$loadReplay, url, idx, gIdx, flip, content);
 							} else {
 								if (result.a.$ === 2) {
-									var _v3 = result.a;
+									var _v4 = result.a;
 									return _Utils_Tuple2(
 										A4($author$project$Main$Retrying, url, idx, gIdx, flip),
 										$elm$http$Http$get(
 											{
-												al: $elm$http$Http$expectString($author$project$Main$GotReplay),
-												u: $author$project$Main$proxyUrl(url)
+												ab: $elm$http$Http$expectString($author$project$Main$GotReplay),
+												q: $author$project$Main$proxyUrl(url)
 											}));
 								} else {
 									var err = result.a;
@@ -11529,6 +11600,28 @@ var $author$project$Main$update = F2(
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
 				case 3:
+					var idx = msg.a;
+					var gIdx = msg.b;
+					var flip = msg.c;
+					var result = msg.d;
+					if (model.$ === 1) {
+						var url = model.a;
+						if (!result.$) {
+							var content = result.a;
+							return A5($author$project$Main$loadReplay, url, idx, gIdx, flip, content);
+						} else {
+							var err = result.a;
+							return _Utils_Tuple2(
+								A2(
+									$author$project$Main$Failed,
+									url,
+									$author$project$Main$httpErrorToString(err)),
+								$elm$core$Platform$Cmd$none);
+						}
+					} else {
+						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+					}
+				case 4:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11540,14 +11633,14 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{D: flip, E: 0, N: 0, u: url}),
+										{D: flip, E: 0, N: 0, q: url}),
 										$author$project$Main$scrollToTop,
 										A5($author$project$Main$fetchHandCards, replay.Q, replay, 0, 0, cache)
 									])));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 4:
+				case 5:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11562,7 +11655,7 @@ var $author$project$Main$update = F2(
 									_List_fromArray(
 										[
 											$author$project$Main$pushUrl(
-											{D: flip, E: g - 1, N: i, u: url}),
+											{D: flip, E: g - 1, N: i, q: url}),
 											$author$project$Main$scrollToTop,
 											A5($author$project$Main$fetchHandCards, replay.Q, replay, i, g - 1, cache)
 										])));
@@ -11582,7 +11675,7 @@ var $author$project$Main$update = F2(
 										_List_fromArray(
 											[
 												$author$project$Main$pushUrl(
-												{D: flip, E: newG, N: newI, u: url}),
+												{D: flip, E: newG, N: newI, q: url}),
 												$author$project$Main$scrollToTop,
 												A5($author$project$Main$fetchHandCards, replay.Q, replay, newI, newG, cache)
 											])));
@@ -11593,7 +11686,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 5:
+				case 6:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11614,7 +11707,7 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{D: flip, E: g + 1, N: i, u: url}),
+										{D: flip, E: g + 1, N: i, q: url}),
 										$author$project$Main$scrollToTop,
 										A5($author$project$Main$fetchHandCards, replay.Q, replay, i, g + 1, cache)
 									]))) : ((_Utils_cmp(i, totalSections - 1) < 0) ? _Utils_Tuple2(
@@ -11623,14 +11716,14 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{D: flip, E: 0, N: i + 1, u: url}),
+										{D: flip, E: 0, N: i + 1, q: url}),
 										$author$project$Main$scrollToTop,
 										A5($author$project$Main$fetchHandCards, replay.Q, replay, i + 1, 0, cache)
 									]))) : _Utils_Tuple2(model, $elm$core$Platform$Cmd$none));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 6:
+				case 7:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11650,14 +11743,14 @@ var $author$project$Main$update = F2(
 								_List_fromArray(
 									[
 										$author$project$Main$pushUrl(
-										{D: flip, E: lastG, N: lastI, u: url}),
+										{D: flip, E: lastG, N: lastI, q: url}),
 										$author$project$Main$scrollToTop,
 										A5($author$project$Main$fetchHandCards, replay.Q, replay, lastI, lastG, cache)
 									])));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 7:
+				case 8:
 					var direction = msg.a;
 					switch (direction) {
 						case 'left':
@@ -11675,7 +11768,7 @@ var $author$project$Main$update = F2(
 						default:
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 8:
+				case 9:
 					var key = msg.a;
 					switch (key) {
 						case 'ArrowLeft':
@@ -11693,7 +11786,7 @@ var $author$project$Main$update = F2(
 						default:
 							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 9:
+				case 10:
 					var id = msg.a;
 					if (model.$ === 3) {
 						var url = model.a;
@@ -11702,9 +11795,9 @@ var $author$project$Main$update = F2(
 						var g = model.d;
 						var cache = model.f;
 						var flip = model.g;
-						var _v12 = A2($elm$core$Dict$get, id, cache);
-						if (!_v12.$) {
-							var cardData = _v12.a;
+						var _v15 = A2($elm$core$Dict$get, id, cache);
+						if (!_v15.$) {
+							var cardData = _v15.a;
 							return _Utils_Tuple2(
 								A7(
 									$author$project$Main$Loaded,
@@ -11718,9 +11811,9 @@ var $author$project$Main$update = F2(
 									flip),
 								$elm$core$Platform$Cmd$none);
 						} else {
-							var _v13 = $author$project$Main$cardApiUrl(id);
-							if (!_v13.$) {
-								var apiUrl = _v13.a;
+							var _v16 = $author$project$Main$cardApiUrl(id);
+							if (!_v16.$) {
+								var apiUrl = _v16.a;
 								return _Utils_Tuple2(
 									A7(
 										$author$project$Main$Loaded,
@@ -11734,9 +11827,9 @@ var $author$project$Main$update = F2(
 										flip),
 									$elm$http$Http$get(
 										{
-											al: $elm$http$Http$expectString(
+											ab: $elm$http$Http$expectString(
 												$author$project$Main$GotCardImage(id)),
-											u: apiUrl
+											q: apiUrl
 										}));
 							} else {
 								return _Utils_Tuple2(
@@ -11756,7 +11849,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 10:
+				case 11:
 					var cardId = msg.a;
 					var moveName = msg.b;
 					if (model.$ === 3) {
@@ -11766,9 +11859,9 @@ var $author$project$Main$update = F2(
 						var g = model.d;
 						var cache = model.f;
 						var flip = model.g;
-						var _v15 = A2($elm$core$Dict$get, cardId, cache);
-						if (!_v15.$) {
-							var cardData = _v15.a;
+						var _v18 = A2($elm$core$Dict$get, cardId, cache);
+						if (!_v18.$) {
+							var cardData = _v18.a;
 							return _Utils_Tuple2(
 								A7(
 									$author$project$Main$Loaded,
@@ -11782,9 +11875,9 @@ var $author$project$Main$update = F2(
 									flip),
 								$elm$core$Platform$Cmd$none);
 						} else {
-							var _v16 = $author$project$Main$cardApiUrl(cardId);
-							if (!_v16.$) {
-								var apiUrl = _v16.a;
+							var _v19 = $author$project$Main$cardApiUrl(cardId);
+							if (!_v19.$) {
+								var apiUrl = _v19.a;
 								return _Utils_Tuple2(
 									A7(
 										$author$project$Main$Loaded,
@@ -11798,9 +11891,9 @@ var $author$project$Main$update = F2(
 										flip),
 									$elm$http$Http$get(
 										{
-											al: $elm$http$Http$expectString(
+											ab: $elm$http$Http$expectString(
 												$author$project$Main$GotCardImage(cardId)),
-											u: apiUrl
+											q: apiUrl
 										}));
 							} else {
 								return _Utils_Tuple2(
@@ -11820,7 +11913,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 11:
+				case 12:
 					var info = msg.a;
 					if (model.$ === 3) {
 						var url = model.a;
@@ -11844,7 +11937,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 12:
+				case 13:
 					var id = msg.a;
 					var result = msg.b;
 					if (model.$ === 3) {
@@ -11856,7 +11949,7 @@ var $author$project$Main$update = F2(
 						var cache = model.f;
 						var flip = model.g;
 						var isUserFetch = function () {
-							_v28$2:
+							_v31$2:
 							while (true) {
 								if (!currentPopup.$) {
 									switch (currentPopup.a.$) {
@@ -11864,37 +11957,37 @@ var $author$project$Main$update = F2(
 											var fetchId = currentPopup.a.a;
 											return _Utils_eq(fetchId, id);
 										case 1:
-											var _v29 = currentPopup.a;
+											var _v32 = currentPopup.a;
 											return true;
 										default:
-											break _v28$2;
+											break _v31$2;
 									}
 								} else {
-									break _v28$2;
+									break _v31$2;
 								}
 							}
 							return false;
 						}();
-						var _v19 = function () {
+						var _v22 = function () {
 							if (!result.$) {
 								var body = result.a;
-								var _v21 = $author$project$Main$decodeCardData(body);
-								if (!_v21.$) {
-									var cardData = _v21.a;
+								var _v24 = $author$project$Main$decodeCardData(body);
+								if (!_v24.$) {
+									var cardData = _v24.a;
 									var resolvedData = function () {
-										var _v25 = cardData.G;
-										if (!_v25.$) {
+										var _v28 = cardData.G;
+										if (!_v28.$) {
 											return cardData;
 										} else {
-											var _v26 = A2(
+											var _v29 = A2(
 												$elm$json$Json$Decode$decodeString,
 												A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
 												body);
-											if (!_v26.$) {
-												var apiName = _v26.a;
-												var _v27 = $author$project$Main$basicEnergyImageUrl(apiName);
-												if (!_v27.$) {
-													var fallbackUrl = _v27.a;
+											if (!_v29.$) {
+												var apiName = _v29.a;
+												var _v30 = $author$project$Main$basicEnergyImageUrl(apiName);
+												if (!_v30.$) {
+													var fallbackUrl = _v30.a;
 													return _Utils_update(
 														cardData,
 														{
@@ -11911,13 +12004,13 @@ var $author$project$Main$update = F2(
 									var popup = function () {
 										if (isUserFetch) {
 											if ((!currentPopup.$) && (currentPopup.a.$ === 1)) {
-												var _v23 = currentPopup.a;
-												var moveName = _v23.b;
+												var _v26 = currentPopup.a;
+												var moveName = _v26.b;
 												return $elm$core$Maybe$Just(
 													A2($author$project$Main$ShowingMove, resolvedData, moveName));
 											} else {
-												var _v24 = resolvedData.G;
-												if (!_v24.$) {
+												var _v27 = resolvedData.G;
+												if (!_v27.$) {
 													return $elm$core$Maybe$Just(
 														A2($author$project$Main$ShowingCard, id, resolvedData));
 												} else {
@@ -11945,15 +12038,15 @@ var $author$project$Main$update = F2(
 									cache);
 							}
 						}();
-						var nextPopup = _v19.a;
-						var newCache = _v19.b;
+						var nextPopup = _v22.a;
+						var newCache = _v22.b;
 						return _Utils_Tuple2(
 							A7($author$project$Main$Loaded, url, replay, i, g, nextPopup, newCache, flip),
 							$elm$core$Platform$Cmd$none);
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 14:
+				case 15:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11967,7 +12060,7 @@ var $author$project$Main$update = F2(
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
-				case 13:
+				case 14:
 					if (model.$ === 3) {
 						var url = model.a;
 						var replay = model.b;
@@ -11980,7 +12073,7 @@ var $author$project$Main$update = F2(
 						return _Utils_Tuple2(
 							A7($author$project$Main$Loaded, url, replay, i, g, popup, cache, newFlip),
 							$author$project$Main$pushUrl(
-								{D: newFlip, E: g, N: i, u: url}));
+								{D: newFlip, E: g, N: i, q: url}));
 					} else {
 						return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 					}
@@ -12086,10 +12179,10 @@ var $author$project$Main$applyActionToPiles = F4(
 				var player = action.a.d;
 				return A4($author$project$Main$pilesDiscardDelta, red, player, 1, piles);
 			case 25:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.d, 1, piles);
 			case 26:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				var count = action.a.i;
 				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.d, count, piles);
 			case 35:
@@ -12104,7 +12197,7 @@ var $author$project$Main$applyActionToPiles = F4(
 				var count = action.a.i;
 				return A4($author$project$Main$pilesPrizeDelta, red, player, -count, piles);
 			case 17:
-				var pokemon = action.a.t;
+				var pokemon = action.a.u;
 				return A4($author$project$Main$pilesDiscardDelta, red, pokemon.d, 1, piles);
 			case 28:
 				var player = action.a.d;
@@ -12116,7 +12209,7 @@ var $author$project$Main$applyActionToPiles = F4(
 					-A2($elm$core$Maybe$withDefault, 1, count),
 					piles);
 			case 29:
-				var owner = action.a.db;
+				var owner = action.a.da;
 				var count = action.a.i;
 				return A4($author$project$Main$pilesDiscardDelta, red, owner, count, piles);
 			default:
@@ -12232,7 +12325,7 @@ var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$CloseCard = {$: 14};
+var $author$project$Main$CloseCard = {$: 15};
 var $elm$html$Html$img = _VirtualDom_node('img');
 var $elm$virtual_dom$VirtualDom$Normal = function (a) {
 	return {$: 0, a: a};
@@ -12413,7 +12506,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							[
 								$elm$html$Html$text(attack.aP)
 							])),
-						$elm$core$String$isEmpty(attack.cE) ? $elm$html$Html$text('') : A2(
+						$elm$core$String$isEmpty(attack.cC) ? $elm$html$Html$text('') : A2(
 						$elm$html$Html$span,
 						_List_fromArray(
 							[
@@ -12423,7 +12516,7 @@ var $author$project$Main$viewAttackDetail = function (attack) {
 							]),
 						_List_fromArray(
 							[
-								$elm$html$Html$text(attack.cE + ' dmg')
+								$elm$html$Html$text(attack.cC + ' dmg')
 							]))
 					])),
 				$elm$core$List$isEmpty(attack.a_) ? $elm$html$Html$text('') : A2(
@@ -12649,7 +12742,7 @@ var $author$project$Main$sectionNavInfo = F2(
 						A2(
 							$author$project$Main$viewSectionBadge,
 							badgeColor,
-							'Turn ' + $elm$core$String$fromInt(turn.bT)),
+							'Turn ' + $elm$core$String$fromInt(turn.bS)),
 						_List_fromArray(
 							[
 								A2(
@@ -12682,7 +12775,7 @@ var $author$project$Main$sectionNavInfo = F2(
 var $author$project$Main$IsAbility = 0;
 var $author$project$Main$IsAttack = 1;
 var $author$project$Main$DamageClicked = function (a) {
-	return {$: 11, a: a};
+	return {$: 12, a: a};
 };
 var $author$project$Main$viewDamageChip = F2(
 	function (damage, info) {
@@ -13112,11 +13205,11 @@ var $author$project$Main$segmentText = F2(
 		}
 	});
 var $author$project$Main$CardClicked = function (a) {
-	return {$: 9, a: a};
+	return {$: 10, a: a};
 };
 var $author$project$Main$MoveClicked = F2(
 	function (a, b) {
-		return {$: 10, a: a, b: b};
+		return {$: 11, a: a, b: b};
 	});
 var $author$project$Main$viewSegment = function (seg) {
 	switch (seg.$) {
@@ -13278,7 +13371,7 @@ var $author$project$Main$viewActionGroup = F3(
 					var trimmed = $elm$core$String$trim(move);
 					return A2($elm$core$String$endsWith, '.', trimmed) ? A2($elm$core$String$dropRight, 1, trimmed) : trimmed;
 				}();
-				var cardId = attacker.f.ad;
+				var cardId = attacker.f.ae;
 				var kind = function () {
 					var _v5 = A2($elm$core$Dict$get, cardId, cache);
 					if (!_v5.$) {
@@ -13339,7 +13432,7 @@ var $author$project$Main$viewActionGroup = F3(
 			var target = _v0.a.aT;
 			var modifier = _v0.a.a6;
 			if (!target.$) {
-				var damage = target.a.cE;
+				var damage = target.a.cC;
 				if ((!_Utils_eq(modifier, $elm$core$Maybe$Nothing)) || A2(
 					$elm$core$Maybe$withDefault,
 					false,
@@ -13457,8 +13550,8 @@ var $author$project$Main$viewActionGroup = F3(
 				normalDetails);
 		}
 	});
-var $author$project$Main$FirstSection = {$: 3};
-var $author$project$Main$LastSection = {$: 6};
+var $author$project$Main$FirstSection = {$: 4};
+var $author$project$Main$LastSection = {$: 7};
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $author$project$Main$navArrow = F3(
@@ -13581,7 +13674,7 @@ var $author$project$Main$viewResultContent = F2(
 						]),
 					_List_fromArray(
 						[
-							$elm$html$Html$text(result.dc)
+							$elm$html$Html$text(result.db)
 						])),
 					A2(
 					$elm$html$Html$div,
@@ -13592,12 +13685,12 @@ var $author$project$Main$viewResultContent = F2(
 							A2(
 							$elm$html$Html$Attributes$style,
 							'color',
-							A2($author$project$Main$playerColor, players, result.cl)),
+							A2($author$project$Main$playerColor, players, result.cj)),
 							A2($elm$html$Html$Attributes$style, 'padding', '0.2rem 0')
 						]),
 					_List_fromArray(
 						[
-							$elm$html$Html$text(result.cl + ' wins.')
+							$elm$html$Html$text(result.cj + ' wins.')
 						]))
 				]));
 	});
@@ -13643,7 +13736,7 @@ var $author$project$Main$viewSectionDivider = F2(
 				case 1:
 					var turn = section.a;
 					return _Utils_Tuple2(
-						'Turn ' + ($elm$core$String$fromInt(turn.bT) + (' · ' + turn.d)),
+						'Turn ' + ($elm$core$String$fromInt(turn.bS) + (' · ' + turn.d)),
 						A2($author$project$Main$playerColor, players, turn.d));
 				case 2:
 					return _Utils_Tuple2('Pokémon Checkup', '#b7791f');
@@ -13822,7 +13915,7 @@ var $author$project$Main$handCardImage = F2(
 					function ($) {
 						return $.G;
 					},
-					A2($elm$core$Dict$get, card.ad, cache)));
+					A2($elm$core$Dict$get, card.ae, cache)));
 		}
 	});
 var $author$project$Main$stripBenchedFromBenchSide = F2(
@@ -13839,7 +13932,7 @@ var $author$project$Main$stripBenchedFromBenchSide = F2(
 				} else {
 					var c = acc.a;
 					var rest = acc.b;
-					return _Utils_eq(c.ad, ref.ad) ? rest : A2(
+					return _Utils_eq(c.ae, ref.ae) ? rest : A2(
 						$elm$core$List$cons,
 						c,
 						A2(removeFirst, ref, rest));
@@ -13868,7 +13961,7 @@ var $author$project$Main$removeKnownFromHandSide = F2(
 							if (!remaining.a.$) {
 								var c = remaining.a.a;
 								var rest = remaining.b;
-								return _Utils_eq(c.ad, ref.ad) ? rest : A2(
+								return _Utils_eq(c.ae, ref.ae) ? rest : A2(
 									$elm$core$List$cons,
 									$elm$core$Maybe$Just(c),
 									go(rest));
@@ -13944,7 +14037,7 @@ var $author$project$Main$lookupAttachments = F5(
 var $elm$core$String$toLower = _String_toLower;
 var $author$project$Main$isEnergyAttachment = F2(
 	function (cache, item) {
-		var _v0 = A2($elm$core$Dict$get, item.ad, cache);
+		var _v0 = A2($elm$core$Dict$get, item.ae, cache);
 		if (!_v0.$) {
 			var cardData = _v0.a;
 			var _v1 = cardData.bo;
@@ -13977,7 +14070,7 @@ var $author$project$Main$viewAttachmentCircle = F2(
 				function ($) {
 					return $.G;
 				},
-				A2($elm$core$Dict$get, item.ad, cache)));
+				A2($elm$core$Dict$get, item.ae, cache)));
 		var isBasicEnergy = !_Utils_eq(
 			$author$project$Main$basicEnergyImageUrl(item.aP),
 			$elm$core$Maybe$Nothing);
@@ -13996,7 +14089,7 @@ var $author$project$Main$viewAttachmentCircle = F2(
 					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 					$elm$html$Html$Events$onClick(
-					$author$project$Main$CardClicked(item.ad))
+					$author$project$Main$CardClicked(item.ae))
 				]),
 			_List_fromArray(
 				[
@@ -14032,7 +14125,7 @@ var $author$project$Main$viewAttachmentRect = F2(
 				function ($) {
 					return $.G;
 				},
-				A2($elm$core$Dict$get, item.ad, cache)));
+				A2($elm$core$Dict$get, item.ae, cache)));
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
@@ -14047,7 +14140,7 @@ var $author$project$Main$viewAttachmentRect = F2(
 					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 					$elm$html$Html$Events$onClick(
-					$author$project$Main$CardClicked(item.ad))
+					$author$project$Main$CardClicked(item.ae))
 				]),
 			_List_fromArray(
 				[
@@ -14112,7 +14205,7 @@ var $author$project$Main$viewBenchCard = F4(
 				function ($) {
 					return $.G;
 				},
-				A2($elm$core$Dict$get, card.ad, cache)));
+				A2($elm$core$Dict$get, card.ae, cache)));
 		var cardStyles = _List_fromArray(
 			[
 				A2($elm$html$Html$Attributes$style, 'width', '100%'),
@@ -14121,7 +14214,7 @@ var $author$project$Main$viewBenchCard = F4(
 				A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box'),
 				A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 				$elm$html$Html$Events$onClick(
-				$author$project$Main$CardClicked(card.ad))
+				$author$project$Main$CardClicked(card.ae))
 			]);
 		var cardDiv = function () {
 			if (!maybeUrl.$) {
@@ -14276,7 +14369,7 @@ var $author$project$Main$viewKnownCardThumb = F3(
 				function ($) {
 					return $.G;
 				},
-				A2($elm$core$Dict$get, card.ad, cache)));
+				A2($elm$core$Dict$get, card.ae, cache)));
 		var baseStyles = _Utils_ap(
 			_List_fromArray(
 				[
@@ -14287,7 +14380,7 @@ var $author$project$Main$viewKnownCardThumb = F3(
 					A2($elm$html$Html$Attributes$style, 'box-sizing', 'border-box'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 					$elm$html$Html$Events$onClick(
-					$author$project$Main$CardClicked(card.ad))
+					$author$project$Main$CardClicked(card.ae))
 				]),
 			upsideDown ? _List_fromArray(
 				[
@@ -14430,7 +14523,7 @@ var $author$project$Main$viewPlayerPlayInfo = F6(
 				}
 			}(),
 			_Utils_ap(
-				A2(optionalGroup, 'Discarded', playerCards.aj),
+				A2(optionalGroup, 'Discarded', playerCards.ak),
 				_Utils_ap(
 					A2(optionalGroup, 'Shuffled', playerCards.an),
 					_Utils_ap(
@@ -14507,7 +14600,7 @@ var $author$project$Main$viewActiveZone = F7(
 						$author$project$Main$viewBenchCard,
 						upsideDown,
 						cache,
-						A5($author$project$Main$lookupAttachments, attachments, activePlayer, card.ad, 0, 0),
+						A5($author$project$Main$lookupAttachments, attachments, activePlayer, card.ae, 0, 0),
 						card);
 				} else {
 					return A2(
@@ -14750,19 +14843,19 @@ var $author$project$Main$viewBenchRow = F6(
 								var ordinal = A2(
 									$elm$core$Maybe$withDefault,
 									0,
-									A2($elm$core$Dict$get, card.ad, counts));
+									A2($elm$core$Dict$get, card.ae, counts));
 								var cardHtml = A4(
 									$author$project$Main$viewBenchCard,
 									upsideDown,
 									cache,
-									A5($author$project$Main$lookupAttachments, attachments, player, card.ad, 1, ordinal),
+									A5($author$project$Main$lookupAttachments, attachments, player, card.ae, 1, ordinal),
 									card);
 								return _Utils_Tuple2(
 									_Utils_ap(
 										rendered,
 										_List_fromArray(
 											[cardHtml])),
-									A3($elm$core$Dict$insert, card.ad, ordinal + 1, counts));
+									A3($elm$core$Dict$insert, card.ae, ordinal + 1, counts));
 							}),
 						_Utils_Tuple2(_List_Nil, $elm$core$Dict$empty),
 						cards).a)
@@ -14804,7 +14897,7 @@ var $author$project$Main$viewHandCard = F4(
 									A2($elm$html$Html$Attributes$style, 'background-color', '#e2e8f0'),
 									A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 									$elm$html$Html$Events$onClick(
-									$author$project$Main$CardClicked(card.ad))
+									$author$project$Main$CardClicked(card.ae))
 								]))),
 					_List_Nil);
 			} else {
@@ -14818,7 +14911,7 @@ var $author$project$Main$viewHandCard = F4(
 								[
 									A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
 									$elm$html$Html$Events$onClick(
-									$author$project$Main$CardClicked(card.ad))
+									$author$project$Main$CardClicked(card.ae))
 								]))),
 					card.aP);
 			}
@@ -15180,7 +15273,7 @@ var $author$project$Main$viewHandState = function (players) {
 		};
 	};
 };
-var $author$project$Main$FlipOpponentToggled = {$: 13};
+var $author$project$Main$FlipOpponentToggled = {$: 14};
 var $author$project$Main$viewSettings = function (model) {
 	var flip = $author$project$Main$currentFlipOpponent(model);
 	return A2(
@@ -15519,8 +15612,8 @@ var $author$project$Main$view = function (model) {
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{
-		cS: $author$project$Main$init,
-		dm: function (_v0) {
+		cR: $author$project$Main$init,
+		dl: function (_v0) {
 			return $elm$core$Platform$Sub$batch(
 				_List_fromArray(
 					[
@@ -15549,7 +15642,7 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 								$elm$json$Json$Decode$andThen,
 								function (flipOpponent) {
 									return $elm$json$Json$Decode$succeed(
-										{D: flipOpponent, E: groupIndex, b1: replayUrl, b7: sectionIndex});
+										{D: flipOpponent, E: groupIndex, b0: replayUrl, b6: sectionIndex});
 								},
 								A2($elm$json$Json$Decode$field, 'flipOpponent', $elm$json$Json$Decode$bool));
 						},
