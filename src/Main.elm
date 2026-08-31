@@ -157,7 +157,7 @@ type alias CurrentPlay =
 
 
 type CardPopup
-    = FetchingCard String
+    = FetchingCard String String
     | FetchingMove String String
     | ShowingCard String CardData
     | ShowingMove CardData String
@@ -245,7 +245,7 @@ type Msg
     | LastSection
     | GotSwipe String
     | KeyDown String
-    | CardClicked String
+    | CardClicked String String
     | MoveClicked String String
     | DamageClicked DamageInfo
     | GotCardImage String (Result Http.Error String)
@@ -469,7 +469,7 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        CardClicked id ->
+        CardClicked id fallbackName ->
             case model of
                 Loaded url replay i g _ cache ctx ->
                     case Dict.get id cache of
@@ -479,7 +479,7 @@ update msg model =
                         Nothing ->
                             case cardApiUrl id of
                                 Just apiUrl ->
-                                    ( Loaded url replay i g (Just (FetchingCard id)) cache ctx
+                                    ( Loaded url replay i g (Just (FetchingCard id fallbackName)) cache ctx
                                     , Http.get
                                         { url = apiUrl
                                         , expect = Http.expectString (GotCardImage id)
@@ -529,7 +529,7 @@ update msg model =
                         -- Background hand-prefetch requests must NOT disturb the popup state.
                         isUserFetch =
                             case currentPopup of
-                                Just (FetchingCard fetchId) ->
+                                Just (FetchingCard fetchId _) ->
                                     fetchId == id
 
                                 Just (FetchingMove _ _) ->
@@ -957,6 +957,55 @@ basicEnergyImageUrl apiName =
 
         _ ->
             Nothing
+
+
+basicEnergyColor : String -> Maybe String
+basicEnergyColor apiName =
+    let
+        key =
+            if String.startsWith "Basic " apiName then
+                String.dropLeft 6 apiName
+
+            else
+                apiName
+    in
+    case key of
+        "Grass Energy" ->
+            Just "#4ade80"
+
+        "Water Energy" ->
+            Just "#60a5fa"
+
+        "Fire Energy" ->
+            Just "#f87171"
+
+        "Lightning Energy" ->
+            Just "#facc15"
+
+        "Fighting Energy" ->
+            Just "#fb923c"
+
+        "Psychic Energy" ->
+            Just "#c084fc"
+
+        "Darkness Energy" ->
+            Just "#818cf8"
+
+        "Metal Energy" ->
+            Just "#94a3b8"
+
+        _ ->
+            Nothing
+
+
+abbreviateCardName : String -> String
+abbreviateCardName name =
+    name
+        |> String.words
+        |> List.filterMap (String.uncons >> Maybe.map (Tuple.first >> String.fromChar))
+        |> String.concat
+        |> String.left 3
+        |> String.toUpper
 
 
 decodeCardData : String -> Maybe CardData
@@ -1615,6 +1664,19 @@ isDiscardShuffleGroup group =
             False
 
 
+{-| True when the group is a Pokémon ability that attaches energy from the deck
+(as opposed to from the hand). Add ability move names here as needed.
+-}
+isDeckAttachAbilityGroup : Action.ActionGroup -> Bool
+isDeckAttachAbilityGroup group =
+    case group.action of
+        Action.UsedAttack { move } ->
+            move == "Metal Maker"
+
+        _ ->
+            False
+
+
 applyGroupToHand : String -> HandState -> Action.ActionGroup -> HandState
 applyGroupToHand red hand group =
     let
@@ -1651,19 +1713,33 @@ applyGroupToHand red hand group =
                 _ ->
                     group.details
 
-        -- When a group contains a ShuffledDeck detail, attached items for that
-        -- player come from the deck (searched via trainer effect), not the hand.
+        -- Attached items come from the deck when the group is a named deck-search
+        -- ability (e.g. Metal Maker) or contains a ShuffledDeck detail (deck-search
+        -- trainer e.g. Crispin).
         deckAttachPlayers =
-            group.details
-                |> List.filterMap
-                    (\d ->
-                        case d.action of
-                            Action.ShuffledDeck { player } ->
-                                Just player
+            if isDeckAttachAbilityGroup group then
+                group.details
+                    |> List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.Attached { player } ->
+                                    Just player
 
-                            _ ->
-                                Nothing
-                    )
+                                _ ->
+                                    Nothing
+                        )
+
+            else
+                group.details
+                    |> List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledDeck { player } ->
+                                    Just player
+
+                                _ ->
+                                    Nothing
+                        )
     in
     List.foldl
         (\detail h ->
@@ -1796,8 +1872,8 @@ correctDetailPlayer players detail =
             detail
 
 
-correctGroupPlayers : Replay.Players -> Action.ActionGroup -> Action.ActionGroup
-correctGroupPlayers players group =
+correctGroupPlayers : Replay.Players -> InstanceState -> Action.ActionGroup -> Action.ActionGroup
+correctGroupPlayers players instanceState group =
     let
         shuffleDeckPlayer =
             group.details
@@ -1865,6 +1941,35 @@ correctGroupPlayers players group =
 
                 _ ->
                     Nothing
+
+        -- Given a player name, return the other player.
+        otherPlayer p =
+            if p == players.red then players.blue else players.red
+
+        -- Player attributed by the first Attached detail in this group, if any.
+        groupAttachPlayer =
+            group.details
+                |> List.filterMap
+                    (\d ->
+                        case d.action of
+                            Action.Attached { player } ->
+                                Just player
+
+                            _ ->
+                                Nothing
+                    )
+                |> List.head
+
+        playerHasPokemonOnBench p cardId =
+            Dict.get ( p, cardId ) instanceState.bench
+                |> Maybe.map (not << List.isEmpty)
+                |> Maybe.withDefault False
+
+        playerHasPokemonActive p cardId =
+            Dict.get ( p, cardId ) instanceState.activeSpot
+                |> Maybe.andThen identity
+                |> Maybe.map (\_ -> True)
+                |> Maybe.withDefault False
 
         -- True when the group has a ShuffledInto with a CardList bullet for
         -- the given player — confirms the player is the recorder (cards visible).
@@ -1942,6 +2047,140 @@ correctGroupPlayers players group =
                     else
                         detail
 
+                Action.ShuffledDeck { player } ->
+                    case groupAttachPlayer of
+                        Just ap ->
+                            if ap /= player then
+                                { detail
+                                    | action = Action.ShuffledDeck { player = ap }
+                                    , raw = String.replace (player ++ " shuffled") (ap ++ " shuffled") detail.raw
+                                }
+
+                            else
+                                detail
+
+                        Nothing ->
+                            detail
+
+                Action.ShuffledCards { player } ->
+                    let
+                        correctPlayer =
+                            case groupAttachPlayer of
+                                Just ap ->
+                                    Just ap
+
+                                Nothing ->
+                                    if isDeckAttachAbilityGroup group then
+                                        case group.action of
+                                            Action.UsedAttack { attacker } ->
+                                                Just attacker.player
+
+                                            _ ->
+                                                Nothing
+
+                                    else
+                                        Nothing
+                    in
+                    case correctPlayer of
+                        Just ap ->
+                            if ap /= player then
+                                { detail
+                                    | action = Action.ShuffledCards { player = ap }
+                                    , raw = String.replace (player ++ " shuffled") (ap ++ " shuffled") detail.raw
+                                }
+
+                            else
+                                detail
+
+                        Nothing ->
+                            detail
+
+                Action.MovedDamageCounters { player, count, from, to } ->
+                    let
+                        correctPokemon pokemon =
+                            let
+                                other =
+                                    otherPlayer pokemon.player
+                            in
+                            if playerHasPokemonOnBench pokemon.player pokemon.card.id then
+                                pokemon
+
+                            else if playerHasPokemonActive pokemon.player pokemon.card.id then
+                                pokemon
+
+                            else if playerHasPokemonOnBench other pokemon.card.id then
+                                { pokemon | player = other }
+
+                            else if playerHasPokemonActive other pokemon.card.id then
+                                { pokemon | player = other }
+
+                            else
+                                pokemon
+
+                        correctedFrom =
+                            correctPokemon from
+
+                        correctedTo =
+                            correctPokemon to
+
+                        correctedRaw =
+                            detail.raw
+                                |> (if correctedFrom.player /= from.player then
+                                        String.replace (" from " ++ from.player ++ "'s") (" from " ++ correctedFrom.player ++ "'s")
+
+                                    else
+                                        identity
+                                   )
+                                |> (if correctedTo.player /= to.player then
+                                        String.replace (" to " ++ to.player ++ "'s") (" to " ++ correctedTo.player ++ "'s")
+
+                                    else
+                                        identity
+                                   )
+                    in
+                    if correctedFrom == from && correctedTo == to then
+                        detail
+
+                    else
+                        { detail
+                            | action = Action.MovedDamageCounters { player = player, count = count, from = correctedFrom, to = correctedTo }
+                            , raw = correctedRaw
+                        }
+
+                Action.PlacedDamageCounters { player, pokemon, count } ->
+                    let
+                        other =
+                            otherPlayer pokemon.player
+
+                        correctedPlayer =
+                            if playerHasPokemonOnBench pokemon.player pokemon.card.id then
+                                pokemon.player
+
+                            else if playerHasPokemonActive pokemon.player pokemon.card.id then
+                                pokemon.player
+
+                            else if playerHasPokemonOnBench other pokemon.card.id then
+                                other
+
+                            else if playerHasPokemonActive other pokemon.card.id then
+                                other
+
+                            else
+                                pokemon.player
+                    in
+                    if correctedPlayer == pokemon.player then
+                        detail
+
+                    else
+                        { detail
+                            | action = Action.PlacedDamageCounters { player = player, pokemon = { pokemon | player = correctedPlayer }, count = count }
+                            , raw =
+                                String.replace
+                                    (" on " ++ pokemon.player ++ "'s")
+                                    (" on " ++ correctedPlayer ++ "'s")
+                                    detail.raw
+                        }
+
                 _ ->
                     detail
     in
@@ -1967,7 +2206,20 @@ actionPlayer action =
 collectAndCorrectGroups : Replay.Players -> Replay.Replay -> Int -> Int -> List Action.ActionGroup
 collectAndCorrectGroups players replay sectionIndex groupIndex =
     collectAllGroups replay sectionIndex groupIndex
-        |> List.map (correctGroupPlayers players)
+        |> List.foldl
+            (\group ( state, acc ) ->
+                let
+                    corrected =
+                        correctGroupPlayers players state group
+
+                    newState =
+                        applyGroupToInstances corrected state
+                in
+                ( newState, corrected :: acc )
+            )
+            ( emptyInstances, [] )
+        |> Tuple.second
+        |> List.reverse
 
 
 computeHand : Replay.Players -> Replay.Replay -> Int -> Int -> HandState
@@ -2125,16 +2377,29 @@ applyGroupToPiles red isSetup piles group =
                 applyActionToPiles red isSetup group.action piles
 
         deckAttachPlayers =
-            group.details
-                |> List.filterMap
-                    (\d ->
-                        case d.action of
-                            Action.ShuffledDeck { player } ->
-                                Just player
+            if isDeckAttachAbilityGroup group then
+                group.details
+                    |> List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.Attached { player } ->
+                                    Just player
 
-                            _ ->
-                                Nothing
-                    )
+                                _ ->
+                                    Nothing
+                        )
+
+            else
+                group.details
+                    |> List.filterMap
+                        (\d ->
+                            case d.action of
+                                Action.ShuffledDeck { player } ->
+                                    Just player
+
+                                _ ->
+                                    Nothing
+                        )
     in
     List.foldl
         (\detail p ->
@@ -2233,7 +2498,7 @@ computePiles players replay sectionIndex groupIndex =
                                 else
                                     []
                         in
-                        List.map (\g -> ( isSetup, correctGroupPlayers players g )) trimmed
+                        List.map (\g -> ( isSetup, correctGroupPlayers players emptyInstances g )) trimmed
                     )
                 |> List.concat
     in
@@ -2662,12 +2927,13 @@ type alias InstanceState =
     { nextId : InstanceId
     , bench : Dict ( String, String ) (List InstanceId)
     , activeSpot : Dict ( String, String ) (Maybe InstanceId)
+    , lastMoved : Dict ( String, String ) InstanceId
     }
 
 
 emptyInstances : InstanceState
 emptyInstances =
-    { nextId = 0, bench = Dict.empty, activeSpot = Dict.empty }
+    { nextId = 0, bench = Dict.empty, activeSpot = Dict.empty, lastMoved = Dict.empty }
 
 
 assignInstance : String -> String -> InstanceState -> ( InstanceState, InstanceId )
@@ -2704,6 +2970,22 @@ nthInstance player cardId n state =
                 |> Maybe.withDefault []
     in
     List.drop n (active ++ bench) |> List.head
+
+
+nthBenchInstance : String -> String -> Int -> InstanceState -> Maybe InstanceId
+nthBenchInstance player cardId n state =
+    let
+        bench =
+            Dict.get ( player, cardId ) state.bench
+                |> Maybe.withDefault []
+
+        active =
+            Dict.get ( player, cardId ) state.activeSpot
+                |> Maybe.andThen identity
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+    in
+    List.drop n (bench ++ active) |> List.head
 
 
 retireFirstInstance : String -> String -> InstanceState -> InstanceState
@@ -2828,8 +3110,30 @@ applyActionToInstances action state =
 
                 Nothing ->
                     let
+                        benchList =
+                            Dict.get key state.bench |> Maybe.withDefault []
+
+                        -- Exclude the instance that just retreated/switched out so we
+                        -- don't immediately promote it back when two copies of the same
+                        -- card are in play. This is independent of bench display order.
+                        -- Exclude the instance that just retreated/switched out so we
+                        -- don't immediately promote it back when two copies of the same
+                        -- card are in play. This is independent of bench display order.
+                        excludeIid =
+                            Dict.get key state.lastMoved
+
                         maybeIid =
-                            Dict.get key state.bench |> Maybe.andThen List.head
+                            case excludeIid of
+                                Just rid ->
+                                    case List.filter (\iid -> iid /= rid) benchList of
+                                        first :: _ ->
+                                            Just first
+
+                                        [] ->
+                                            List.head benchList
+
+                                Nothing ->
+                                    List.head benchList
                     in
                     case maybeIid of
                         Nothing ->
@@ -2837,59 +3141,110 @@ applyActionToInstances action state =
 
                         Just iid ->
                             { state
-                                | bench = Dict.update key (Maybe.map (List.drop 1)) state.bench
+                                | bench =
+                                    Dict.update key
+                                        (Maybe.map (List.filter (\i -> i /= iid)))
+                                        state.bench
                                 , activeSpot = Dict.insert key (Just iid) state.activeSpot
+                                , lastMoved = Dict.remove key state.lastMoved
                             }
 
         Action.Switched { player, from, to } ->
-            let
-                fromKey =
-                    ( player, from.id )
+            if from.id == to.id && not (String.isEmpty from.id) then
+                -- Same-card switch: both keys are equal, so the generic update
+                -- would overwrite itself. Swap active ↔ first bench instance directly.
+                let
+                    key =
+                        ( player, from.id )
 
-                toKey =
-                    ( player, to.id )
+                    activeIid =
+                        Dict.get key state.activeSpot |> Maybe.andThen identity
 
-                fromIid =
-                    Dict.get fromKey state.bench |> Maybe.andThen List.head
+                    benchHead =
+                        Dict.get key state.bench |> Maybe.andThen List.head
+                in
+                case ( activeIid, benchHead ) of
+                    ( Just aIid, Just bIid ) ->
+                        { state
+                            | bench =
+                                Dict.update key
+                                    (Maybe.map
+                                        (\lst ->
+                                            let
+                                                tail =
+                                                    List.drop 1 lst
+                                            in
+                                            if retreatToFront then
+                                                aIid :: tail
 
-                toIid =
-                    Dict.get toKey state.activeSpot |> Maybe.andThen identity
-            in
-            { state
-                | bench =
-                    state.bench
-                        |> Dict.update fromKey (Maybe.map (List.drop 1))
-                        |> (if String.isEmpty to.id then
-                                identity
+                                            else
+                                                tail ++ [ aIid ]
+                                        )
+                                    )
+                                    state.bench
+                            , activeSpot = Dict.insert key (Just bIid) state.activeSpot
+                            , lastMoved = Dict.insert key aIid state.lastMoved
+                        }
 
-                            else
-                                case toIid of
+                    _ ->
+                        state
+
+            else
+                let
+                    fromKey =
+                        ( player, from.id )
+
+                    toKey =
+                        ( player, to.id )
+
+                    fromIid =
+                        Dict.get fromKey state.bench |> Maybe.andThen List.head
+
+                    toIid =
+                        Dict.get toKey state.activeSpot |> Maybe.andThen identity
+                in
+                { state
+                    | bench =
+                        state.bench
+                            |> Dict.update fromKey (Maybe.map (List.drop 1))
+                            |> (if String.isEmpty to.id then
+                                    identity
+
+                                else
+                                    case toIid of
+                                        Just iid ->
+                                            Dict.update toKey
+                                                (\ex ->
+                                                    let lst = Maybe.withDefault [] ex
+                                                    in Just (if retreatToFront then iid :: lst else lst ++ [ iid ])
+                                                )
+
+                                        Nothing ->
+                                            identity
+                               )
+                    , activeSpot =
+                        state.activeSpot
+                            |> (case fromIid of
                                     Just iid ->
-                                        Dict.update toKey
-                                            (\ex ->
-                                                let lst = Maybe.withDefault [] ex
-                                                in Just (if retreatToFront then iid :: lst else lst ++ [ iid ])
-                                            )
+                                        Dict.insert fromKey (Just iid)
 
                                     Nothing ->
                                         identity
-                           )
-                , activeSpot =
-                    state.activeSpot
-                        |> (case fromIid of
-                                Just iid ->
-                                    Dict.insert fromKey (Just iid)
-
-                                Nothing ->
+                               )
+                            |> (if String.isEmpty to.id then
                                     identity
-                           )
-                        |> (if String.isEmpty to.id then
-                                identity
 
-                            else
-                                Dict.insert toKey Nothing
-                           )
-            }
+                                else
+                                    Dict.insert toKey Nothing
+                               )
+                    , lastMoved =
+                        case toIid of
+                            Just iid ->
+                                Dict.insert toKey iid state.lastMoved
+
+                            Nothing ->
+                                state.lastMoved
+                }
 
         Action.Retreated { player, card } ->
             let
@@ -2913,6 +3268,7 @@ applyActionToInstances action state =
                                     in Just (if retreatToFront then iid :: lst else lst ++ [ iid ])
                                 )
                                 state.bench
+                        , lastMoved = Dict.insert key iid state.lastMoved
                     }
 
         _ ->
@@ -3059,7 +3415,12 @@ applyActionToAttachments preInstances postInstances action state =
         Action.Attached { player, item, target, position } ->
             let
                 maybeIid =
-                    firstInstance player target.card.id postInstances
+                    case position of
+                        Action.BenchSpot ->
+                            nthBenchInstance player target.card.id 0 postInstances
+
+                        _ ->
+                            firstInstance player target.card.id postInstances
             in
             case maybeIid of
                 Nothing ->
@@ -3074,19 +3435,33 @@ applyActionToAttachments preInstances postInstances action state =
                             state ++ [ { instanceId = iid, player = player, cardId = target.card.id, position = position, items = [ item ] } ]
 
         Action.KnockedOut { pokemon } ->
-            -- No position in KnockedOut: remove the first active entry, then bench.
+            -- Remove by the specific instance that was active (from preInstances),
+            -- so we don't accidentally wipe a bench copy of the same card.
             let
-                removeFirst plyr cardId pos st =
-                    case findEntryIndex plyr cardId pos st of
+                removeIdx idx st =
+                    List.take idx st ++ List.drop (idx + 1) st
+
+                maybeIid =
+                    Dict.get ( pokemon.player, pokemon.card.id ) preInstances.activeSpot
+                        |> Maybe.andThen identity
+            in
+            case maybeIid |> Maybe.andThen (\iid -> findEntryByInstance iid state) of
+                Just idx ->
+                    removeIdx idx state
+
+                Nothing ->
+                    -- Fallback: position-based (handles bench KO edge cases)
+                    case findEntryIndex pokemon.player pokemon.card.id Action.ActiveSpot state of
                         Just idx ->
-                            List.take idx st ++ List.drop (idx + 1) st
+                            removeIdx idx state
 
                         Nothing ->
-                            st
-            in
-            state
-                |> removeFirst pokemon.player pokemon.card.id Action.ActiveSpot
-                |> removeFirst pokemon.player pokemon.card.id Action.BenchSpot
+                            case findEntryIndex pokemon.player pokemon.card.id Action.BenchSpot state of
+                                Just idx ->
+                                    removeIdx idx state
+
+                                Nothing ->
+                                    state
 
         Action.Evolved { player, to } ->
             -- Use the post-group instance state to find which instance evolved.
@@ -3153,16 +3528,40 @@ applyActionToAttachments preInstances postInstances action state =
 
         Action.MovedToActive { pokemon } ->
             -- Skip if a preceding Switched already put this pokemon in the active spot.
-            -- Use preInstances (the canonical source) — same guard as applyGroupToInstances.
+            -- Use postInstances to identify the SPECIFIC instance that became active,
+            -- so we don't accidentally tag the wrong copy when two instances of the same
+            -- card are both on the bench (e.g. after a same-card retreat).
             case Dict.get ( pokemon.player, pokemon.card.id ) preInstances.activeSpot |> Maybe.andThen identity of
                 Just _ ->
                     state
 
                 Nothing ->
-                    moveAttachments pokemon.player pokemon.card.id Action.BenchSpot Action.ActiveSpot state
+                    case firstInstance pokemon.player pokemon.card.id postInstances of
+                        Just iid ->
+                            case findEntryByInstance iid state of
+                                Just idx ->
+                                    updateAt idx (\e -> { e | position = Action.ActiveSpot }) state
+
+                                Nothing ->
+                                    state
+
+                        Nothing ->
+                            moveAttachments pokemon.player pokemon.card.id Action.BenchSpot Action.ActiveSpot state
 
         Action.Retreated { player, card } ->
-            moveAttachments player card.id Action.ActiveSpot Action.BenchSpot state
+            -- Use preInstances to tag the SPECIFIC retreating instance as BenchSpot,
+            -- rather than the first ActiveSpot entry (which could be a different copy).
+            case Dict.get ( player, card.id ) preInstances.activeSpot |> Maybe.andThen identity of
+                Just iid ->
+                    case findEntryByInstance iid state of
+                        Just idx ->
+                            updateAt idx (\e -> { e | position = Action.BenchSpot }) state
+
+                        Nothing ->
+                            state
+
+                Nothing ->
+                    moveAttachments player card.id Action.ActiveSpot Action.BenchSpot state
 
         _ ->
             state
@@ -3200,18 +3599,49 @@ applyGroupToAttachments preInstances postInstances group state =
             in
             case detail.action of
                 Action.NCardsDiscardedFrom { pokemon } ->
-                    -- Bullets list the individual cards (e.g. "(sv6_166) Boomerang Energy, (mee_5) Psychic Energy").
-                    -- Parse each and remove it from the Pokémon's attachments.
-                    List.foldl
-                        (\bullet bs ->
-                            List.foldl
-                                (\card bbs ->
+                    -- Bullets list the individual cards discarded from a pokemon.
+                    -- The source is always the pokemon that was active before this group
+                    -- (retreat cost, KO discard, etc.). Look it up by instance ID from
+                    -- preInstances so we don't accidentally strip a bench copy of the same card.
+                    let
+                        sourceIid =
+                            Dict.get ( pokemon.player, pokemon.card.id ) preInstances.activeSpot
+                                |> Maybe.andThen identity
+
+                        removeFromSource card bs =
+                            case sourceIid of
+                                Just iid ->
+                                    case findEntryByInstance iid bs of
+                                        Just idx ->
+                                            case List.drop idx bs |> List.head of
+                                                Just e ->
+                                                    if List.any (\c -> c.id == card.id) e.items then
+                                                        updateAt idx (\en -> { en | items = removeFirstById card.id en.items }) bs
+                                                    else
+                                                        bs
+
+                                                Nothing ->
+                                                    bs
+
+                                        Nothing ->
+                                            -- The source instance's whole entry was already removed
+                                            -- (e.g. by a preceding KnockedOut in the same group).
+                                            -- Nothing left to strip — leave other instances alone.
+                                            bs
+
+                                Nothing ->
+                                    -- Couldn't determine the source instance at all: fall back to
+                                    -- position-based removal as a last resort.
                                     applyActionToAttachments
                                         preInstances
                                         postInstances
                                         (Action.CardDiscardedFrom { card = card, pokemon = pokemon })
-                                        bbs
-                                )
+                                        bs
+                    in
+                    List.foldl
+                        (\bullet bs ->
+                            List.foldl
+                                (\card bbs -> removeFromSource card bbs)
                                 bs
                                 (bullet.raw |> String.split ", " |> List.filterMap Action.parseCardRef)
                         )
@@ -3386,7 +3816,7 @@ applyGroupToDamage preInstances postInstances group state =
                                 n =
                                     ordinal key
                             in
-                            case nthInstance pokemon.player pokemon.card.id n postInstances of
+                            case nthBenchInstance pokemon.player pokemon.card.id n postInstances of
                                 Nothing ->
                                     ( s, bump key )
 
@@ -3499,7 +3929,7 @@ currentPlayFromGroup players group =
         Action.PlayedTrainer { player, card } ->
             let
                 correctedDetails =
-                    (correctGroupPlayers players group).details
+                    (correctGroupPlayers players emptyInstances group).details
 
                 -- Which player owns this detail line?
                 detailOwner d =
@@ -3701,7 +4131,7 @@ currentPlayFromGroup players group =
         Action.UsedAttack { attacker } ->
             let
                 correctedDetails =
-                    (correctGroupPlayers players group).details
+                    (correctGroupPlayers players emptyInstances group).details
 
                 extractDiscards ds =
                     List.concatMap
@@ -4081,7 +4511,7 @@ viewHandCard upsideDown color imageFor maybeCard =
                                , style "background-position" "top center"
                                , style "background-color" "#e2e8f0"
                                , style "cursor" "pointer"
-                               , onClick (CardClicked card.id)
+                               , onClick (CardClicked card.id card.name)
                                ]
                         )
                         []
@@ -4091,7 +4521,7 @@ viewHandCard upsideDown color imageFor maybeCard =
                         (baseStyles
                             ++ rotationStyles
                             ++ [ style "cursor" "pointer"
-                               , onClick (CardClicked card.id)
+                               , onClick (CardClicked card.id card.name)
                                ]
                         )
                         card.name
@@ -4187,13 +4617,14 @@ viewNoImageCard extraStyles name =
         ([ style "background" "#1a202c"
          , style "color" "white"
          , style "display" "flex"
-         , style "align-items" "center"
+         , style "align-items" "flex-start"
          , style "justify-content" "center"
          , style "text-align" "center"
          , style "font-size" "0.6rem"
          , style "font-weight" "600"
          , style "line-height" "1.3"
          , style "padding" "4px"
+         , style "padding-top" "8px"
          , style "overflow" "hidden"
          ]
             ++ extraStyles
@@ -4246,7 +4677,7 @@ viewAttachmentCircle cache item =
         , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
         , style "overflow" "hidden"
         , style "cursor" "pointer"
-        , onClick (CardClicked item.id)
+        , onClick (CardClicked item.id item.name)
         ]
         [ case maybeUrl of
             Just u ->
@@ -4260,7 +4691,28 @@ viewAttachmentCircle cache item =
                     []
 
             Nothing ->
-                text ""
+                case basicEnergyColor item.name of
+                    Just color ->
+                        div
+                            [ style "width" "100%"
+                            , style "height" "100%"
+                            , style "background" color
+                            ]
+                            []
+
+                    Nothing ->
+                        div
+                            [ style "width" "100%"
+                            , style "height" "100%"
+                            , style "display" "flex"
+                            , style "align-items" "center"
+                            , style "justify-content" "center"
+                            , style "font-size" "9px"
+                            , style "font-weight" "700"
+                            , style "color" "#4a5568"
+                            , style "line-height" "1"
+                            ]
+                            [ text (abbreviateCardName item.name) ]
         ]
 
 
@@ -4281,7 +4733,7 @@ viewAttachmentRect cache item =
         , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
         , style "overflow" "hidden"
         , style "cursor" "pointer"
-        , onClick (CardClicked item.id)
+        , onClick (CardClicked item.id item.name)
         ]
         [ case maybeUrl of
             Just u ->
@@ -4295,7 +4747,19 @@ viewAttachmentRect cache item =
                     []
 
             Nothing ->
-                text ""
+                div
+                    [ style "width" "100%"
+                    , style "height" "100%"
+                    , style "display" "flex"
+                    , style "align-items" "center"
+                    , style "justify-content" "center"
+                    , style "font-size" "8px"
+                    , style "font-weight" "700"
+                    , style "color" "#4a5568"
+                    , style "line-height" "1"
+                    , style "text-align" "center"
+                    ]
+                    [ text (abbreviateCardName item.name) ]
         ]
 
 
@@ -4320,7 +4784,7 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
             , style "border-radius" "4px"
             , style "box-sizing" "border-box"
             , style "cursor" "pointer"
-            , onClick (CardClicked card.id)
+            , onClick (CardClicked card.id card.name)
             ]
 
         cardDiv =
@@ -4366,8 +4830,26 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
         toolAttachments =
             List.filter (\a -> not (isEnergyAttachment cache a)) cardAttachments
 
+        groupedEnergies =
+            List.foldl
+                (\item acc ->
+                    case acc of
+                        ( lastRef, count ) :: rest ->
+                            if lastRef.id == item.id then
+                                ( lastRef, count + 1 ) :: rest
+
+                            else
+                                ( item, 1 ) :: acc
+
+                        [] ->
+                            [ ( item, 1 ) ]
+                )
+                []
+                energyAttachments
+                |> List.reverse
+
         energyOverlay =
-            if List.isEmpty energyAttachments then
+            if List.isEmpty groupedEnergies then
                 []
             else
                 [ div
@@ -4378,7 +4860,37 @@ viewBenchCard upsideDown cache cardAttachments hpDamage card =
                     , style "flex-direction" "row"
                     , style "gap" "2px"
                     ]
-                    (List.map (viewAttachmentCircle cache) energyAttachments)
+                    (List.map
+                        (\( item, count ) ->
+                            div
+                                [ style "position" "relative" ]
+                                (viewAttachmentCircle cache item
+                                    :: (if count > 1 then
+                                            [ div
+                                                [ style "position" "absolute"
+                                                , style "top" "0"
+                                                , style "left" "0"
+                                                , style "width" "100%"
+                                                , style "height" "100%"
+                                                , style "display" "flex"
+                                                , style "align-items" "center"
+                                                , style "justify-content" "center"
+                                                , style "font-size" "10px"
+                                                , style "font-weight" "700"
+                                                , style "color" "white"
+                                                , style "text-shadow" "0 0 3px rgba(0,0,0,0.8)"
+                                                , style "pointer-events" "none"
+                                                ]
+                                                [ text (String.fromInt count) ]
+                                            ]
+
+                                        else
+                                            []
+                                       )
+                                )
+                        )
+                        groupedEnergies
+                    )
                 ]
 
         toolOverlay =
@@ -4641,7 +5153,7 @@ viewKnownCardThumb upsideDown cache card =
             , style "flex-shrink" "0"
             , style "box-sizing" "border-box"
             , style "cursor" "pointer"
-            , onClick (CardClicked card.id)
+            , onClick (CardClicked card.id card.name)
             ]
             ++ (if upsideDown then [ style "transform" "rotate(180deg)" ] else [])
     in
@@ -4979,6 +5491,9 @@ viewSettings model =
     let
         flip =
             currentFlipOpponent model
+
+        debug =
+            currentDebug model
     in
     div
         [ style "flex-shrink" "0"
@@ -5034,6 +5549,22 @@ viewSettings model =
                 , style "user-select" "none"
                 ]
                 [ text "Flip opponent's cards" ]
+            , if debug then
+                span
+                    [ style "padding" "0.1rem 0.4rem"
+                    , style "border-radius" "4px"
+                    , style "background" "rgba(237, 137, 54, 0.15)"
+                    , style "border" "1px solid #ed8936"
+                    , style "font-size" "0.65rem"
+                    , style "color" "#c05621"
+                    , style "font-weight" "700"
+                    , style "letter-spacing" "0.05em"
+                    , style "user-select" "none"
+                    ]
+                    [ text "DEBUG" ]
+
+              else
+                text ""
             ]
         ]
 
@@ -5203,11 +5734,51 @@ viewReplay ctx cache replay sectionIndex groupIndex =
         total =
             List.length replay.sections
 
-        currentSection =
-            replay.sections |> List.drop sectionIndex |> List.head
+        -- Fold over all sections, accumulating instance state, to produce corrected
+        -- groups with their per-group preInstances for use in both display and correction.
+        sectionsWithPres : List ( Replay.Section, List ( Action.ActionGroup, InstanceState ) )
+        sectionsWithPres =
+            case players of
+                Nothing ->
+                    List.map (\sec -> ( sec, [] )) replay.sections
 
-        pastSections =
-            List.take sectionIndex replay.sections
+                Just ps ->
+                    List.foldl
+                        (\section ( state, acc ) ->
+                            let
+                                rawGroups =
+                                    Action.groupLines (sectionLines section)
+
+                                ( newState, revGroupsWithPre ) =
+                                    List.foldl
+                                        (\group ( s, gacc ) ->
+                                            let
+                                                corrected =
+                                                    correctGroupPlayers ps s group
+
+                                                nextState =
+                                                    applyGroupToInstances corrected s
+                                            in
+                                            ( nextState, ( group, s ) :: gacc )
+                                        )
+                                        ( state, [] )
+                                        rawGroups
+                            in
+                            ( newState, ( section, List.reverse revGroupsWithPre ) :: acc )
+                        )
+                        ( emptyInstances, [] )
+                        replay.sections
+                        |> Tuple.second
+                        |> List.reverse
+
+        currentSectionWithPre =
+            sectionsWithPres |> List.drop sectionIndex |> List.head
+
+        currentSection =
+            Maybe.map Tuple.first currentSectionWithPre
+
+        pastSectionsWithPre =
+            List.take sectionIndex sectionsWithPres
 
         -- Nav bar info for the current section
         ( badge, extra, borderColor ) =
@@ -5215,27 +5786,20 @@ viewReplay ctx cache replay sectionIndex groupIndex =
 
         -- Current section: visible groups reversed (most recent at top)
         currentContent =
-            case currentSection of
+            case currentSectionWithPre of
                 Nothing ->
                     []
 
-                Just section ->
+                Just ( section, groupsWithPre ) ->
                     case section of
                         Replay.ResultSection result ->
                             [ viewResultContent players result ]
 
                         _ ->
-                            let
-                                groups =
-                                    Action.groupLines (sectionLines section)
-
-                                totalGroups =
-                                    List.length groups
-                            in
-                            List.take (groupIndex + 1) groups
+                            List.take (groupIndex + 1) groupsWithPre
                                 |> List.reverse
                                 |> List.indexedMap
-                                    (\i group ->
+                                    (\i ( group, pre ) ->
                                         div
                                             (if i > 0 then
                                                 [ style "opacity" "0.4" ]
@@ -5243,17 +5807,17 @@ viewReplay ctx cache replay sectionIndex groupIndex =
                                              else
                                                 []
                                             )
-                                            (viewActionGroup ctx players cache group)
+                                            (viewActionGroup ctx pre players cache group)
                                     )
 
         -- Past sections: most recent first, each preceded by a divider
         pastContent =
-            pastSections
+            pastSectionsWithPre
                 |> List.reverse
                 |> List.concatMap
-                    (\section ->
+                    (\( section, groupsWithPre ) ->
                         viewSectionDivider players section
-                            :: viewPastSectionGroups ctx cache players section
+                            :: viewPastSectionGroups ctx cache players section groupsWithPre
                     )
 
         totalGroupsInCurrent =
@@ -5362,8 +5926,8 @@ viewResultContent players result =
         ]
 
 
-viewPastSectionGroups : ViewContext -> Dict String CardData -> Maybe Replay.Players -> Replay.Section -> List (Html Msg)
-viewPastSectionGroups ctx cache players section =
+viewPastSectionGroups : ViewContext -> Dict String CardData -> Maybe Replay.Players -> Replay.Section -> List ( Action.ActionGroup, InstanceState ) -> List (Html Msg)
+viewPastSectionGroups ctx cache players section groupsWithPre =
     let
         greyed children =
             div [ style "opacity" "0.4" ] children
@@ -5373,9 +5937,9 @@ viewPastSectionGroups ctx cache players section =
             [ greyed [ viewResultContent players result ] ]
 
         _ ->
-            Action.groupLines (sectionLines section)
+            groupsWithPre
                 |> List.reverse
-                |> List.map (\group -> greyed (viewActionGroup ctx players cache group))
+                |> List.map (\( group, pre ) -> greyed (viewActionGroup ctx pre players cache group))
 
 
 viewSectionDivider : Maybe Replay.Players -> Replay.Section -> Html Msg
@@ -5496,13 +6060,13 @@ navArrow visible msg symbol =
         [ text symbol ]
 
 
-viewActionGroup : ViewContext -> Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
-viewActionGroup ctx players cache group =
+viewActionGroup : ViewContext -> InstanceState -> Maybe Replay.Players -> Dict String CardData -> Action.ActionGroup -> List (Html Msg)
+viewActionGroup ctx preInstances players cache group =
     let
         correctedGroup =
             case players of
                 Just ps ->
-                    correctGroupPlayers ps group
+                    correctGroupPlayers ps preInstances group
 
                 Nothing ->
                     group
@@ -5715,7 +6279,7 @@ viewSegment seg =
 
         CardRef id name maybeColor ->
             span
-                [ onClick (CardClicked id)
+                [ onClick (CardClicked id name)
                 , style "font-size" "0.8em"
                 , style "font-weight" "600"
                 , style "background" (Maybe.withDefault "#e2e8f0" maybeColor)
@@ -5795,21 +6359,21 @@ viewCardPopup popup =
         , style "cursor" "pointer"
         ]
         [ case popup of
-            FetchingCard _ ->
+            FetchingCard _ fallbackName ->
                 div
                     [ style "color" "white"
                     , style "font-style" "italic"
                     , style "font-size" "1rem"
                     ]
-                    [ text "Loading…" ]
+                    [ text (fallbackName ++ "…") ]
 
-            FetchingMove _ _ ->
+            FetchingMove _ moveName ->
                 div
                     [ style "color" "white"
                     , style "font-style" "italic"
                     , style "font-size" "1rem"
                     ]
-                    [ text "Loading…" ]
+                    [ text (moveName ++ "…") ]
 
             CardNotFound id ->
                 div

@@ -560,12 +560,26 @@ allGroupsIndexed players replay =
                         { sectionIndex = si
                         , groupIndex = gi
                         , isSetup = isSetup
-                        , group = correctGroupPlayers players grp
+                        , group = grp
                         }
                     )
                     groups
             )
         |> List.concat
+        |> List.foldl
+            (\indexed ( state, acc ) ->
+                let
+                    corrected =
+                        correctGroupPlayers players state indexed.group
+
+                    newState =
+                        applyGroupToInstances corrected state
+                in
+                ( newState, { indexed | group = corrected } :: acc )
+            )
+            ( emptyInstances, [] )
+        |> Tuple.second
+        |> List.reverse
 
 
 {-| Left fold that stops at the first Err and returns it unchanged.

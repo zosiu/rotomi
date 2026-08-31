@@ -393,6 +393,10 @@ tryTurnEnded raw =
 tryUsedAttack : String -> Maybe Action
 tryUsedAttack raw =
     -- "PLAYER's (id) Name used Move [on PLAYER's (id) Name for N damage[. modifier]]"
+    let
+        stripTrailingDot s =
+            if String.endsWith "." s then String.dropRight 1 s else s
+    in
     case String.split " used " raw of
         [ attackerPart, rest ] ->
             case parsePokemonRef attackerPart of
@@ -421,7 +425,7 @@ tryUsedAttack raw =
                                             Just
                                                 (UsedAttack
                                                     { attacker = attacker
-                                                    , move = rest
+                                                    , move = stripTrailingDot rest
                                                     , target = Nothing
                                                     , modifier = Nothing
                                                     }
@@ -435,7 +439,7 @@ tryUsedAttack raw =
                             Just
                                 (UsedAttack
                                     { attacker = attacker
-                                    , move = String.trimRight rest
+                                    , move = rest |> String.trimRight |> stripTrailingDot
                                     , target = Nothing
                                     , modifier = Nothing
                                     }

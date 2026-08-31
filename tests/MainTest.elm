@@ -4,7 +4,7 @@ import Dict
 import Expect
 import Http
 import Action exposing (CardRef)
-import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, ActiveState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, emptyActive, init, update)
+import Main exposing (CardData, CardPopup(..), CurrentPlay, HandState, Model(..), Msg(..), PileState, BenchState, ActiveState, InstanceState, AttachmentState, applyGroupToHand, applyGroupToPiles, applyGroupToBench, applyGroupToInstances, applyGroupToAttachments, correctGroupPlayers, emptyInstances, emptyAttachments, lookupAttachments, firstInstance, currentPlayFromGroup, emptyHand, emptyPiles, emptyBench, emptyActive, init, update)
 import Replay exposing (ReplayLine(..), Section(..))
 import Test exposing (Test, describe, test)
 
@@ -134,29 +134,29 @@ suite =
         , describe "init"
             [ test "empty flags start in EnteringUrl" <|
                 \_ ->
-                    init { replayUrl = "", sectionIndex = 0, groupIndex = 0, flipOpponent = True }
+                    init { replayUrl = "", sectionIndex = 0, groupIndex = 0, flipOpponent = True, debug = False }
                         |> Tuple.first
                         |> Expect.equal (EnteringUrl "")
             , test "whitespace flags start in EnteringUrl" <|
                 \_ ->
-                    init { replayUrl = "   ", sectionIndex = 0, groupIndex = 0, flipOpponent = True }
+                    init { replayUrl = "   ", sectionIndex = 0, groupIndex = 0, flipOpponent = True, debug = False }
                         |> Tuple.first
                         |> Expect.equal (EnteringUrl "")
             , test "url flags start in Loading" <|
                 \_ ->
-                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 0, groupIndex = 0, flipOpponent = True }
+                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 0, groupIndex = 0, flipOpponent = True, debug = False }
                         |> Tuple.first
-                        |> Expect.equal (Loading "https://example.com/replay.txt" 0 0 True)
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 0 0 { flipOpponent = True, debug = False })
             , test "url flags are trimmed" <|
                 \_ ->
-                    init { replayUrl = "  https://example.com/replay.txt  ", sectionIndex = 0, groupIndex = 0, flipOpponent = True }
+                    init { replayUrl = "  https://example.com/replay.txt  ", sectionIndex = 0, groupIndex = 0, flipOpponent = True, debug = False }
                         |> Tuple.first
-                        |> Expect.equal (Loading "https://example.com/replay.txt" 0 0 True)
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 0 0 { flipOpponent = True, debug = False })
             , test "section index is preserved in Loading state" <|
                 \_ ->
-                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 3, groupIndex = 0, flipOpponent = True }
+                    init { replayUrl = "https://example.com/replay.txt", sectionIndex = 3, groupIndex = 0, flipOpponent = True, debug = False }
                         |> Tuple.first
-                        |> Expect.equal (Loading "https://example.com/replay.txt" 3 0 True)
+                        |> Expect.equal (Loading "https://example.com/replay.txt" 3 0 { flipOpponent = True, debug = False })
             ]
         , describe "GotReplay"
             [ test "Ok result transitions to Loaded with parsed replay" <|
@@ -168,22 +168,22 @@ suite =
                         content =
                             "Turn # 1 - A's Turn\nA drew a card.\n"
                     in
-                    update (GotReplay (Ok content)) (Loading url 0 0 True)
+                    update (GotReplay (Ok content)) (Loading url 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "NetworkError triggers proxy retry" <|
                 \_ ->
-                    update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com" 0 0 True)
+                    update (GotReplay (Err Http.NetworkError)) (Loading "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Retrying "https://example.com" 0 0 True)
+                        |> Expect.equal (Retrying "https://example.com" 0 0 { flipOpponent = True, debug = False })
             , test "404 transitions to Failed with friendly message" <|
                 \_ ->
-                    update (GotReplay (Err (Http.BadStatus 404))) (Loading "https://example.com" 0 0 True)
+                    update (GotReplay (Err (Http.BadStatus 404))) (Loading "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "other errors transition to Failed without retrying" <|
                 \_ ->
-                    update (GotReplay (Err Http.Timeout)) (Loading "https://example.com" 0 0 True)
+                    update (GotReplay (Err Http.Timeout)) (Loading "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "Request timed out")
             , test "proxy Ok result transitions to Loaded" <|
@@ -195,27 +195,27 @@ suite =
                         content =
                             "Turn # 1 - A's Turn\nA drew a card.\n"
                     in
-                    update (GotReplay (Ok content)) (Retrying url 0 0 True)
+                    update (GotReplay (Ok content)) (Retrying url 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "proxy 404 transitions to Failed with friendly message" <|
                 \_ ->
-                    update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com" 0 0 True)
+                    update (GotReplay (Err (Http.BadStatus 404))) (Retrying "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "proxy error transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Err Http.Timeout)) (Retrying "https://example.com" 0 0 True)
+                    update (GotReplay (Err Http.Timeout)) (Retrying "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "Request timed out")
             , test "empty content transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Ok "")) (Loading "https://example.com" 0 0 True)
+                    update (GotReplay (Ok "")) (Loading "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "unrecognised content from proxy transitions to Failed" <|
                 \_ ->
-                    update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com" 0 0 True)
+                    update (GotReplay (Ok "<html>404 Not Found</html>")) (Retrying "https://example.com" 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
                         |> Expect.equal (Failed "https://example.com" "No replay content found — check the URL")
             , test "curly apostrophes (U+2019) are normalized to straight before parsing" <|
@@ -234,9 +234,9 @@ suite =
                         normalizedContent =
                             "A's Turn\nA's (sv01_001) Bulbasaur used Tackle on B's (sv01_002) Ivysaur for 10 damage.\n"
                     in
-                    update (GotReplay (Ok curlyContent)) (Loading url 0 0 True)
+                    update (GotReplay (Ok curlyContent)) (Loading url 0 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse normalizedContent) 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded url (Replay.parse normalizedContent) 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "deep-linked section index is restored on load" <|
                 \_ ->
                     let
@@ -246,9 +246,9 @@ suite =
                         content =
                             "Setup\nSome setup.\nTurn # 1 - A's Turn\nA drew a card.\n"
                     in
-                    update (GotReplay (Ok content)) (Loading url 1 0 True)
+                    update (GotReplay (Ok content)) (Loading url 1 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 1 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded url (Replay.parse content) 1 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "out-of-range section index is clamped to last section" <|
                 \_ ->
                     let
@@ -258,9 +258,9 @@ suite =
                         content =
                             "Setup\nSome setup.\n"
                     in
-                    update (GotReplay (Ok content)) (Loading url 99 0 True)
+                    update (GotReplay (Ok content)) (Loading url 99 0 { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded url (Replay.parse content) 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             ]
         , describe "section navigation"
             [ test "FirstSection jumps to index 0" <|
@@ -272,9 +272,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update FirstSection (Loaded "url" replay 1 0 Nothing Dict.empty True)
+                    update FirstSection (Loaded "url" replay 1 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "LastSection jumps to the last index" <|
                 \_ ->
                     let
@@ -284,9 +284,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update LastSection (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update LastSection (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 1 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 1 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "NextSection increments the index" <|
                 \_ ->
                     let
@@ -296,9 +296,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 1 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 1 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "NextSection does not go past the last section" <|
                 \_ ->
                     let
@@ -308,9 +308,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "PrevSection decrements the index" <|
                 \_ ->
                     let
@@ -320,9 +320,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update PrevSection (Loaded "url" replay 1 0 Nothing Dict.empty True)
+                    update PrevSection (Loaded "url" replay 1 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "PrevSection does not go below zero" <|
                 \_ ->
                     let
@@ -332,9 +332,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update PrevSection (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update PrevSection (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "NextSection reveals next group within section when more groups exist" <|
                 \_ ->
                     let
@@ -345,9 +345,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update NextSection (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 1 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 1 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "PrevSection hides last group within section when groupIndex > 0" <|
                 \_ ->
                     let
@@ -357,9 +357,9 @@ suite =
                         replay =
                             Replay.parse content
                     in
-                    update PrevSection (Loaded "url" replay 0 1 Nothing Dict.empty True)
+                    update PrevSection (Loaded "url" replay 0 1 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             ]
         , describe "card popup"
             [ test "CardClicked sets FetchingCard popup for a valid id" <|
@@ -368,18 +368,18 @@ suite =
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (CardClicked "sv4_160_ph") (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update (CardClicked "sv4_160_ph" "sv4_160_ph") (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingCard "sv4_160_ph")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingCard "sv4_160_ph" "sv4_160_ph")) Dict.empty { flipOpponent = True, debug = False })
             , test "CardClicked with unparseable id shows CardNotFound immediately" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (CardClicked "nounderscore") (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update (CardClicked "nounderscore" "nounderscore") (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "nounderscore")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "nounderscore")) Dict.empty { flipOpponent = True, debug = False })
             , test "GotCardImage with valid JSON shows card image" <|
                 \_ ->
                     let
@@ -390,9 +390,9 @@ suite =
                             "{\"id\":\"swsh1-1\",\"image\":\"https://assets.tcgdex.net/en/swsh/swsh1/1\"}"
                     in
                     -- FetchingCard is set by CardClicked before the HTTP response arrives
-                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty True)
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1" "swsh1-1")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1"))) (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]) True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1"))) (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]) { flipOpponent = True, debug = False })
             , test "GotCardImage with invalid JSON shows CardNotFound" <|
                 \_ ->
                     let
@@ -402,18 +402,18 @@ suite =
                         emptyCardData =
                             { imageUrl = Nothing, attacks = [], abilities = [], category = Nothing, name = Nothing }
                     in
-                    update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty True)
+                    update (GotCardImage "swsh1-1" (Ok "{\"error\":\"not found\"}")) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1" "swsh1-1")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) (Dict.fromList [ ( "swsh1-1", emptyCardData ) ]) True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) (Dict.fromList [ ( "swsh1-1", emptyCardData ) ]) { flipOpponent = True, debug = False })
             , test "GotCardImage with HTTP error shows CardNotFound" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (GotCardImage "swsh1-1" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) Dict.empty True)
+                    update (GotCardImage "swsh1-1" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1" "swsh1-1")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) Dict.empty { flipOpponent = True, debug = False })
             , test "GotCardImage as background hand fetch does not open popup" <|
                 \_ ->
                     let
@@ -424,18 +424,18 @@ suite =
                             "{\"id\":\"swsh1-1\",\"image\":\"https://assets.tcgdex.net/en/swsh/swsh1/1\"}"
                     in
                     -- No FetchingCard popup = background prefetch; should just update cache silently
-                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]) True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing (Dict.fromList [ ( "swsh1-1", cardDataWithImage "https://assets.tcgdex.net/en/swsh/swsh1/1" ) ]) { flipOpponent = True, debug = False })
             , test "CloseCard removes the popup" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update CloseCard (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) Dict.empty True)
+                    update CloseCard (Loaded "url" replay 0 0 (Just (CardNotFound "swsh1-1")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
             , test "MoveClicked on cache hit shows ShowingMove" <|
                 \_ ->
                     let
@@ -444,17 +444,17 @@ suite =
                         cardData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv08.5/072", attacks = [], abilities = [ ability ], category = Nothing, name = Nothing }
                         cache = Dict.fromList [ ( "sv8-5_72_sph", cardData ) ]
                     in
-                    update (MoveClicked "sv8-5_72_sph" "Recon Directive") (Loaded "url" replay 0 0 Nothing cache True)
+                    update (MoveClicked "sv8-5_72_sph" "Recon Directive") (Loaded "url" replay 0 0 Nothing cache { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingMove cardData "Recon Directive")) cache True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingMove cardData "Recon Directive")) cache { flipOpponent = True, debug = False })
             , test "MoveClicked on cache miss shows FetchingMove" <|
                 \_ ->
                     let
                         replay = Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (MoveClicked "sv04_160" "Tackle") (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update (MoveClicked "sv04_160" "Tackle") (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty { flipOpponent = True, debug = False })
             , test "GotCardImage when FetchingMove resolves to ShowingMove" <|
                 \_ ->
                     let
@@ -462,9 +462,9 @@ suite =
                         json = "{\"image\":\"https://assets.tcgdex.net/en/sv/sv04/160\",\"attacks\":[{\"name\":\"Tackle\",\"cost\":[\"Colorless\"],\"damage\":10}],\"abilities\":[]}"
                         expectedData = { imageUrl = Just "https://assets.tcgdex.net/en/sv/sv04/160", attacks = [ { name = "Tackle", cost = [ "Colorless" ], damage = "10", effect = "" } ], abilities = [], category = Nothing, name = Nothing }
                     in
-                    update (GotCardImage "sv04_160" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty True)
+                    update (GotCardImage "sv04_160" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingMove "sv04_160" "Tackle")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingMove expectedData "Tackle")) (Dict.fromList [ ( "sv04_160", expectedData ) ]) True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingMove expectedData "Tackle")) (Dict.fromList [ ( "sv04_160", expectedData ) ]) { flipOpponent = True, debug = False })
             , test "GotCardImage stores attacks and abilities in cache" <|
                 \_ ->
                     let
@@ -478,9 +478,9 @@ suite =
                             , name = Nothing
                             }
                     in
-                    update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_001")) Dict.empty True)
+                    update (GotCardImage "sv04_001" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_001" "sv04_001")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "sv04_001" expectedData)) (Dict.fromList [ ( "sv04_001", expectedData ) ]) True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "sv04_001" expectedData)) (Dict.fromList [ ( "sv04_001", expectedData ) ]) { flipOpponent = True, debug = False })
             ]
         , describe "card image cache"
             [ test "CardClicked uses cache hit and shows card immediately" <|
@@ -495,18 +495,18 @@ suite =
                         cache =
                             Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
-                    update (CardClicked "sv04_160") (Loaded "url" replay 0 0 Nothing cache True)
+                    update (CardClicked "sv04_160" "sv04_160") (Loaded "url" replay 0 0 Nothing cache { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "sv04_160" (cardDataWithImage imageUrl))) cache True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "sv04_160" (cardDataWithImage imageUrl))) cache { flipOpponent = True, debug = False })
             , test "CardClicked on cache miss shows FetchingCard" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (CardClicked "sv04_160") (Loaded "url" replay 0 0 Nothing Dict.empty True)
+                    update (CardClicked "sv04_160" "sv04_160") (Loaded "url" replay 0 0 Nothing Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_160")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_160" "sv04_160")) Dict.empty { flipOpponent = True, debug = False })
             , test "cache is preserved after navigating to next section" <|
                 \_ ->
                     let
@@ -519,9 +519,9 @@ suite =
                         cache =
                             Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
-                    update NextSection (Loaded "url" replay 0 0 Nothing cache True)
+                    update NextSection (Loaded "url" replay 0 0 Nothing cache { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 1 0 Nothing cache True)
+                        |> Expect.equal (Loaded "url" replay 1 0 Nothing cache { flipOpponent = True, debug = False })
             , test "GotCardImage success adds to cache without removing other entries" <|
                 \_ ->
                     let
@@ -546,18 +546,18 @@ suite =
                         json =
                             "{\"id\":\"swsh1-1\",\"image\":\"" ++ newUrl ++ "\"}"
                     in
-                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1")) priorCache True)
+                    update (GotCardImage "swsh1-1" (Ok json)) (Loaded "url" replay 0 0 (Just (FetchingCard "swsh1-1" "swsh1-1")) priorCache { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage newUrl))) expectedCache True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (ShowingCard "swsh1-1" (cardDataWithImage newUrl))) expectedCache { flipOpponent = True, debug = False })
             , test "GotCardImage network error does not populate the cache" <|
                 \_ ->
                     let
                         replay =
                             Replay.parse "Setup\nSome setup.\n"
                     in
-                    update (GotCardImage "sv04_160" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_160")) Dict.empty True)
+                    update (GotCardImage "sv04_160" (Err Http.NetworkError)) (Loaded "url" replay 0 0 (Just (FetchingCard "sv04_160" "sv04_160")) Dict.empty { flipOpponent = True, debug = False })
                         |> Tuple.first
-                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "sv04_160")) Dict.empty True)
+                        |> Expect.equal (Loaded "url" replay 0 0 (Just (CardNotFound "sv04_160")) Dict.empty { flipOpponent = True, debug = False })
             , test "cache hit fires no HTTP command" <|
                 \_ ->
                     let
@@ -570,7 +570,7 @@ suite =
                         cache =
                             Dict.fromList [ ( "sv04_160", cardDataWithImage imageUrl ) ]
                     in
-                    update (CardClicked "sv04_160") (Loaded "url" replay 0 0 Nothing cache True)
+                    update (CardClicked "sv04_160" "sv04_160") (Loaded "url" replay 0 0 Nothing cache { flipOpponent = True, debug = False })
                         |> Tuple.second
                         |> Expect.equal Cmd.none
             ]
@@ -1340,11 +1340,164 @@ suite =
                     bench.red
                         |> Expect.equalLists [ fanRotom, froakie ]
             ]
+        , describe "attachment instance tracking (regression)"
+            [ test "KnockedOut removes only the KO'd instance's attachments, leaving a bench duplicate untouched" <|
+                \_ ->
+                    let
+                        ( inst, atts ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo on the Bench."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "B's (bbb_1) Bar used Tackle on A's (aaa_1) Foo for 200 damage."
+                                , TopLine "A's (aaa_1) Foo was Knocked Out!"
+                                , DetailLine "1 cards were discarded from A's (aaa_1) Foo."
+                                , BulletLine "(mee_8) Basic Metal Energy"
+                                ]
+
+                        benchItems =
+                            firstInstance "A" "aaa_1" inst
+                                |> Maybe.map (lookupAttachments atts)
+                                |> Maybe.withDefault []
+                    in
+                    List.length benchItems |> Expect.equal 1
+            , test "NCardsDiscardedFrom in a KnockedOut group does not fall back to a bench duplicate" <|
+                \_ ->
+                    let
+                        ( inst, atts ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo on the Bench."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "B's (bbb_1) Bar used Tackle on A's (aaa_1) Foo for 200 damage."
+                                , TopLine "A's (aaa_1) Foo was Knocked Out!"
+                                , DetailLine "2 cards were discarded from A's (aaa_1) Foo."
+                                , BulletLine "(mee_8) Basic Metal Energy, (mee_8) Basic Metal Energy"
+                                ]
+
+                        benchItems =
+                            firstInstance "A" "aaa_1" inst
+                                |> Maybe.map (lookupAttachments atts)
+                                |> Maybe.withDefault []
+                    in
+                    List.length benchItems |> Expect.equal 1
+            , test "Retreated moves the specific active instance's attachments to bench, not a duplicate's" <|
+                \_ ->
+                    let
+                        ( inst, atts ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo on the Bench."
+                                , TopLine "A attached (mee_1) Basic Grass Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "A retreated (aaa_1) Foo to the Bench."
+                                ]
+
+                        active =
+                            Dict.get ( "A", "aaa_1" ) inst.activeSpot |> Maybe.andThen identity
+                    in
+                    -- retreatToFront puts the retreated instance at the bench head, so
+                    -- firstInstance (active-first-then-bench) now surfaces it: its items
+                    -- should be the energy that was attached while it was Active, not the
+                    -- other instance's Bench-attached energy.
+                    ( active
+                    , firstInstance "A" "aaa_1" inst |> Maybe.map (lookupAttachments atts)
+                    )
+                        |> Expect.equal ( Nothing, Just [ { id = "mee_1", name = "Basic Grass Energy" } ] )
+            , test "NCardsDiscardedFrom on a retreat only strips the retreated instance, not the untouched bench duplicate" <|
+                \_ ->
+                    let
+                        ( inst, atts ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo on the Bench."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "A retreated (aaa_1) Foo to the Bench."
+                                , DetailLine "1 cards were discarded from A's (aaa_1) Foo."
+                                , BulletLine "(mee_8) Basic Metal Energy"
+                                ]
+
+                        benchCounts =
+                            Dict.get ( "A", "aaa_1" ) inst.bench
+                                |> Maybe.withDefault []
+                                |> List.map (\iid -> lookupAttachments atts iid |> List.length)
+                    in
+                    List.sort benchCounts |> Expect.equal [ 0, 1 ]
+            , test "MovedToActive promotes the untouched bench instance, not the one that just retreated" <|
+                \_ ->
+                    let
+                        -- Instance ids are assigned in appearance order starting at 0:
+                        -- the 1st "played to the Bench" line is instance 0, the 2nd is
+                        -- instance 1. Instance 0 gets promoted then retreated; the final
+                        -- MovedToActive must promote instance 1 instead of re-promoting 0.
+                        ( inst, _ ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A's (aaa_1) Foo is now in the Active Spot."
+                                , TopLine "A retreated (aaa_1) Foo to the Bench."
+                                , TopLine "A's (aaa_1) Foo is now in the Active Spot."
+                                ]
+
+                        finalActive =
+                            Dict.get ( "A", "aaa_1" ) inst.activeSpot |> Maybe.andThen identity
+                    in
+                    finalActive |> Expect.equal (Just 1)
+            , test "Switched with the same card id swaps active and bench instances without losing either" <|
+                \_ ->
+                    let
+                        ( inst, atts ) =
+                            finalAttachments
+                                [ TopLine "A played (aaa_1) Foo to the Bench."
+                                , TopLine "A played (aaa_1) Foo to the Active Spot."
+                                , TopLine "A attached (mee_8) Basic Metal Energy to (aaa_1) Foo on the Bench."
+                                , TopLine "A attached (mee_1) Basic Grass Energy to (aaa_1) Foo in the Active Spot."
+                                , TopLine "A's (aaa_1) Foo was switched with A's (aaa_1) Foo to become the Active Pokémon."
+                                ]
+
+                        activeItems =
+                            Dict.get ( "A", "aaa_1" ) inst.activeSpot
+                                |> Maybe.andThen identity
+                                |> Maybe.map (lookupAttachments atts)
+                                |> Maybe.withDefault []
+                    in
+                    activeItems |> Expect.equal [ { id = "mee_8", name = "Basic Metal Energy" } ]
+            ]
         ]
 
 
 
 -- HELPERS
+
+
+{-| Run a flat list of replay lines (as one section's worth of groups) through
+the same instance-tracking + attachment pipeline the app uses, returning the
+final InstanceState and AttachmentState. Mirrors Main's private
+collectAndCorrectGroups/computeAttachments using only exposed functions.
+-}
+finalAttachments : List Replay.ReplayLine -> ( InstanceState, AttachmentState )
+finalAttachments lines =
+    let
+        players =
+            { red = "A", blue = "B" }
+    in
+    Action.groupLines lines
+        |> List.foldl
+            (\group ( instState, atts ) ->
+                let
+                    corrected =
+                        correctGroupPlayers players instState group
+
+                    newInstState =
+                        applyGroupToInstances corrected instState
+                in
+                ( newInstState, applyGroupToAttachments instState newInstState corrected atts )
+            )
+            ( emptyInstances, emptyAttachments )
 
 
 sectionKind : Replay.Section -> String

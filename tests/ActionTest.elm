@@ -59,7 +59,7 @@ suite =
                         |> Expect.equal
                             (UsedAttack
                                 { attacker = { player = "NoxFoxEX", card = { id = "sv2_247", name = "Squawkabilly ex" } }
-                                , move = "Squawk and Seize."
+                                , move = "Squawk and Seize"
                                 , target = Nothing
                                 , modifier = Nothing
                                 }
