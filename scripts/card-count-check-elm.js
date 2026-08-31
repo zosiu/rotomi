@@ -8158,38 +8158,91 @@ var $elm$core$Set$member = F2(
 		var dict = _v0.a;
 		return A2($elm$core$Dict$member, key, dict);
 	});
-var $author$project$CardCountCheck$applyActionToEvolution = F3(
-	function (red, action, evo) {
+var $author$project$CardCountCheck$resolveBuriedInstance = F3(
+	function (pokemon, preInstances, dict) {
+		var benchCandidates = A2(
+			$elm$core$Maybe$withDefault,
+			_List_Nil,
+			A2(
+				$elm$core$Dict$get,
+				_Utils_Tuple2(pokemon.player, pokemon.card.id),
+				preInstances.bench));
+		var activeCandidate = A2(
+			$elm$core$Maybe$withDefault,
+			_List_Nil,
+			A2(
+				$elm$core$Maybe$map,
+				$elm$core$List$singleton,
+				A2(
+					$elm$core$Maybe$andThen,
+					$elm$core$Basics$identity,
+					A2(
+						$elm$core$Dict$get,
+						_Utils_Tuple2(pokemon.player, pokemon.card.id),
+						preInstances.activeSpot))));
+		var candidates = _Utils_ap(activeCandidate, benchCandidates);
+		var _v0 = A2(
+			$elm$core$List$filter,
+			function (iid) {
+				return A2($elm$core$Dict$member, iid, dict);
+			},
+			candidates);
+		if (_v0.b) {
+			var iid = _v0.a;
+			return $elm$core$Maybe$Just(iid);
+		} else {
+			return $elm$core$List$head(candidates);
+		}
+	});
+var $author$project$CardCountCheck$applyActionToEvolution = F4(
+	function (red, preInstances, action, evo) {
 		switch (action.$) {
 			case 'Evolved':
 				var player = action.a.player;
 				var from = action.a.from;
 				var to = action.a.to;
-				var dict = _Utils_eq(player, red) ? evo.red : evo.blue;
-				var existingToDepth = A2(
-					$elm$core$Maybe$withDefault,
-					0,
-					A2($elm$core$Dict$get, to.id, dict));
-				var fromDepth = A2(
-					$elm$core$Maybe$withDefault,
-					0,
-					A2($elm$core$Dict$get, from.id, dict));
-				var newDict = A3(
-					$elm$core$Dict$insert,
-					to.id,
-					(existingToDepth + fromDepth) + 1,
-					A2($elm$core$Dict$remove, from.id, dict));
-				return _Utils_eq(player, red) ? _Utils_update(
-					evo,
-					{
-						preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds),
-						red: newDict
-					}) : _Utils_update(
-					evo,
-					{
-						blue: newDict,
-						preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds)
-					});
+				var position = action.a.position;
+				var movedIid = function () {
+					if (position.$ === 'BenchSpot') {
+						return A2(
+							$elm$core$Maybe$andThen,
+							$elm$core$List$head,
+							A2(
+								$elm$core$Dict$get,
+								_Utils_Tuple2(player, from.id),
+								preInstances.bench));
+					} else {
+						return A2(
+							$elm$core$Maybe$andThen,
+							$elm$core$Basics$identity,
+							A2(
+								$elm$core$Dict$get,
+								_Utils_Tuple2(player, from.id),
+								preInstances.activeSpot));
+					}
+				}();
+				if (movedIid.$ === 'Nothing') {
+					return evo;
+				} else {
+					var iid = movedIid.a;
+					var dict = _Utils_eq(player, red) ? evo.red : evo.blue;
+					var newDepth = A2(
+						$elm$core$Maybe$withDefault,
+						0,
+						A2($elm$core$Dict$get, iid, dict)) + 1;
+					var newDict = A3($elm$core$Dict$insert, iid, newDepth, dict);
+					return _Utils_eq(player, red) ? _Utils_update(
+						evo,
+						{
+							preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds),
+							red: newDict
+						}) : _Utils_update(
+						evo,
+						{
+							blue: newDict,
+							preEvoIds: A2($elm$core$Set$insert, from.id, evo.preEvoIds)
+						});
+				}
 			case 'KnockedOut':
 				return evo;
 			case 'CardDiscardedFrom':
@@ -8199,16 +8252,22 @@ var $author$project$CardCountCheck$applyActionToEvolution = F3(
 					return evo;
 				} else {
 					var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
-					var currentDepth = A2(
-						$elm$core$Maybe$withDefault,
-						0,
-						A2($elm$core$Dict$get, pokemon.card.id, dict));
-					var newDict = (currentDepth <= 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - 1, dict);
-					return _Utils_eq(pokemon.player, red) ? _Utils_update(
-						evo,
-						{red: newDict}) : _Utils_update(
-						evo,
-						{blue: newDict});
+					var _v3 = A3($author$project$CardCountCheck$resolveBuriedInstance, pokemon, preInstances, dict);
+					if (_v3.$ === 'Nothing') {
+						return evo;
+					} else {
+						var iid = _v3.a;
+						var currentDepth = A2(
+							$elm$core$Maybe$withDefault,
+							0,
+							A2($elm$core$Dict$get, iid, dict));
+						var newDict = (currentDepth <= 1) ? A2($elm$core$Dict$remove, iid, dict) : A3($elm$core$Dict$insert, iid, currentDepth - 1, dict);
+						return _Utils_eq(pokemon.player, red) ? _Utils_update(
+							evo,
+							{red: newDict}) : _Utils_update(
+							evo,
+							{blue: newDict});
+					}
 				}
 			default:
 				return evo;
@@ -8219,22 +8278,14 @@ var $elm$core$List$concatMap = F2(
 		return $elm$core$List$concat(
 			A2($elm$core$List$map, f, list));
 	});
-var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F4(
-	function (red, pokemon, bullets, evo) {
-		var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
-		var currentDepth = A2(
-			$elm$core$Maybe$withDefault,
-			0,
-			A2($elm$core$Dict$get, pokemon.card.id, dict));
-		var newDict = function (n) {
-			return (_Utils_cmp(currentDepth, n) < 1) ? A2($elm$core$Dict$remove, pokemon.card.id, dict) : A3($elm$core$Dict$insert, pokemon.card.id, currentDepth - n, dict);
-		};
+var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F5(
+	function (red, preInstances, pokemon, bullets, evo) {
 		var cardListCards = A2(
 			$elm$core$List$concatMap,
 			function (b) {
-				var _v0 = b.action;
-				if (_v0.$ === 'CardList') {
-					var cards = _v0.a;
+				var _v1 = b.action;
+				if (_v1.$ === 'CardList') {
+					var cards = _v1.a;
 					return cards;
 				} else {
 					return _List_Nil;
@@ -8248,20 +8299,32 @@ var $author$project$CardCountCheck$applyNCardsDiscardedToEvolution = F4(
 					return A2($elm$core$Set$member, card.id, evo.preEvoIds);
 				},
 				cardListCards));
-		return _Utils_eq(preEvoCount, -1) ? evo : ((!preEvoCount) ? evo : (_Utils_eq(pokemon.player, red) ? _Utils_update(
-			evo,
-			{
-				red: newDict(preEvoCount)
-			}) : _Utils_update(
-			evo,
-			{
-				blue: newDict(preEvoCount)
-			})));
+		if (_Utils_eq(preEvoCount, -1) || (!preEvoCount)) {
+			return evo;
+		} else {
+			var dict = _Utils_eq(pokemon.player, red) ? evo.red : evo.blue;
+			var _v0 = A3($author$project$CardCountCheck$resolveBuriedInstance, pokemon, preInstances, dict);
+			if (_v0.$ === 'Nothing') {
+				return evo;
+			} else {
+				var iid = _v0.a;
+				var currentDepth = A2(
+					$elm$core$Maybe$withDefault,
+					0,
+					A2($elm$core$Dict$get, iid, dict));
+				var newDict = (_Utils_cmp(currentDepth, preEvoCount) < 1) ? A2($elm$core$Dict$remove, iid, dict) : A3($elm$core$Dict$insert, iid, currentDepth - preEvoCount, dict);
+				return _Utils_eq(pokemon.player, red) ? _Utils_update(
+					evo,
+					{red: newDict}) : _Utils_update(
+					evo,
+					{blue: newDict});
+			}
+		}
 	});
-var $author$project$CardCountCheck$applyGroupToEvolution = F3(
-	function (red, evo, group) {
+var $author$project$CardCountCheck$applyGroupToEvolution = F4(
+	function (red, preInstances, evo, group) {
 		var isPokemonAbility = $author$project$Main$isPokemonAbilityGroup(group);
-		var evo1 = A3($author$project$CardCountCheck$applyActionToEvolution, red, group.action, evo);
+		var evo1 = A4($author$project$CardCountCheck$applyActionToEvolution, red, preInstances, group.action, evo);
 		return A3(
 			$elm$core$List$foldl,
 			F2(
@@ -8270,37 +8333,50 @@ var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 					switch (_v0.$) {
 						case 'NCardsDiscardedFrom':
 							var pokemon = _v0.a.pokemon;
-							return A4($author$project$CardCountCheck$applyNCardsDiscardedToEvolution, red, pokemon, detail.bullets, acc);
+							return A5($author$project$CardCountCheck$applyNCardsDiscardedToEvolution, red, preInstances, pokemon, detail.bullets, acc);
 						case 'ShuffledInto':
 							var player = _v0.a.player;
 							if (isPokemonAbility) {
+								var playerDict = _Utils_eq(player, red) ? acc.red : acc.blue;
 								var decrementOne = F2(
-									function (dict, cid) {
-										var _v2 = A2($elm$core$Dict$get, cid, dict);
+									function (dict, iid) {
+										var _v2 = A2($elm$core$Dict$get, iid, dict);
 										if (_v2.$ === 'Nothing') {
 											return dict;
 										} else {
 											if (_v2.a === 1) {
-												return A2($elm$core$Dict$remove, cid, dict);
+												return A2($elm$core$Dict$remove, iid, dict);
 											} else {
 												var n = _v2.a;
-												return A3($elm$core$Dict$insert, cid, n - 1, dict);
+												return A3($elm$core$Dict$insert, iid, n - 1, dict);
 											}
 										}
 									});
-								var _v1 = $author$project$Main$pokemonAbilityPlayedCardId(group);
+								var _v1 = A2(
+									$elm$core$Maybe$andThen,
+									function (cid) {
+										return A3(
+											$author$project$CardCountCheck$resolveBuriedInstance,
+											{
+												card: {id: cid, name: ''},
+												player: player
+											},
+											preInstances,
+											playerDict);
+									},
+									$author$project$Main$pokemonAbilityPlayedCardId(group));
 								if (_v1.$ === 'Nothing') {
 									return acc;
 								} else {
-									var cid = _v1.a;
+									var iid = _v1.a;
 									return _Utils_eq(player, red) ? _Utils_update(
 										acc,
 										{
-											red: A2(decrementOne, acc.red, cid)
+											red: A2(decrementOne, acc.red, iid)
 										}) : _Utils_update(
 										acc,
 										{
-											blue: A2(decrementOne, acc.blue, cid)
+											blue: A2(decrementOne, acc.blue, iid)
 										});
 								}
 							} else {
@@ -8308,9 +8384,9 @@ var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 									$elm$core$List$foldl,
 									F2(
 										function (bullet, a) {
-											return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+											return A4($author$project$CardCountCheck$applyActionToEvolution, red, preInstances, bullet.action, a);
 										}),
-									A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+									A4($author$project$CardCountCheck$applyActionToEvolution, red, preInstances, detail.action, acc),
 									detail.bullets);
 							}
 						default:
@@ -8318,9 +8394,9 @@ var $author$project$CardCountCheck$applyGroupToEvolution = F3(
 								$elm$core$List$foldl,
 								F2(
 									function (bullet, a) {
-										return A3($author$project$CardCountCheck$applyActionToEvolution, red, bullet.action, a);
+										return A4($author$project$CardCountCheck$applyActionToEvolution, red, preInstances, bullet.action, a);
 									}),
-								A3($author$project$CardCountCheck$applyActionToEvolution, red, detail.action, acc),
+								A4($author$project$CardCountCheck$applyActionToEvolution, red, preInstances, detail.action, acc),
 								detail.bullets);
 					}
 				}),
@@ -9118,7 +9194,7 @@ var $author$project$CardCountCheck$stepGroup = F4(
 			active: A3($author$project$Main$applyGroupToActive, red, gs.active, group),
 			attachments: A4($author$project$Main$applyGroupToAttachments, gs.instances, newInstances, group, gs.attachments),
 			bench: A4($author$project$Main$applyGroupToBench, red, gs.active, gs.bench, group),
-			evolution: A3($author$project$CardCountCheck$applyGroupToEvolution, red, gs.evolution, group),
+			evolution: A4($author$project$CardCountCheck$applyGroupToEvolution, red, gs.instances, gs.evolution, group),
 			hand: A3($author$project$Main$applyGroupToHand, red, gs.hand, group),
 			instances: newInstances,
 			piles: A4($author$project$Main$applyGroupToPiles, red, isSetup, gs.piles, group),

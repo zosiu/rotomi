@@ -74,9 +74,13 @@ type alias GameState =
     }
 
 
+{-| Buried-card depth per physical Pokémon instance (keyed by InstanceId, not
+card id — a card id can be shared by multiple simultaneous instances, e.g. two
+Metang on the bench at once, each with its own independently buried card).
+-}
 type alias EvolutionState =
-    { red : Dict String Int
-    , blue : Dict String Int
+    { red : Dict InstanceId Int
+    , blue : Dict InstanceId Int
     , preEvoIds : Set String
     }
 
@@ -99,34 +103,83 @@ initialState =
     }
 
 
-applyActionToEvolution : String -> Action.Action -> EvolutionState -> EvolutionState
-applyActionToEvolution red action evo =
+{-| Resolve which physical instance a PokemonRef's buried card belongs to,
+using the instance state as of just before the current group. When there are
+multiple candidate instances for that (player, card id) — e.g. two Metang on
+the bench at once — we can't always tell structurally which one an action
+refers to, but we DO know a buried card exists somewhere among them: prefer
+whichever candidate already has an entry in the buried-depth dict. This keeps
+the aggregate buried-card count correct (matching how the raw log always
+refers to some specific real card) even when we can't pin down the exact
+instance. Falls back to the first candidate (active-priority) as a safe no-op
+when none of them currently have anything buried.
+-}
+resolveBuriedInstance : Action.PokemonRef -> InstanceState -> Dict InstanceId Int -> Maybe InstanceId
+resolveBuriedInstance pokemon preInstances dict =
+    let
+        activeCandidate =
+            Dict.get ( pokemon.player, pokemon.card.id ) preInstances.activeSpot
+                |> Maybe.andThen identity
+                |> Maybe.map List.singleton
+                |> Maybe.withDefault []
+
+        benchCandidates =
+            Dict.get ( pokemon.player, pokemon.card.id ) preInstances.bench
+                |> Maybe.withDefault []
+
+        candidates =
+            activeCandidate ++ benchCandidates
+    in
+    case List.filter (\iid -> Dict.member iid dict) candidates of
+        iid :: _ ->
+            Just iid
+
+        [] ->
+            List.head candidates
+
+
+applyActionToEvolution : String -> InstanceState -> Action.Action -> EvolutionState -> EvolutionState
+applyActionToEvolution red preInstances action evo =
     case action of
-        Action.Evolved { player, from, to } ->
+        Action.Evolved { player, from, to, position } ->
+            -- Evolution reuses the same InstanceId (see Main.transferFirstInstanceBench/
+            -- Active) — it's the same physical card, just relabeled. So we don't move a
+            -- dict entry from one key to another; we just add one more buried layer under
+            -- the SAME instance id. This is what keeps two simultaneous instances of the
+            -- same card id (e.g. two Metang on the bench) from being pooled together.
             let
-                dict =
+                movedIid =
+                    case position of
+                        Action.BenchSpot ->
+                            Dict.get ( player, from.id ) preInstances.bench |> Maybe.andThen List.head
+
+                        _ ->
+                            Dict.get ( player, from.id ) preInstances.activeSpot |> Maybe.andThen identity
+            in
+            case movedIid of
+                Nothing ->
+                    evo
+
+                Just iid ->
+                    let
+                        dict =
+                            if player == red then
+                                evo.red
+
+                            else
+                                evo.blue
+
+                        newDepth =
+                            (Dict.get iid dict |> Maybe.withDefault 0) + 1
+
+                        newDict =
+                            Dict.insert iid newDepth dict
+                    in
                     if player == red then
-                        evo.red
+                        { evo | red = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
 
                     else
-                        evo.blue
-
-                fromDepth =
-                    Dict.get from.id dict |> Maybe.withDefault 0
-
-                existingToDepth =
-                    Dict.get to.id dict |> Maybe.withDefault 0
-
-                newDict =
-                    dict
-                        |> Dict.remove from.id
-                        |> Dict.insert to.id (existingToDepth + fromDepth + 1)
-            in
-            if player == red then
-                { evo | red = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
-
-            else
-                { evo | blue = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
+                        { evo | blue = newDict, preEvoIds = Set.insert from.id evo.preEvoIds }
 
         Action.KnockedOut _ ->
             evo
@@ -146,37 +199,36 @@ applyActionToEvolution red action evo =
 
                         else
                             evo.blue
+                in
+                case resolveBuriedInstance pokemon preInstances dict of
+                    Nothing ->
+                        evo
 
-                    currentDepth =
-                        Dict.get pokemon.card.id dict |> Maybe.withDefault 0
+                    Just iid ->
+                        let
+                            currentDepth =
+                                Dict.get iid dict |> Maybe.withDefault 0
 
-                    newDict =
-                        if currentDepth <= 1 then
-                            Dict.remove pokemon.card.id dict
+                            newDict =
+                                if currentDepth <= 1 then
+                                    Dict.remove iid dict
+
+                                else
+                                    Dict.insert iid (currentDepth - 1) dict
+                        in
+                        if pokemon.player == red then
+                            { evo | red = newDict }
 
                         else
-                            Dict.insert pokemon.card.id (currentDepth - 1) dict
-                in
-                if pokemon.player == red then
-                    { evo | red = newDict }
-
-                else
-                    { evo | blue = newDict }
+                            { evo | blue = newDict }
 
         _ ->
             evo
 
 
-applyNCardsDiscardedToEvolution : String -> Action.PokemonRef -> List Action.BulletAction -> EvolutionState -> EvolutionState
-applyNCardsDiscardedToEvolution red pokemon bullets evo =
+applyNCardsDiscardedToEvolution : String -> InstanceState -> Action.PokemonRef -> List Action.BulletAction -> EvolutionState -> EvolutionState
+applyNCardsDiscardedToEvolution red preInstances pokemon bullets evo =
     let
-        dict =
-            if pokemon.player == red then
-                evo.red
-
-            else
-                evo.blue
-
         cardListCards =
             bullets
                 |> List.concatMap
@@ -199,83 +251,105 @@ applyNCardsDiscardedToEvolution red pokemon bullets evo =
                 cardListCards
                     |> List.filter (\card -> Set.member card.id evo.preEvoIds)
                     |> List.length
-
-        currentDepth =
-            Dict.get pokemon.card.id dict |> Maybe.withDefault 0
-
-        newDict n =
-            if currentDepth <= n then
-                Dict.remove pokemon.card.id dict
-
-            else
-                Dict.insert pokemon.card.id (currentDepth - n) dict
     in
-    if preEvoCount == -1 then
+    if preEvoCount == -1 || preEvoCount == 0 then
         evo
-
-    else if preEvoCount == 0 then
-        evo
-
-    else if pokemon.player == red then
-        { evo | red = newDict preEvoCount }
 
     else
-        { evo | blue = newDict preEvoCount }
+        let
+            dict =
+                if pokemon.player == red then
+                    evo.red
+
+                else
+                    evo.blue
+        in
+        case resolveBuriedInstance pokemon preInstances dict of
+            Nothing ->
+                evo
+
+            Just iid ->
+                let
+                    currentDepth =
+                        Dict.get iid dict |> Maybe.withDefault 0
+
+                    newDict =
+                        if currentDepth <= preEvoCount then
+                            Dict.remove iid dict
+
+                        else
+                            Dict.insert iid (currentDepth - preEvoCount) dict
+                in
+                if pokemon.player == red then
+                    { evo | red = newDict }
+
+                else
+                    { evo | blue = newDict }
 
 
-applyGroupToEvolution : String -> EvolutionState -> Action.ActionGroup -> EvolutionState
-applyGroupToEvolution red evo group =
+applyGroupToEvolution : String -> InstanceState -> EvolutionState -> Action.ActionGroup -> EvolutionState
+applyGroupToEvolution red preInstances evo group =
     let
         isPokemonAbility =
             isPokemonAbilityGroup group
 
         evo1 =
-            applyActionToEvolution red group.action evo
+            applyActionToEvolution red preInstances group.action evo
     in
     List.foldl
         (\detail acc ->
             case detail.action of
                 Action.NCardsDiscardedFrom { pokemon } ->
-                    applyNCardsDiscardedToEvolution red pokemon detail.bullets acc
+                    applyNCardsDiscardedToEvolution red preInstances pokemon detail.bullets acc
 
                 Action.ShuffledInto { player } ->
                     if isPokemonAbility then
                         -- One evolved Pokémon + its single evo-buried pre-evo go to deck.
-                        -- Decrement the evolved card's depth by 1 (don't remove entirely:
-                        -- there may be multiple copies of the same evolution on the bench).
+                        -- Decrement the evolved instance's depth by 1 (don't remove entirely:
+                        -- there may be multiple layers if it evolved more than once).
                         let
-                            decrementOne dict cid =
-                                case Dict.get cid dict of
+                            decrementOne dict iid =
+                                case Dict.get iid dict of
                                     Nothing ->
                                         dict
 
                                     Just 1 ->
-                                        Dict.remove cid dict
+                                        Dict.remove iid dict
 
                                     Just n ->
-                                        Dict.insert cid (n - 1) dict
+                                        Dict.insert iid (n - 1) dict
+
+                            playerDict =
+                                if player == red then
+                                    acc.red
+
+                                else
+                                    acc.blue
                         in
-                        case pokemonAbilityPlayedCardId group of
+                        case
+                            pokemonAbilityPlayedCardId group
+                                |> Maybe.andThen (\cid -> resolveBuriedInstance { player = player, card = { id = cid, name = "" } } preInstances playerDict)
+                        of
                             Nothing ->
                                 acc
 
-                            Just cid ->
+                            Just iid ->
                                 if player == red then
-                                    { acc | red = decrementOne acc.red cid }
+                                    { acc | red = decrementOne acc.red iid }
 
                                 else
-                                    { acc | blue = decrementOne acc.blue cid }
+                                    { acc | blue = decrementOne acc.blue iid }
 
                     else
                         List.foldl
-                            (\bullet a -> applyActionToEvolution red bullet.action a)
-                            (applyActionToEvolution red detail.action acc)
+                            (\bullet a -> applyActionToEvolution red preInstances bullet.action a)
+                            (applyActionToEvolution red preInstances detail.action acc)
                             detail.bullets
 
                 _ ->
                     List.foldl
-                        (\bullet a -> applyActionToEvolution red bullet.action a)
-                        (applyActionToEvolution red detail.action acc)
+                        (\bullet a -> applyActionToEvolution red preInstances bullet.action a)
+                        (applyActionToEvolution red preInstances detail.action acc)
                         detail.bullets
         )
         evo1
@@ -295,7 +369,7 @@ stepGroup red isSetup group gs =
     , stadium = applyGroupToStadium gs.stadium group
     , instances = newInstances
     , attachments = applyGroupToAttachments gs.instances newInstances group gs.attachments
-    , evolution = applyGroupToEvolution red gs.evolution group
+    , evolution = applyGroupToEvolution red gs.instances gs.evolution group
     }
 
 
