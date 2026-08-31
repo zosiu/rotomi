@@ -9825,14 +9825,43 @@ var $author$project$Main$applyGroupToAttachments = F2(
 			$elm$core$List$foldl,
 			F2(
 				function (detail, s) {
-					return A3(
+					var s1 = A2($author$project$Main$applyActionToAttachments, detail.N, s);
+					var s2 = A3(
 						$elm$core$List$foldl,
 						F2(
 							function (bullet, bs) {
 								return A2($author$project$Main$applyActionToAttachments, bullet.N, bs);
 							}),
-						A2($author$project$Main$applyActionToAttachments, detail.N, s),
+						s1,
 						detail.av);
+					var _v0 = detail.N;
+					if (_v0.$ === 25) {
+						var pokemon = _v0.a.u;
+						return A3(
+							$elm$core$List$foldl,
+							F2(
+								function (bullet, bs) {
+									return A3(
+										$elm$core$List$foldl,
+										F2(
+											function (card, bbs) {
+												return A2(
+													$author$project$Main$applyActionToAttachments,
+													$author$project$Action$CardDiscardedFrom(
+														{e: card, u: pokemon}),
+													bbs);
+											}),
+										bs,
+										A2(
+											$elm$core$List$filterMap,
+											$author$project$Action$parseCardRef,
+											A2($elm$core$String$split, ', ', bullet.T)));
+								}),
+							s2,
+							detail.av);
+					} else {
+						return s2;
+					}
 				}),
 			state1,
 			group.bv);
