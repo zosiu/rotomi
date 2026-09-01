@@ -15678,6 +15678,7 @@ var $author$project$Main$viewAttachmentCircle = F2(
 					A2($elm$html$Html$Attributes$style, 'box-shadow', '0 1px 3px rgba(0,0,0,0.35)'),
 					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'pointer-events', 'auto'),
 					$elm$html$Html$Events$onClick(
 					A2($author$project$Main$CardClicked, item.T, item.aI))
 				]),
@@ -15756,6 +15757,7 @@ var $author$project$Main$viewAttachmentRect = F2(
 					A2($elm$html$Html$Attributes$style, 'box-shadow', '0 1px 3px rgba(0,0,0,0.35)'),
 					A2($elm$html$Html$Attributes$style, 'overflow', 'hidden'),
 					A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+					A2($elm$html$Html$Attributes$style, 'pointer-events', 'auto'),
 					$elm$html$Html$Events$onClick(
 					A2($author$project$Main$CardClicked, item.T, item.aI))
 				]),
@@ -16113,7 +16115,8 @@ var $author$project$Main$viewBenchCard = F6(
 							A2($elm$html$Html$Attributes$style, 'top', '0'),
 							A2($elm$html$Html$Attributes$style, 'left', '0'),
 							A2($elm$html$Html$Attributes$style, 'width', '100%'),
-							A2($elm$html$Html$Attributes$style, 'height', '100%')
+							A2($elm$html$Html$Attributes$style, 'height', '100%'),
+							A2($elm$html$Html$Attributes$style, 'pointer-events', 'none')
 						]),
 					rotStyles),
 				overlayItems)
