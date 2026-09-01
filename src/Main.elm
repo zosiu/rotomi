@@ -4804,6 +4804,7 @@ viewAttachmentCircle cache item =
         , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
         , style "overflow" "hidden"
         , style "cursor" "pointer"
+        , style "pointer-events" "auto"
         , onClick (CardClicked item.id item.name)
         ]
         [ case maybeUrl of
@@ -4860,6 +4861,7 @@ viewAttachmentRect cache item =
         , style "box-shadow" "0 1px 3px rgba(0,0,0,0.35)"
         , style "overflow" "hidden"
         , style "cursor" "pointer"
+        , style "pointer-events" "auto"
         , onClick (CardClicked item.id item.name)
         ]
         [ case maybeUrl of
@@ -5161,6 +5163,7 @@ viewBenchCard upsideDown cache cardAttachments hpDamage conditions card =
                      , style "left" "0"
                      , style "width" "100%"
                      , style "height" "100%"
+                     , style "pointer-events" "none"
                      ]
                         ++ rotStyles
                     )
